@@ -1,0 +1,20 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #17202a;
+  background: #f5f7fa;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; height: 100vh; }
+.sidebar { padding: 24px; overflow-y: auto; background: white; border-right: 1px solid #dfe6ee; }
+.sidebar h1 { margin: 0 0 6px; font-size: 22px; }
+.sidebar h2 { margin-top: 28px; font-size: 16px; }
+.muted { margin-top: 0; color: #667085; }
+.map { min-width: 0; }
+.status { margin: 20px 0; padding: 10px 12px; border-radius: 8px; background: #eef2f6; }
+.status-online { background: #e9f8ef; }
+.status-offline { background: #feecec; }
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .sidebar { max-height: 42vh; border-right: 0; border-bottom: 1px solid #dfe6ee; }
+}

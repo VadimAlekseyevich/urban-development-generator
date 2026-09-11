@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+coverage.xml
+htmlcov/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE/OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime / uploads
+storage/*
+!storage/.gitkeep
+logs/
+
+# GIS raw data (do not commit heavy datasets)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.gpkg
+*.tif
+*.tiff
+*.shp
+*.shx
+*.dbf
+*.prj
+*.pbf
+
+*.sqlite3
