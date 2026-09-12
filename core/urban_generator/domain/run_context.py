@@ -2,7 +2,7 @@ import hashlib
 import uuid
 from dataclasses import dataclass
 
-from numpy.random import Generator, PCG64
+from numpy.random import PCG64, Generator
 
 from core.urban_generator.domain.crs import WorkingCRS, require_working_crs
 from core.urban_generator.domain.semantics import RunMode

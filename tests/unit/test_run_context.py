@@ -3,9 +3,9 @@ import uuid
 import pytest
 
 from core.urban_generator.domain import (
-    CRSContractError,
     ConfigRef,
     CorrelationMetadata,
+    CRSContractError,
     DeterministicRNGFactory,
     RunContext,
     RunContextError,
