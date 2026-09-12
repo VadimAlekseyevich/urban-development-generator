@@ -14,7 +14,7 @@
 
 Конкретная версия источника для `Dataset`: порядковый `version`, SHA-256 checksum, lifecycle `status`, `source_metadata` и время создания. Идентичность и содержимое версии не редактируются in-place; при изменении входных данных создаётся новая версия. Lifecycle `status` может обновляться отдельно.
 
-Legacy datasets из ранней схемы мигрируют в `version = 1`. Если исторический checksum неизвестен, он остаётся `NULL`, а не вычисляется или подставляется фиктивно. Старый `storage_path` сохраняется только как legacy metadata при миграции; новая модель не имеет first-class filesystem path. Полноценные artifact URI/state появятся в S02-T05.
+Legacy datasets из ранней схемы мигрируют в `version = 1`. Если исторический checksum неизвестен, он остаётся `NULL`, а не вычисляется или подставляется фиктивно. Старый `storage_path` сохраняется только как legacy metadata при миграции; новая модель не имеет first-class filesystem path. Физические blobs описываются отдельными `Artifact` records и доступны прикладному слою через `ArtifactStore`.
 
 ## GenerationRun
 
@@ -30,10 +30,18 @@ Legacy datasets из ранней схемы мигрируют в `version = 1`
 
 `input_hash` и `config_hash` хранятся в каноническом формате `sha256:<64 lowercase hex>`, совместимом с соглашением `StageFingerprint` в core. `progress_percent` ограничен диапазоном 0–100, а успешная стадия (`status = succeeded`) обязана иметь прогресс 100. Поддерживаются состояния `pending`, `running`, `succeeded`, `failed`, `cancelled` и `skipped`.
 
-До S02-T05 ссылки на artifacts намеренно хранятся как opaque JSON-массив `artifact_refs_json`: persistence stage-result не знает локальных filesystem paths и не вводит преждевременный FK на ещё не существующую Artifact-модель. После появления Artifact persistence этот контракт будет связан с полноценными URI/hash/lifecycle records.
+Новые stage artifact refs хранятся реляционно через `run_stage_result_artifacts` и ссылаются на полноценные `Artifact` records. Поле `artifact_refs_json` сохранено только для provenance строк, созданных до S02-T05: исторические opaque refs не конвертируются автоматически, потому что у них нет достоверных URI/hash/size metadata.
 
-Stage results являются частью provenance завершённого run. PostgreSQL trigger запрещает вставку, изменение и удаление `RunStageResult`, если родительский `GenerationRun` уже имеет `status = succeeded`.
+Stage results являются частью provenance завершённого run. PostgreSQL trigger запрещает вставку, изменение и удаление `RunStageResult`, если родительский `GenerationRun` уже имеет `status = succeeded`. Такой же guard применяется к `run_stage_result_artifacts`, поэтому artifact provenance успешного run также неизменяем.
+
+## Artifact
+
+`Artifact` хранит metadata физического blob без переноса storage concerns в `core`: `uri`, канонический SHA-256 `checksum`, `size_bytes`, optional `content_type`, lifecycle `state` и optional owner identity (`owner_type`, `owner_id`). URI является persistence/storage metadata; алгоритмическое ядро продолжает работать с opaque `ArtifactRef` и `ArtifactStore`.
+
+Lifecycle состоит из состояний `temporary`, `ready`, `referenced`, `expired`. Нормальный путь публикации — `temporary -> ready -> referenced`; cleanup допускает `temporary -> expired`, `ready -> expired` и `referenced -> expired`. `expired` terminal. После `ready` URI/hash/size/type неизменяемы. Owner назначается только при `ready -> referenced` и после этого не меняется.
+
+`temporary` и `ready` не имеют owner; `referenced` обязан иметь `owner_type` и `owner_id`. Для `expired` owner сохраняется, если artifact ранее был referenced, чтобы cleanup не разрушал provenance. PostgreSQL constraints и lifecycle trigger дублируют критичные ORM guards.
 
 ## Следующие сущности
 
-Дальнейшие миграции добавят artifact lifecycle, jobs/outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Дальнейшие миграции добавят jobs/outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.

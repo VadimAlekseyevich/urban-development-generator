@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    event,
     func,
     text,
 )
@@ -16,11 +17,17 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
+from backend.app.models.artifact import run_stage_result_artifacts
 
 if TYPE_CHECKING:
+    from backend.app.models.artifact import Artifact
     from backend.app.models.generation_run import GenerationRun
 
 STAGE_SUCCESS_STATUS = "succeeded"
+
+
+class RunStageResultImmutableError(ValueError):
+    """Raised when artifact provenance of a completed run is changed."""
 
 
 class RunStageResult(Base):
@@ -122,3 +129,35 @@ class RunStageResult(Base):
         "GenerationRun",
         back_populates="stage_results",
     )
+    artifacts: Mapped[list["Artifact"]] = relationship(
+        "Artifact",
+        secondary=run_stage_result_artifacts,
+        back_populates="stage_results",
+        order_by="Artifact.created_at, Artifact.id",
+    )
+
+
+def _ensure_artifact_refs_mutable(target: RunStageResult) -> None:
+    run = target.__dict__.get("run")
+    if run is not None and run.status == STAGE_SUCCESS_STATUS:
+        raise RunStageResultImmutableError(
+            "artifact refs of a successful generation run are immutable"
+        )
+
+
+@event.listens_for(RunStageResult.artifacts, "append")
+def prevent_completed_run_artifact_ref_append(
+    target: RunStageResult,
+    _value: object,
+    _initiator: object,
+) -> None:
+    _ensure_artifact_refs_mutable(target)
+
+
+@event.listens_for(RunStageResult.artifacts, "remove")
+def prevent_completed_run_artifact_ref_remove(
+    target: RunStageResult,
+    _value: object,
+    _initiator: object,
+) -> None:
+    _ensure_artifact_refs_mutable(target)
