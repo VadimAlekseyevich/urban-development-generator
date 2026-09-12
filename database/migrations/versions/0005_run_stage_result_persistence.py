@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0005_run_stage_result_persistence"
+revision = "0005_run_stage_results"
 down_revision = "0004_generation_run_persistence"
 branch_labels = None
 depends_on = None
