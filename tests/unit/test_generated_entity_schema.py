@@ -1,7 +1,7 @@
 from typing import Any
 
-from geoalchemy2 import Geometry
 import pytest
+from geoalchemy2 import Geometry
 from sqlalchemy import CheckConstraint
 
 from backend.app.models.generated_entity import (
