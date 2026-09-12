@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import CheckConstraint, UniqueConstraint
@@ -91,7 +91,7 @@ def test_outbox_references_job_and_uses_stable_enqueue_key() -> None:
 
 
 def test_pending_query_is_bounded_and_uses_skip_locked() -> None:
-    now = datetime(2026, 9, 12, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 12, tzinfo=UTC)
     query = build_pending_outbox_query(at=now, limit=25)
     sql = str(query.compile(dialect=postgresql.dialect()))
     assert "FOR UPDATE SKIP LOCKED" in sql
@@ -103,7 +103,7 @@ def test_pending_query_is_bounded_and_uses_skip_locked() -> None:
 
 
 def test_successful_dispatch_is_repeat_safe() -> None:
-    now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
     message = _make_outbox()
     enqueuer = FakeRedisEnqueuer()
 
@@ -123,7 +123,7 @@ def test_successful_dispatch_is_repeat_safe() -> None:
 
 
 def test_failed_delivery_stays_pending_and_can_be_retried() -> None:
-    now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
     retry_delay = timedelta(seconds=30)
     message = _make_outbox()
     enqueuer = FakeRedisEnqueuer(fail_calls=1)
@@ -154,7 +154,7 @@ def test_failed_delivery_stays_pending_and_can_be_retried() -> None:
 
 
 def test_failure_record_requires_future_retry() -> None:
-    now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
     message = _make_outbox()
     with pytest.raises(ValueError, match="retry_at must be later"):
         message.record_delivery_failure(
