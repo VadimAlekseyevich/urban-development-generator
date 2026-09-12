@@ -1,14 +1,15 @@
 import hashlib
 from dataclasses import dataclass
 from io import BytesIO
+from typing import BinaryIO
 
 import pytest
 
 from core.urban_generator.domain import (
     ArtifactContractError,
     ArtifactRef,
-    ArtifactState,
     ArtifactStat,
+    ArtifactState,
     ArtifactStore,
     require_temporary_artifact_ref,
 )
@@ -27,7 +28,7 @@ class InMemoryArtifactStore:
     def put(
         self,
         ref: ArtifactRef,
-        source: BytesIO,
+        source: BinaryIO,
         *,
         content_type: str | None = None,
     ) -> ArtifactStat:
@@ -47,7 +48,7 @@ class InMemoryArtifactStore:
         self._records[ref] = _Record(data=payload, stat=stat)
         return stat
 
-    def open(self, ref: ArtifactRef) -> BytesIO:
+    def open(self, ref: ArtifactRef) -> BinaryIO:
         return BytesIO(self._records[ref].data)
 
     def stat(self, ref: ArtifactRef) -> ArtifactStat:

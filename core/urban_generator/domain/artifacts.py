@@ -50,10 +50,14 @@ class ArtifactStat:
         if self.size_bytes < 0:
             raise ArtifactContractError("artifact size_bytes must be non-negative")
         if not isinstance(self.checksum, str) or _CHECKSUM_RE.fullmatch(self.checksum) is None:
-            raise ArtifactContractError("artifact checksum must use sha256:<64 lowercase hex chars>")
+            raise ArtifactContractError(
+                "artifact checksum must use sha256:<64 lowercase hex chars>"
+            )
         if self.content_type is not None:
             if not isinstance(self.content_type, str) or not self.content_type.strip():
-                raise ArtifactContractError("artifact content_type must be a non-empty string or None")
+                raise ArtifactContractError(
+                    "artifact content_type must be a non-empty string or None"
+                )
             if "\n" in self.content_type or "\r" in self.content_type:
                 raise ArtifactContractError("artifact content_type must not contain line breaks")
 

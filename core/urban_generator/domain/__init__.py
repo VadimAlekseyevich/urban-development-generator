@@ -1,8 +1,8 @@
 from core.urban_generator.domain.artifacts import (
     ArtifactContractError,
     ArtifactRef,
-    ArtifactState,
     ArtifactStat,
+    ArtifactState,
     ArtifactStore,
     require_temporary_artifact_ref,
 )
@@ -54,8 +54,8 @@ from core.urban_generator.domain.territory import (
 __all__ = [
     "ArtifactContractError",
     "ArtifactRef",
-    "ArtifactState",
     "ArtifactStat",
+    "ArtifactState",
     "ArtifactStore",
     "CRSContractError",
     "ConfigRef",
