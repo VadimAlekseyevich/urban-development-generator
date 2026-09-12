@@ -11,9 +11,14 @@ from backend.app.db.base import Base
 class Dataset(Base):
     __tablename__ = "datasets"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source: Mapped[str | None] = mapped_column(String(255))
