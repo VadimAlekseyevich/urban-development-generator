@@ -17,6 +17,18 @@ from core.urban_generator.domain.constraints import (
     validate_constraint_metadata,
 )
 from core.urban_generator.domain.crs import CRSContractError, WorkingCRS, require_working_crs
+from core.urban_generator.domain.network import (
+    NetworkBackend,
+    NetworkContractError,
+    NetworkDistanceResult,
+    NetworkGraphSnapshot,
+    NetworkNodeRef,
+    NetworkPath,
+    NetworkPoint,
+    NetworkSnapResult,
+    require_max_distance_m,
+    require_node_refs,
+)
 from core.urban_generator.domain.project import ProjectRef, ProjectSettings
 from core.urban_generator.domain.run_context import (
     ConfigRef,
@@ -68,6 +80,14 @@ __all__ = [
     "CorrelationMetadata",
     "DataOrigin",
     "DeterministicRNGFactory",
+    "NetworkBackend",
+    "NetworkContractError",
+    "NetworkDistanceResult",
+    "NetworkGraphSnapshot",
+    "NetworkNodeRef",
+    "NetworkPath",
+    "NetworkPoint",
+    "NetworkSnapResult",
     "ProjectRef",
     "ProjectSettings",
     "RunContext",
@@ -90,6 +110,8 @@ __all__ = [
     "WorkingCRS",
     "WorldStateContract",
     "build_stage_fingerprint",
+    "require_max_distance_m",
+    "require_node_refs",
     "require_stage_input",
     "require_temporary_artifact_ref",
     "require_working_crs",
