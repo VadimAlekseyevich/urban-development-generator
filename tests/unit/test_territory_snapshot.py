@@ -48,7 +48,7 @@ def test_snapshot_is_immutable() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        setattr(snapshot, "snapshot_id", uuid.uuid4())
+        snapshot.__setattr__("snapshot_id", uuid.uuid4())
 
     assert snapshot.roads == ()
 
