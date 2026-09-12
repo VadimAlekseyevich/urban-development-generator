@@ -1,3 +1,13 @@
+from core.urban_generator.domain.constraints import (
+    Constraint,
+    ConstraintContractError,
+    ConstraintEngine,
+    ConstraintResult,
+    ConstraintScope,
+    ConstraintSeverity,
+    ValidationReport,
+    validate_constraint_metadata,
+)
 from core.urban_generator.domain.crs import CRSContractError, WorkingCRS, require_working_crs
 from core.urban_generator.domain.project import ProjectRef, ProjectSettings
 from core.urban_generator.domain.run_context import (
@@ -36,6 +46,12 @@ from core.urban_generator.domain.territory import (
 __all__ = [
     "CRSContractError",
     "ConfigRef",
+    "Constraint",
+    "ConstraintContractError",
+    "ConstraintEngine",
+    "ConstraintResult",
+    "ConstraintScope",
+    "ConstraintSeverity",
     "CorrelationMetadata",
     "DataOrigin",
     "DeterministicRNGFactory",
@@ -57,10 +73,12 @@ __all__ = [
     "StateOwnership",
     "TerritorySnapshot",
     "TerritorySnapshotError",
+    "ValidationReport",
     "WorkingCRS",
     "WorldStateContract",
     "build_stage_fingerprint",
     "require_stage_input",
     "require_working_crs",
+    "validate_constraint_metadata",
     "validate_stage_metadata",
 ]
