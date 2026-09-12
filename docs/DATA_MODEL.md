@@ -24,6 +24,16 @@ Legacy datasets из ранней схемы мигрируют в `version = 1`
 
 Миграция legacy `GenerationRun` присваивает историческим строкам `mode = EXPANSION`, `config_schema_version = legacy-v0` и копирует `working_srid` из проекта. Старое `code_version` переносится в `commit_sha` только если уже является 40-символьным hex commit SHA; неизвестная или произвольная версия не подменяется фиктивным SHA.
 
+## RunStageResult
+
+Каждая алгоритмическая стадия конкретного запуска имеет одну запись `RunStageResult`, уникальную по `(run_id, stage_name)`. Запись фиксирует `stage_version`, lifecycle `status`, `progress_percent`, SHA-256 hash входов и stage-конфигурации, timestamps, структурированные diagnostics и ссылки на созданные stage artifacts.
+
+`input_hash` и `config_hash` хранятся в каноническом формате `sha256:<64 lowercase hex>`, совместимом с соглашением `StageFingerprint` в core. `progress_percent` ограничен диапазоном 0–100, а успешная стадия (`status = succeeded`) обязана иметь прогресс 100. Поддерживаются состояния `pending`, `running`, `succeeded`, `failed`, `cancelled` и `skipped`.
+
+До S02-T05 ссылки на artifacts намеренно хранятся как opaque JSON-массив `artifact_refs_json`: persistence stage-result не знает локальных filesystem paths и не вводит преждевременный FK на ещё не существующую Artifact-модель. После появления Artifact persistence этот контракт будет связан с полноценными URI/hash/lifecycle records.
+
+Stage results являются частью provenance завершённого run. PostgreSQL trigger запрещает вставку, изменение и удаление `RunStageResult`, если родительский `GenerationRun` уже имеет `status = succeeded`.
+
 ## Следующие сущности
 
-Дальнейшие миграции добавят run stage results, artifact lifecycle, jobs/outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Дальнейшие миграции добавят artifact lifecycle, jobs/outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.

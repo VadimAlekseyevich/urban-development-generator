@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     BigInteger,
@@ -20,6 +20,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
+
+if TYPE_CHECKING:
+    from backend.app.models.run_stage_result import RunStageResult
 
 RUN_SUCCESS_STATUS = "succeeded"
 
@@ -127,6 +130,12 @@ class GenerationRun(Base):
         "DatasetVersion",
         secondary=generation_run_dataset_versions,
         order_by="DatasetVersion.dataset_id, DatasetVersion.version",
+    )
+    stage_results: Mapped[list["RunStageResult"]] = relationship(
+        "RunStageResult",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="RunStageResult.stage_name",
     )
 
 
