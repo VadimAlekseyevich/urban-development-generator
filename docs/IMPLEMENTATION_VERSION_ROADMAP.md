@@ -1,662 +1,1011 @@
-# Urban Development Generator — атомарный план реализации по версиям
+# Urban Development Generator — атомарный implementation roadmap
 
-> Этот документ является детализацией `docs/DEVELOPMENT_PLAN.md`. Он переводит каждый спринт в небольшие версии, каждая из которых должна быть реализуема **одним самостоятельным запросом к нейросети** без необходимости одновременно переписывать несколько подсистем.
+> Этот документ детализирует `docs/DEVELOPMENT_PLAN.md` до work items, которые должны быть достаточно узкими, чтобы **одна задача могла быть реализована одним качественным запросом к нейросети/разработчику**, проверена и принята.
+>
+> Главный принцип: атомарность определяется **законченной тестируемой capability**, а не количеством изменённых файлов.
 
-## 1. Правило версионирования
+---
 
-До первого полного релиза используется pre-1.0 SemVer:
+## 1. Идентификаторы задач и релизов
 
-- один спринт = один minor-релиз: `v0.N.x`;
-- одна атомарная задача = один patch-релиз: `v0.N.M`;
-- `v1.0.0` = интегрированный продукт, готовый к демонстрации и экспериментам ВКР.
+Предыдущая схема «каждая задача = patch SemVer» заменена.
 
-Версия считается атомарной, если её можно описать одной задачей, она имеет ограниченную область изменений, независимые критерии приёмки и не требует «заодно» реализовать следующий алгоритмический этап.
+Используются два независимых понятия.
 
-## 2. Definition of Done для каждой атомарной версии
-
-Каждая версия должна удовлетворять общему DoD:
-
-1. изменение укладывается в существующие архитектурные границы;
-2. нет бизнес-логики в HTTP-контроллерах и React-компонентах;
-3. публичные контракты типизированы;
-4. добавлены или обновлены unit/integration tests;
-5. миграция БД создаётся только при реальном изменении схемы;
-6. повторный запуск миграций/worker-job не должен портить данные;
-7. ошибки имеют диагностический код и человекочитаемое сообщение;
-8. логирование содержит `project_id`, `run_id`, `job_id` там, где они известны;
-9. CI не ухудшается;
-10. документация обновляется, если меняется контракт/API/схема.
-
-Для запроса нейросети достаточно использовать шаблон:
+### Work item
 
 ```text
-Реализуй только версию <VERSION> из docs/IMPLEMENTATION_VERSION_ROADMAP.md.
-Сначала прочитай DEVELOPMENT_PLAN.md, ARCHITECTURE.md и текущий код.
-Не делай несвязанных рефакторингов и не реализуй последующие версии.
-Соблюдай архитектурные инварианты документа.
-Добавь тесты, миграции только при необходимости и обнови документацию контракта.
-В конце перечисли изменённые файлы, тесты и известные ограничения.
+S06-T04
+```
+
+- `S06` — sprint;
+- `T04` — атомарная задача внутри sprint.
+
+Именно work item указывается в запросе к нейросети.
+
+### Release
+
+Sprint закрывается release tag:
+
+```text
+v0.7.0
+```
+
+Атомарные задачи не обязаны создавать Git tags.
+
+Финальный release:
+
+```text
+v1.0.0
 ```
 
 ---
 
-# 3. Целевая архитектура
-
-## 3.1. Стиль системы
-
-Основной стиль — **модульный монолит + отдельные worker-процессы**.
-
-Это сознательно предпочтительнее ранних микросервисов:
-
-- алгоритмические модули пока развиваются вместе;
-- транзакции и воспроизводимость проще контролировать в одной кодовой базе;
-- меньше сетевых контрактов и DevOps-нагрузки;
-- при росте нагрузки границы уже должны быть готовы к физическому разделению.
-
-Физически система состоит из:
+## 2. Шаблон запроса для одной задачи
 
 ```text
-Browser
-  |
-  v
-Frontend (React + TypeScript + MapLibre)
-  |
-  v
-FastAPI -- PostgreSQL/PostGIS
-  |              |
-  |              +-- metadata / normalized vector data / run results
-  |
-  +-- Redis/Queue -- Worker pools
-                      |
-                      +-- ingestion
-                      +-- generation
-                      +-- analysis
-                      +-- export
-                      |
-                      v
-                Algorithmic Core
+Реализуй только work item <ID> из docs/IMPLEMENTATION_VERSION_ROADMAP.md.
 
-Object Storage adapter
-  +-- local filesystem in dev
-  +-- S3/MinIO-compatible backend in scalable deployment
+Перед изменениями прочитай:
+1. docs/DEVELOPMENT_PLAN.md;
+2. docs/IMPLEMENTATION_VERSION_ROADMAP.md;
+3. docs/ARCHITECTURE.md, если он существует;
+4. релевантный текущий код.
+
+Требования:
+- не реализуй последующие work items;
+- не делай несвязанный рефакторинг;
+- не нарушай module boundaries;
+- добавь/обнови тесты;
+- миграцию добавляй только при schema change;
+- учитывай idempotency/CRS/units/performance там, где это относится к задаче;
+- выполни все доступные required CI checks;
+- задача не DONE, пока HEAD CI красный.
+
+В конце дай:
+- список изменённых файлов;
+- краткое описание контракта;
+- какие тесты выполнены;
+- CI status;
+- известные ограничения;
+- что именно должен сделать следующий work item.
 ```
 
-## 3.2. Жёсткие границы модулей
+---
 
-### `core/urban_generator`
+## 3. Global DoD для каждого work item
 
-Алгоритмическое ядро не импортирует FastAPI, SQLAlchemy, Redis, ARQ и frontend-типы. Оно работает через Python-модели/протоколы и получает подготовленные данные.
+Каждый work item обязан:
 
-Допустимые зависимости ядра: Shapely, GeoPandas/Pyogrio, Rasterio/GDAL, NumPy, SciPy, NetworkX и собственные domain-типы.
+1. сохранять сборку/запуск проекта;
+2. иметь типизированный public contract;
+3. не переносить domain/GIS rules в HTTP-controller или React-component;
+4. иметь тесты на новую capability;
+5. иметь deterministic behavior, если используется randomness;
+6. явно учитывать CRS/units для spatial calculations;
+7. иметь bounded iteration/candidate policy для потенциально дорогого алгоритма;
+8. быть retry-safe, если это job;
+9. не мутировать completed run/dataset version;
+10. обновлять документацию контракта при необходимости;
+11. иметь **полностью зелёный required CI на HEAD**.
 
-### `backend/app`
+Если CI падает из-за новой или старой ошибки, item не считается закрытым, пока ошибка не исправлена либо check не удалён обоснованным архитектурным решением.
 
-Отвечает за:
+---
 
-- HTTP API;
-- auth-ready границу;
-- Pydantic schemas;
-- транзакции;
-- DB repositories;
-- управление uploads/artifacts;
-- постановку jobs;
-- API-level validation;
-- сериализацию результатов.
+## 4. Глобальные архитектурные инварианты
 
-Контроллер не выполняет GIS-алгоритм напрямую.
+На протяжении всех sprint:
 
-### `worker`
+- основной режим — `EXPANSION`;
+- `FROM_SCRATCH` использует тот же pipeline;
+- fixed source state не мутируется;
+- generated outputs namespace-ятся по `run_id`;
+- `core` не зависит от FastAPI/SQLAlchemy/Redis/React;
+- heavy GIS выполняется worker'ом;
+- API stateless;
+- raw files хранятся через `ArtifactStore`;
+- large raster обрабатывается windowed;
+- large vector layers имеют bbox/tile-ready delivery;
+- `Constraint` и `Stage` contracts используются с ранних sprint;
+- no global random;
+- no area/distance in EPSG:4326;
+- no unbounded N×M spatial loops;
+- NetworkX — adapter v1, а не domain contract;
+- raw metrics сохраняются независимо от composite score.
 
-Worker является orchestration/adapters-слоем для длительных операций. Он:
+---
 
-- получает `job_id`;
-- загружает immutable job payload;
-- открывает нужные datasets;
-- вызывает algorithmic core;
-- пишет stage/result artifacts;
-- обновляет progress/state;
-- корректно переживает retry.
+# Sprint S00 — Engineering baseline → `v0.1.0`
 
-### `frontend`
+**Цель:** полностью зелёная, воспроизводимая инженерная база.
 
-Frontend не вычисляет authoritative GIS-результаты. Его задача — управление проектом, запуск операций, отображение слоёв, параметров, прогресса и сравнений.
+### S00-T01 — Нормализовать Python workspace
+**Сделать:** `pyproject.toml`, uv, единый dependency graph backend/core/worker, Ruff, pytest, mypy/pyright policy.  
+**DoD:** одна документированная команда установки; lint/test/typecheck доступны локально.
 
-## 3.3. Data architecture
+### S00-T02 — Нормализовать frontend toolchain
+**Сделать:** React/Vite/TypeScript scripts, lockfile policy, `vite/client` types, build/typecheck scripts.  
+**DoD:** clean install + production build проходит.
 
-Данные разделяются на три уровня.
+### S00-T03 — Привести Docker Compose к единому dev stack
+**Сделать:** API, worker, PostGIS, Redis, frontend; healthchecks; networks; env config.  
+**DoD:** `docker compose up --build` поднимает stack без host-specific paths.
 
-### Raw data
+### S00-T04 — Конфигурация и secrets boundary
+**Сделать:** typed settings, `.env.example`, CORS, DB/Redis/storage URLs, no secrets in repo.  
+**DoD:** config validation даёт понятные ошибки.
 
-Оригинальные файлы не кладутся в JSON/BYTEA-колонки PostgreSQL.
+### S00-T05 — Health/readiness lifecycle
+**Сделать:** `/health/live`, `/health/ready`; readiness проверяет DB/Redis краткими bounded probes.  
+**DoD:** container health может использовать endpoints.
 
-- dev: `storage/`;
-- production-like: S3/MinIO-compatible object storage;
-- БД хранит URI, hash, размер, media type, source metadata.
+### S00-T06 — Structured logging и correlation id
+**Сделать:** JSON/logging adapter, request id, базовые project/run/job context fields.  
+**DoD:** `print()` не используется для operational logging.
 
-Большие растр-файлы хранятся как GeoTIFF/COG в object storage. Rasterio читает окна, а не грузит весь raster в память.
+### S00-T07 — Alembic migration discipline
+**Сделать:** clean upgrade/downgrade smoke, no production `create_all`, migration README.  
+**DoD:** пустая PostGIS DB разворачивается миграциями.
 
-### Normalized source data
+### S00-T08 — Required CI matrix
+**Сделать:** Python lint/test/typecheck и frontend typecheck/build; cache dependencies.  
+**DoD:** HEAD commit полностью зелёный.
 
-Нормализованные векторные сущности находятся в PostGIS и связаны с `project_id`/`dataset_id`/version.
+**Sprint gate:** clean clone + `.env.example` + стандартная команда запуска дают working shell и зелёный CI.
 
-Обязательные индексы:
+---
 
-- GiST на geometry;
-- B-tree на `project_id`, `dataset_id`, `run_id`, `status`;
-- composite indexes на частые выборки `(project_id, dataset_id)` и `(run_id, feature_type)`.
+# Sprint S01 — Core domain contracts → `v0.2.0`
 
-Canonical exchange CRS — EPSG:4326. Для вычислений проект имеет `working_srid` в метрической CRS. Производные вычислительные слои обязаны явно хранить SRID и проверяться перед distance/area операциями.
+**Цель:** определить фундамент до алгоритмов, чтобы не переписывать stages позже.
 
-### Generated/run data
+### S01-T01 — Project и CRS contract
+**Сделать:** domain `ProjectRef/ProjectSettings`, `working_srid`, CRS guard types.  
+**DoD:** metric operations требуют working CRS явно.
 
-Результаты принадлежат конкретному immutable `GenerationRun`.
+### S01-T02 — RunMode и fixed/generated semantics
+**Сделать:** `EXPANSION`, `FROM_SCRATCH`, source/fixed/generated ownership enums/contracts.  
+**DoD:** expansion semantics доступны core без HTTP/DB.
 
-Нельзя «перезаписывать текущий город» поверх предыдущего результата. Новый запуск создаёт новую версию результатов.
+### S01-T03 — TerritorySnapshot contract
+**Сделать:** immutable snapshot model ссылок на boundary/roads/buildings/facilities/landuse/water/constraints/DEM/demography.  
+**DoD:** synthetic snapshot создаётся без DB.
 
-Если объём generated features вырастет до миллионов строк, таблицы должны быть готовы к partitioning по `run_id` или `project_id`; до этого преждевременное partitioning не требуется.
+### S01-T04 — RunContext и deterministic RNG
+**Сделать:** seed, RNG factory, run id/mode, CRS, config refs, correlation metadata.  
+**DoD:** два context с одинаковым seed дают одинаковую RNG sequence.
 
-## 3.4. Масштабирование
+### S01-T05 — Stage/StageResult protocol
+**Сделать:** name/version/dependencies/input validation/execute/result diagnostics/fingerprint.  
+**DoD:** dummy stage запускается unit-test без backend.
 
-### API
+### S01-T06 — Constraint base contract
+**Сделать:** severity/scope/code/result, hard/soft distinction, `ValidationReport` skeleton.  
+**DoD:** алгоритмы могут вызывать engine API до появления конкретных rules.
 
-FastAPI должен быть stateless. Любое состояние находится в PostgreSQL, Redis или object storage. Поэтому API можно горизонтально масштабировать несколькими replicas за reverse proxy.
+### S01-T07 — ArtifactStore protocol
+**Сделать:** put/open/stat/delete/promote temp→ready contract без filesystem path leakage.  
+**DoD:** fake in-memory adapter проходит contract tests.
 
-### Workers
+### S01-T08 — NetworkBackend contract
+**Сделать:** graph snapshot, snap, shortest path/multi-source interfaces.  
+**DoD:** domain code не обязан импортировать NetworkX.
 
-Разные типы нагрузки должны иметь логические очереди:
+### S01-T09 — Error taxonomy
+**Сделать:** domain/config/data/transient/permanent/cancelled error classes + stable codes.  
+**DoD:** backend/worker смогут маппить их без string parsing.
 
-- `ingest` — импорт/нормализация;
-- `generation` — roads/blocks/buildings;
-- `analysis` — accessibility/metrics;
-- `export` — GeoPackage/CSV/GeoJSON/COG preparation.
+### S01-T10 — Зафиксировать benchmark и experiment contracts
+**Сделать:** typed definitions/reference profiles/metric IDs, без реализации experiments.  
+**DoD:** будущие алгоритмы знают заранее, какие raw metrics/diagnostics обязаны выдавать.
 
-Это позволяет отдельно увеличивать число worker-процессов тяжёлого класса, не блокируя короткие jobs.
+**Sprint gate:** suitability/roads/buildings можно писать поверх стабильных contracts без знания FastAPI/SQLAlchemy.
 
-### PostgreSQL/PostGIS
+---
 
-Необходимы:
+# Sprint S02 — Persistence, versioning и jobs → `v0.3.0`
 
-- connection pool;
-- GiST indexes;
-- bounded bbox queries;
-- batch inserts вместо row-by-row;
-- `EXPLAIN ANALYZE` для тяжёлых запросов;
-- `VACUUM/ANALYZE` в production-like окружении;
-- серверная пагинация;
-- запрет выгрузки огромных FeatureCollection целиком.
+**Цель:** надёжная модель хранения нескольких проектов, dataset versions и runs.
 
-### Map rendering
+### S02-T01 — Project persistence
+CRUD project + `working_srid`, boundary metadata, timestamps.
 
-GeoJSON допустим для небольших слоёв и разработки. Для больших слоёв архитектура должна предусматривать MVT (`ST_AsMVT`) или предварительную генерацию tiles. Frontend не должен получать сотни тысяч features одним JSON-ответом.
+### S02-T02 — Dataset + DatasetVersion
+Logical dataset отдельно от immutable upload/version; checksum/status/source metadata.
 
-### Reproducibility
+### S02-T03 — GenerationRun persistence
+seed/mode/config/schema version/commit SHA/status/dataset refs; immutable-after-success guard.
 
-Каждый run хранит:
+### S02-T04 — RunStageResult persistence
+stage version/status/progress/input hash/config hash/diagnostics/artifact refs.
 
-- `seed`;
-- `config_version`;
-- полную нормализованную config;
-- версии datasets;
-- commit SHA;
-- working SRID;
-- timestamps;
-- stage diagnostics;
-- metrics.
+### S02-T05 — Artifact persistence и lifecycle states
+URI/hash/size/type/state/owner; `temporary/ready/referenced/expired`.
 
-## 3.5. Job state machine
+### S02-T06 — Job model и idempotency key
+Authoritative DB job state; unique idempotency constraints; attempts/error class.
 
-Длительные операции используют состояния:
+### S02-T07 — Outbox/dispatcher foundation
+DB-backed pending enqueue state + repeatable dispatcher semantics для Redis.
+
+### S02-T08 — Generated entity schema
+Zone/Road/Block/Parcel/Building/Infrastructure tables с `run_id`.
+
+### S02-T09 — Canonical source layer schema
+Отдельные normalized roads/buildings/landuse/water/facilities/constraints вместо единой giant EAV model.
+
+### S02-T10 — Spatial/index migration
+GiST + B-tree/composite indexes под реальные `project/dataset_version/run` access patterns.
+
+### S02-T11 — Repository/application service boundary
+Controllers не содержат SQL query details; unit-test services возможен без HTTP.
+
+### S02-T12 — Persistence integration tests
+Пустая DB, FK, immutability, idempotency, indexes/migration smoke.
+
+**Sprint gate:** несколько dataset versions и runs сосуществуют без перезаписи; DB authoritative state готов для workers.
+
+---
+
+# Sprint S03 — Ingest и source visualization → `v0.4.0`
+
+**Цель:** принимать реальные данные и сразу визуально проверять нормализацию.
+
+### S03-T01 — LocalArtifactStore
+Filesystem adapter к S01 contract, safe root, atomic-ish temp/promote behavior.
+
+### S03-T02 — Streaming upload API
+Size limits, sanitized name, checksum while streaming, no full-file RAM read.
+
+### S03-T03 — Safe Shapefile ZIP extraction
+Zip-slip/zip-bomb limits, file count/size limits, temp cleanup.
+
+### S03-T04 — Vector inspection
+Layer list, CRS, geom types, bbox, count; metadata-first через Pyogrio/OGR где возможно.
+
+### S03-T05 — Vector normalization
+CRS validation, `make_valid`, empty/reject policy, reproject, type filtering, diagnostics.
+
+### S03-T06 — Batch vector persistence
+Bulk write normalized canonical tables; transaction boundary; post-load analyze/index policy.
+
+### S03-T07 — Raster inspection
+CRS, transform, nodata, resolution, extent без чтения full raster.
+
+### S03-T08 — Raster normalization
+Clip/reproject/resample windowed; output GeoTIFF/COG-friendly artifact.
+
+### S03-T09 — Ingest worker job
+DatasetVersion `uploaded -> processing -> ready/failed`; retry/idempotency.
+
+### S03-T10 — OSM PBF reader foundation
+Extract roads/buildings/POI/landuse/water streams/chunks; preserve relevant tags.
+
+### S03-T11 — OSM mapping rules
+Versioned tag→internal enums/config; no mapping magic inside loops.
+
+### S03-T12 — OSM canonical writer
+Mapped entities batch-persist в source layer schema.
+
+### S03-T13 — Source layer bbox API
+Project/dataset-version scoped GeoJSON/bbox endpoint с limit.
+
+### S03-T14 — Source layers UI vertical slice
+Boundary/roads/buildings/water/landuse visibility, legend, fit, click inspector.
+
+### S03-T15 — Ingest integration fixtures
+GeoJSON/GPKG/SHP/GeoTIFF/PBF happy + invalid cases.
+
+**Sprint gate:** реальную территорию можно загрузить, нормализовать, сохранить и увидеть на карте без ручной правки кода.
+
+---
+
+# Sprint S04 — Constraints foundation + suitability → `v0.5.0`
+
+**Цель:** единая система ограничений начинает реально использоваться до остальных генераторов.
+
+### S04-T01 — Constraint registry/engine
+Регистрация rules по scope/stage; единый evaluation API.
+
+### S04-T02 — Geometry exclusion constraint
+Boundary/water/protected intersection, prepared/index reuse.
+
+### S04-T03 — Distance/setback constraint
+Metric CRS guard, road/building/feature setback.
+
+### S04-T04 — Raster threshold constraint
+Slope/threshold sampling/window policy.
+
+### S04-T05 — SuitabilityConfig + factor protocol
+Weights/normalization/thresholds/versioning.
+
+### S04-T06 — Hard exclusion mask
+Rasterize relevant hard constraints; mask отдельно от soft score.
+
+### S04-T07 — DEM slope factor
+Windowed slope calculation, nodata policy, tests on synthetic DEM.
+
+### S04-T08 — Road proximity factor
+Distance transform/indexed strategy без full N×M.
+
+### S04-T09 — Landuse factor
+Versioned class weights; configurable mapping.
+
+### S04-T10 — Weighted suitability aggregator
+Score 0..1, hard mask precedence, explicit normalization.
+
+### S04-T11 — Suitability artifact
+Canonical raster artifact + statistics + provenance.
+
+### S04-T12 — Suitability layer API/UI
+Heatmap/raster visualization, stats, factor metadata.
+
+### S04-T13 — Determinism/property tests
+Same inputs/config => same raster/statistics; hard mask invariants.
+
+**Sprint gate:** constraint-aware suitability пересчитывается независимо и визуализируется.
+
+---
+
+# Sprint S05 — Functional zoning → `v0.6.0`
+
+### S05-T01 — Zone domain/config
+residential/mixed/public/recreation; target shares/min area/adjacency rules.
+
+### S05-T02 — Fixed existing zones adapter
+Existing zones попадают в TerritorySnapshot и не мутируются.
+
+### S05-T03 — Deterministic seed generator
+Suitability-aware seeds + RNG from RunContext.
+
+### S05-T04 — Base partition geometry
+Voronoi/partition clipped to developable area; validity repair.
+
+### S05-T05 — Zone assignment strategy
+Suitability + target shares; assignment отделён от partition geometry.
+
+### S05-T06 — Region growth/refinement
+Adjacency/min-area, bounded iterations, convergence diagnostics.
+
+### S05-T07 — Zone constraint evaluation
+Engine rules применяются через общий contract, без локальных duplicate checks.
+
+### S05-T08 — Persist GeneratedZone
+run refs, area, class, diagnostics.
+
+### S05-T09 — Zoning UI vertical slice
+Generated vs fixed zones, opacity, run selection.
+
+### S05-T10 — Zoning property tests
+Non-overlap, coverage policy, validity, target tolerance, determinism.
+
+**Sprint gate:** expansion mode сохраняет existing zoning и генерирует delta zones на developable area.
+
+---
+
+# Sprint S06 — Road network и generation → `v0.7.0`
+
+**Цель:** корректный graph pipeline с учётом существующих дорог и grade-separated crossings.
+
+### S06-T01 — NetworkXBackend
+Adapter S01 NetworkBackend; graph snapshot/domain conversion.
+
+### S06-T02 — OSM road semantics normalizer
+bridge/tunnel/layer/oneway/class metadata в canonical roads.
+
+### S06-T03 — Spatial snapping
+Endpoint/intersection snapping через STRtree/spatial index, configurable tolerance.
+
+### S06-T04 — Semantic noding
+Create graph intersections только там, где geometry + layer semantics допускают crossing.
+
+### S06-T05 — Graph build
+Nodes/edges, lengths, source/fixed flags, connected components diagnostics.
+
+### S06-T06 — Graph cleanup
+Duplicate/tiny edges, dangling artifacts policy, bounded thresholds.
+
+### S06-T07 — Shortest-path services
+Dijkstra/A*, multi-source path where applicable, stable domain result.
+
+### S06-T08 — Candidate road anchors
+Zoning/suitability-aware bounded sampling; max candidate count.
+
+### S06-T09 — Least-cost connector
+A*/cost surface path для новых connections с hard masks.
+
+### S06-T10 — MST baseline connector
+Вспомогательная pluggable strategy для базовой связности anchors.
+
+### S06-T11 — Rule-based growth
+Local/collector growth, bounded iterations/length budget.
+
+### S06-T12 — Road classification
+Arterial/collector/local configurable rules; existing classes preserved.
+
+### S06-T13 — Road validation
+Connectivity, dead-end ratio, forbidden crossings, invalid geometry.
+
+### S06-T14 — Road metrics
+Length density, components, degree, intersection density, circuity.
+
+### S06-T15 — Persist GeneratedRoad
+Bulk insert, run/source refs, indexes.
+
+### S06-T16 — Roads UI vertical slice
+Existing/generated distinction, classes, graph diagnostics.
+
+### S06-T17 — Performance fixture
+Reference road network benchmark; snapping/noding/pathfinding timing.
+
+**Sprint gate:** fixed network корректно читается, generated roads расширяют её и проходят validation.
+
+---
+
+# Sprint S07 — Blocks и simplified parcels → `v0.8.0`
+
+### S07-T01 — Polygonize roads
+Candidate blocks from network lines with geometry cleanup.
+
+### S07-T02 — Developable clipping
+Project/developable mask + hard constraints.
+
+### S07-T03 — Block metrics
+Area/perimeter/compactness/aspect/holes.
+
+### S07-T04 — Frontage/access validation
+Road frontage/access via indexed nearest/intersection operations.
+
+### S07-T05 — Oversized block split
+Principal axis/road-informed bounded strategy.
+
+### S07-T06 — Sliver cleanup
+Merge/drop policy with diagnostics, no silent deletion.
+
+### S07-T07 — Zone association
+Persist explicit block→zone relation where possible; no repeated downstream spatial join.
+
+### S07-T08 — Parcel domain model
+Clarify non-cadastral meaning, frontage/buildable attrs.
+
+### S07-T09 — Simplified parcel subdivision
+Optional frontage-based lot subdivision для подходящих residential blocks.
+
+### S07-T10 — Persist blocks/parcels
+Bulk write + run/zone refs + indexes.
+
+### S07-T11 — Blocks/parcels UI
+Layer toggle, metrics inspector, validation flags.
+
+### S07-T12 — Property/performance tests
+Inside boundary, non-overlap policy, access, valid geometry, split bounds.
+
+**Sprint gate:** downstream building stage получает explicit block/parcel objects, а не сырые polygons без контекста.
+
+---
+
+# Sprint S08 — Buildings и archetypes → `v0.9.0`
+
+### S08-T01 — BuildingConfig/archetype schema
+Data-driven detached/point/bar/perimeter/courtyard/public/commercial.
+
+### S08-T02 — Buildable envelope
+Setbacks/constraints/slope/developable mask через engine.
+
+### S08-T03 — Candidate placement model
+Parcel/block candidates, bounded grid/frontage candidates.
+
+### S08-T04 — Rectangular/point footprint strategy
+Базовый deterministic footprint strategy.
+
+### S08-T05 — Bar/frontage strategy
+Linear footprint вдоль frontage/road/block axis.
+
+### S08-T06 — Perimeter/courtyard simplified strategy
+2D polygonal archetype без внутренней планировки.
+
+### S08-T07 — Orientation strategy
+Road/frontage/principal-axis orientation contract.
+
+### S08-T08 — Inter-building spacing
+Spatial index for existing placed footprints, min gap/no overlap.
+
+### S08-T09 — FAR/coverage convergence
+Bounded placement loop, tolerance, unmet-target diagnostics.
+
+### S08-T10 — Floors/use assignment
+Zone/archetype/config-driven attributes отдельно от geometry.
+
+### S08-T11 — Area/GFA calculation
+Footprint/GFA/coverage/FAR в working CRS.
+
+### S08-T12 — Persist GeneratedBuilding
+Batch insert, block/parcel/run refs, GiST/run indexes.
+
+### S08-T13 — Buildings UI vertical slice
+Archetype/use styling, click attributes, run switch.
+
+### S08-T14 — Property/stress tests
+No hard violations, deterministic, target ranges, 1k/10k building fixture.
+
+**Sprint gate:** застройка визуально и метрически различается по archetypes, но остаётся 2D и воспроизводимой.
+
+---
+
+# Sprint S09 — Demography → `v0.10.0`
+
+### S09-T01 — DemographicScenario schema
+Population/growth, occupancy, m²/person, household size, age groups, working ratio.
+
+### S09-T02 — Residential capacity per building
+Pure deterministic GFA→residential capacity calculation.
+
+### S09-T03 — Population allocation
+Residents per building с constraints/capacity; no NaN/Inf.
+
+### S09-T04 — Age-group allocation
+0–6 / 7–17 / 18–64 / 65+ или configurable equivalent.
+
+### S09-T05 — Jobs/workforce estimate
+Mixed/commercial/public floor area → approximate jobs; explicit assumptions.
+
+### S09-T06 — Block/zone aggregation
+Population/age/jobs sums with consistency checks.
+
+### S09-T07 — Population raster calibration adapter
+Optional source sampling/windowing; base model не зависит от raster.
+
+### S09-T08 — Spatial calibration
+Adjust distribution while preserving totals/tolerances.
+
+### S09-T09 — Demographic demand profile
+Typed output для infrastructure stage: demand by block/category/demographic group.
+
+### S09-T10 — Demography metrics/API/UI
+Density, totals, age shares, jobs; choropleth/inspector.
+
+### S09-T11 — Numeric/property tests
+Zero GFA, mixed use, nodata, target sum, determinism.
+
+**Sprint gate:** тема «демографические ограничения» поддерживается реальной domain-моделью, а не одной формулой residents.
+
+---
+
+# Sprint S10 — Infrastructure и accessibility → `v0.11.0`
+
+### S10-T01 — InfrastructureType schema
+Demand model/capacity/max distance/allowed zones/site area.
+
+### S10-T02 — Existing infrastructure adapter
+Fixed facilities + capacity/use mapping into TerritorySnapshot.
+
+### S10-T03 — Unmet demand calculation
+By block/category/demographic cohort.
+
+### S10-T04 — Candidate site generator
+Blocks/parcels/buildings, bounded candidates, allowed-zone filter.
+
+### S10-T05 — Candidate site geometry
+Generated facility has site/footprint or explicit host building, not only point.
+
+### S10-T06 — Snap demand/sites to network
+Reusable nearest index on graph snapshot.
+
+### S10-T07 — Accessibility matrix/service
+Multi-source Dijkstra/batched path logic where beneficial; max distance cutoffs.
+
+### S10-T08 — Greedy placement
+Incremental coverage cache; update remaining demand; bounded facilities/iterations.
+
+### S10-T09 — Capacity/site feasibility
+Reject impossible candidate if capacity/site/building envelope inconsistent.
+
+### S10-T10 — Persist GeneratedInfrastructure
+run/category/capacity/site/network node refs.
+
+### S10-T11 — Infrastructure metrics
+Coverage, unmet demand, p50/p90 distance, utilization.
+
+### S10-T12 — Infrastructure UI
+Existing/generated distinction, service radius/accessibility result, unmet demand layer.
+
+### S10-T13 — Synthetic town integration tests
+Known demand, existing facility, expected coverage ranges.
+
+### S10-T14 — Greedy performance fixture
+Candidate/demand size budget, no repeated all-pairs recomputation.
+
+**Sprint gate:** infrastructure responds to demographic demand and real network distance.
+
+---
+
+# Sprint S11 — Final validation, metrics и score → `v0.12.0`
+
+### S11-T01 — Cross-stage ValidationReport implementation
+Collect violations from all stages with entity refs/problem geometries.
+
+### S11-T02 — Aggregate constraints
+Coverage/FAR/density/capacity bounds through engine.
+
+### S11-T03 — Soft penalty rules
+Structured penalty independent from hard invalidity.
+
+### S11-T04 — Metric registry
+Metric id/unit/scope/direction/source/version.
+
+### S11-T05 — Land/building metrics
+Developed area, green share, coverage, FAR, GFA, archetype distribution.
+
+### S11-T06 — Road metrics adapter
+Reuse road graph/metrics artifacts, no graph rebuild.
+
+### S11-T07 — Demography metrics adapter
+Population/density/age/jobs.
+
+### S11-T08 — Infrastructure metrics adapter
+Coverage/distance/unmet demand/utilization.
+
+### S11-T09 — Constraint metrics
+Hard count/affected area/soft penalties.
+
+### S11-T10 — Metric normalization
+Direction/range/clamp/missing policy explicitly versioned.
+
+### S11-T11 — Composite score
+Configurable weights, raw metrics always persisted.
+
+### S11-T12 — Score sensitivity
+Recalculate rankings under weight perturbation without rerunning GIS.
+
+### S11-T13 — Violations layer API/UI
+Problem geometries, severity/code/message/entity click.
+
+### S11-T14 — Metrics dashboard
+Raw values + units + score + normalization explanation.
+
+### S11-T15 — Regression fixtures
+Expected ranges/invariants detect unintended algorithm drift.
+
+**Sprint gate:** качество сценария объяснимо через validation + raw metrics; score не скрывает причины.
+
+---
+
+# Sprint S12 — Orchestration, jobs и scenarios → `v0.13.0`
+
+### S12-T01 — Stage dependency graph
+Pipeline DAG metadata, dependencies, skip rules.
+
+### S12-T02 — PipelineContext adapter
+Assemble RunContext + TerritorySnapshot + service ports from persisted run.
+
+### S12-T03 — Persistent checkpoints
+Stage input/config fingerprints, reuse only when fingerprints match.
+
+### S12-T04 — Generation worker job
+Run full DAG outside HTTP, progress updates.
+
+### S12-T05 — Cooperative cancellation
+Check cancellation between bounded units/stages, consistent state.
+
+### S12-T06 — Retry policy
+Transient/permanent classification, bounded exponential backoff.
+
+### S12-T07 — Outbox dispatcher hardening
+Recover DB jobs not delivered to Redis; duplicate delivery remains safe.
+
+### S12-T08 — Artifact publish/GC job
+Temp→ready→referenced lifecycle, orphan detection/cleanup.
+
+### S12-T09 — ScenarioBatch model
+Parent batch + 3–10 child runs, concurrency limit.
+
+### S12-T10 — Batch seed/config matrix
+Create reproducible runs from matrix spec.
+
+### S12-T11 — Exact rerun
+Clone config/dataset versions/seed with availability/hash checks.
+
+### S12-T12 — Provenance manifest
+One JSON manifest of code/config/data/stages/artifacts/metrics.
+
+### S12-T13 — Run compare backend
+Raw metrics delta/ranking/validation summary without GIS recompute.
+
+### S12-T14 — Run controls/progress UI
+Create/cancel/retry, polling abstraction with backoff, SSE-ready interface.
+
+### S12-T15 — Compare UI vertical slice
+2–N metrics table + selected run map switching.
+
+**Sprint gate:** end-to-end run управляется как fault-tolerant job и может быть воспроизведён/сравнен.
+
+---
+
+# Sprint S13 — Scalable layer delivery, exports и complete GIS UI → `v0.14.0`
+
+### S13-T01 — Layer catalog contract
+Source/generated/validation layers, owner/run/dataset version, rendering metadata.
+
+### S13-T02 — Bbox/pagination vector API
+Strict limits, projection policy, geometry simplification options.
+
+### S13-T03 — MVT endpoint
+`ST_AsMVT`, tile bounds, GiST prefilter, run/layer scoping.
+
+### S13-T04 — Tile cache headers
+ETag/cache-control using immutable dataset/run semantics.
+
+### S13-T05 — Frontend layer registry
+Declarative source type: GeoJSON/bbox/MVT/raster; styles separated from components.
+
+### S13-T06 — Full layer tree
+Source/suitability/zones/roads/blocks/parcels/buildings/facilities/violations.
+
+### S13-T07 — GeoJSON export job
+Selected run/source layers -> artifact asynchronously.
+
+### S13-T08 — GeoPackage export job
+Multi-layer GPKG, batch/stream reads.
+
+### S13-T09 — Metrics CSV export
+Single run + scenario compare tables.
+
+### S13-T10 — Config/provenance export
+Normalized config + manifest + CRS/seed/dataset refs.
+
+### S13-T11 — S3/MinIO ArtifactStore adapter
+Contract parity с LocalArtifactStore; no domain changes.
+
+### S13-T12 — Large upload UX
+Progress/error/retry, no base64, dataset version visibility.
+
+### S13-T13 — Complete project workspace UI
+Project/datasets/map/parameters/jobs/metrics/compare integrated.
+
+### S13-T14 — Playwright E2E
+Create/upload/run/inspect/compare/export on stable fixture.
+
+**Sprint gate:** весь основной workflow проходит из браузера, большие layers имеют tile-ready path.
+
+---
+
+# Sprint S14 — Performance, operations и hardening → `v0.15.0`
+
+### S14-T01 — Worker queue separation
+ingest/generation/analysis/export queues + per-queue concurrency.
+
+### S14-T02 — Backpressure/resource limits
+Max active jobs, candidate limits, file limits, scenario batch bounds.
+
+### S14-T03 — DB query profiling
+Top slow queries, `EXPLAIN ANALYZE`, index fixes documented.
+
+### S14-T04 — Raster memory profiling
+Window/chunk sizes, peak memory diagnostics, no accidental full-raster load.
+
+### S14-T05 — Graph performance profiling
+Noding/snapping/pathfinding timings and candidate counts.
+
+### S14-T06 — Building/infrastructure performance profiling
+Placement/accessibility hotspots, cache/index fixes.
+
+### S14-T07 — Reference benchmark suite
+25 км² и 100 км² profiles, timings/memory, machine metadata.
+
+### S14-T08 — Operational metrics
+Queue depth, job duration, failure rate, stage duration; Prometheus-ready adapter.
+
+### S14-T09 — Artifact garbage collection policy
+Expired/temp/orphan detection, dry-run, bounded delete.
+
+### S14-T10 — Production-like Docker profile
+Reverse-proxy ready, no dev mounts, externalizable DB/Redis/storage.
+
+### S14-T11 — Security hardening
+Upload/content checks, SQL/path audit, CORS, non-root/non-superuser where reasonable.
+
+### S14-T12 — Backup/restore smoke for metadata DB
+Documented dump/restore of project/run metadata; raw artifacts remain external.
+
+### S14-T13 — Full migration-from-zero CI
+Fresh DB + all migrations + integration smoke.
+
+### S14-T14 — Reliability E2E
+Worker crash/retry, duplicate enqueue, cancelled run, orphan temp artifact scenarios.
+
+### S14-T15 — Documentation hardening
+Deployment, troubleshooting, architecture invariants, benchmark reproduction.
+
+**Sprint gate:** система не только работает, но измеримо выдерживает reference envelope и предсказуемо восстанавливается после типовых сбоев.
+
+---
+
+# Sprint S15 — Experiments, ВКР и demo package → `v0.16.0`
+
+**Важно:** методика уже зафиксирована в основном ТЗ. Этот sprint реализует и выполняет её.
+
+### S15-T01 — Experiment runner schema
+territory × config × seed × ablation matrix.
+
+### S15-T02 — Territory A reproducible package
+Expansion-mode real dataset manifest/preprocessing script.
+
+### S15-T03 — Territory B reproducible package
+Contrasting relief/density или from-scratch dataset.
+
+### S15-T04 — Reproducibility experiment
+Same seed/config repeated; compare hashes/tolerance metrics.
+
+### S15-T05 — Seed variability experiment
+5–10 seeds; morphology/accessibility distributions.
+
+### S15-T06 — Density scenario experiment
+Low/medium/high population/FAR targets.
+
+### S15-T07 — Constraints ablation baseline
+Constraint-aware vs simplified/disabled-soft baseline; violations and score components.
+
+### S15-T08 — Infrastructure baseline
+Greedy network-aware vs random/naive placement.
+
+### S15-T09 — Score sensitivity experiment
+Weight perturbations; ranking stability.
+
+### S15-T10 — Optional real-growth holdout
+Если доступны временные данные: сравнить generated expansion с поздней реальной застройкой по агрегированным morphology metrics.
+
+### S15-T11 — Experiment report exporter
+CSV/JSON tables, manifest links, timing, validation, raw metrics.
+
+### S15-T12 — Thesis figure/table dataset
+Стабильные данные для графиков и таблиц пояснительной записки.
+
+### S15-T13 — Offline demo dataset
+Небольшой подготовленный набор, не зависящий от интернета.
+
+### S15-T14 — Defense demo flow
+5–8 минут: import/snapshot/run/layers/violations/compare/export.
+
+### S15-T15 — Fallback demo artifacts
+Screenshots/video/exported reports на случай внешнего сбоя.
+
+**Sprint gate:** результаты воспроизводимы и непосредственно используются в экспериментальной части ВКР.
+
+---
+
+# Release hardening → `v1.0.0`
+
+`v1.0.0` не добавляет новый алгоритмический модуль.
+
+### R1 — Clean-clone acceptance
+Новый environment разворачивается строго по README.
+
+### R2 — Full CI acceptance
+Все required checks green на release commit.
+
+### R3 — Full end-to-end real territory
+At least Territory A проходит source→run→compare→export.
+
+### R4 — Second-territory/generalization acceptance
+Territory B либо эквивалентный second-case проходит ключевой pipeline.
+
+### R5 — Expansion invariants
+Fixed roads/buildings/infrastructure не мутируются; generated delta отделён.
+
+### R6 — From-scratch invariants
+Тот же pipeline работает при пустом/minimal fixed state.
+
+### R7 — Reproducibility acceptance
+Exact rerun соответствует tolerance policy.
+
+### R8 — Performance acceptance
+Reference benchmarks опубликованы; нет критического budget violation без documented waiver.
+
+### R9 — Research package acceptance
+Experiments, raw metrics, manifests и report tables доступны.
+
+### R10 — Release tag
+Только после R1–R9 создаётся `v1.0.0`.
+
+---
+
+## 5. Зависимости критического пути
 
 ```text
-queued -> running -> succeeded
-                  -> failed
-                  -> cancelled
-```
-
-Stage-level состояние:
-
-```text
-pending -> running -> completed | failed | skipped
-```
-
-Job handler должен быть идемпотентным: retry одного и того же `job_id` либо продолжает незавершённую стадию, либо безопасно возвращает уже сохранённый результат.
-
-## 3.6. Наблюдаемость
-
-Минимальный production-like уровень:
-
-- structured JSON logs;
-- request/job correlation ID;
-- duration каждого stage;
-- feature counts;
-- memory-sensitive diagnostics для raster/graph операций;
-- health/readiness;
-- метрики количества queued/running/failed jobs;
-- сохранение stack trace только в server logs, безопасное сообщение — в API.
-
----
-
-# 4. Sprint 0 — инженерный baseline (`v0.1.x`)
-
-Цель: воспроизводимая среда разработки, где сервис можно запускать и расширять без архитектурного долга.
-
-| Версия | Один запрос к нейросети | Результат / DoD | Архитектура и масштабируемость |
-|---|---|---|---|
-| `v0.1.1` | Нормализовать Python workspace, `pyproject.toml`, uv, Ruff, pytest, mypy | Одна команда установки; lint/test команды документированы | Один dependency graph для backend/core/worker, без дублирования версий |
-| `v0.1.2` | Довести Docker Compose для API, worker, PostGIS, Redis, frontend | `docker compose up --build` поднимает стек | Все сервисы конфигурируются env-переменными; нет localhost-зависимостей внутри контейнеров |
-| `v0.1.3` | Довести FastAPI lifecycle и health endpoints | `/health/live`, `/health/ready`; readiness реально проверяет DB/Redis | API stateless; readiness не выполняет тяжёлых запросов |
-| `v0.1.4` | Настроить Alembic lifecycle и базовую миграционную дисциплину | upgrade/downgrade на чистой БД | Никакого `create_all` в production path |
-| `v0.1.5` | Завершить frontend shell React/TS/MapLibre | Пустая карта, app shell, API client | API URL конфигурируемый; компоненты отделены от data-fetch layer |
-| `v0.1.6` | Настроить CI backend/frontend | lint, typecheck, unit tests, build | CI кэширует зависимости; отдельные jobs не зависят друг от друга без причины |
-| `v0.1.7` | Добавить structured logging/correlation IDs | request_id/job_id видны в логах | Логирование централизовано, не `print()` |
-
-**Gate спринта:** любой разработчик клонирует repo, копирует `.env.example`, запускает stack и получает работающий shell.
-
----
-
-# 5. Sprint 1 — доменная модель и persistence (`v0.2.x`)
-
-Цель: сформировать модель данных, которая не придётся ломать при появлении десятков запусков и версий datasets.
-
-| Версия | Один запрос | DoD | Архитектурный смысл |
-|---|---|---|---|
-| `v0.2.1` | Уточнить `Project` и working CRS contract | CRUD проекта, `working_srid`, timestamps | CRS является частью project contract, а не скрытым глобальным параметром |
-| `v0.2.2` | Реализовать versioned `Dataset` metadata | source, kind, version, checksum, status | Dataset после нормализации immutable; повторный upload = новая version |
-| `v0.2.3` | Реализовать `GenerationRun` state model | seed/config/status/commit SHA/dataset refs | Run immutable после `succeeded`; provenance обязателен |
-| `v0.2.4` | Добавить `RunStageResult` | stage/status/progress/diagnostics/artifact refs | Поддержка checkpoint/retry без повторного полного pipeline |
-| `v0.2.5` | Добавить metadata-модель `Artifact` | URI/hash/type/size/owner/run/dataset | Файл абстрагирован от local/S3 storage |
-| `v0.2.6` | Добавить generated entity models | road/block/building/infrastructure с `run_id` | Все результаты namespace-ятся по run; старые run не изменяются |
-| `v0.2.7` | Добавить repository/service layer над SQLAlchemy | API не импортирует query details | Позволяет тестировать domain orchestration без HTTP |
-| `v0.2.8` | Добавить ключевые DB indexes и constraints | EXPLAIN на типичных lookup без seq scan по крупным таблицам | GiST + B-tree + unique/idempotency constraints |
-
-**Gate:** можно хранить несколько проектов, несколько dataset versions и несколько независимых runs без перезаписи данных.
-
----
-
-# 6. Sprint 2 — ingest, uploads и нормализация (`v0.3.x`)
-
-Цель: надёжно принимать реальные геоданные и превращать их в одинаковый внутренний формат.
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.3.1` | Реализовать `ArtifactStore` protocol + LocalArtifactStore | put/get/delete/stat + tests | Storage backend не связан с filesystem path в domain-моделях |
-| `v0.3.2` | Реализовать безопасный upload API | size limit, extension whitelist, sanitized filename, checksum | Upload streaming; файл не читается целиком в RAM |
-| `v0.3.3` | Реализовать sandbox extraction для Shapefile ZIP | защита от zip-slip, cleanup temp dirs | Лимит количества файлов и распакованного размера |
-| `v0.3.4` | Реализовать vector inspection | CRS, layer list, geom types, bbox, count | Использовать Pyogrio/OGR metadata paths, где возможно без полной загрузки |
-| `v0.3.5` | Реализовать vector normalization pipeline | make_valid, drop/flag empty, reproject | Batch processing; diagnostics с количеством fixed/rejected features |
-| `v0.3.6` | Реализовать batch write в PostGIS | normalized vectors сохраняются транзакционно | Bulk insert/COPY-like strategy, GiST index после/вместе с загрузкой по стратегии |
-| `v0.3.7` | Реализовать raster inspection | CRS, transform, nodata, resolution, extent | Не читать весь raster; metadata only |
-| `v0.3.8` | Реализовать raster normalization | clip/reproject/resample в derived artifact | Windowed IO; GeoTIFF/COG-friendly output |
-| `v0.3.9` | Реализовать ingest job через worker | upload -> queued -> normalized/failed | HTTP не блокируется; retry идемпотентен по dataset version |
-| `v0.3.10` | Реализовать OSM extract importer | roads/buildings/POI/landuse/water | PBF обрабатывается streaming/chunked где возможно |
-| `v0.3.11` | Добавить source mapping rules | OSM tags -> internal enums | Mapping versioned/configurable, не размазан по importer code |
-| `v0.3.12` | Добавить ingest integration tests на fixtures | GeoJSON/GPKG/SHP/GeoTIFF + invalid cases | Небольшие fixtures, одинаковые проверки локально и CI |
-
-**Gate:** реальная территория может быть импортирована без ручной правки геометрий в коде.
-
----
-
-# 7. Sprint 3 — карта пригодности (`v0.4.x`)
-
-Цель: получить воспроизводимую модель пригодности территории как самостоятельный stage pipeline.
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.4.1` | Определить `SuitabilityConfig` и factor protocol | типизированные веса/thresholds | Новые факторы подключаются без изменения aggregator |
-| `v0.4.2` | Реализовать hard exclusion mask | water/protected/existing forbidden | Hard mask отделён от soft score |
-| `v0.4.3` | Реализовать slope factor из DEM | slope raster + threshold/score | Windowed raster calculations; nodata policy явная |
-| `v0.4.4` | Реализовать road proximity factor | distance-based score | Spatial index / rasterized distance transform вместо O(N×M) |
-| `v0.4.5` | Реализовать landuse factor | configurable class weights | Mapping не hardcoded в geometry loop |
-| `v0.4.6` | Реализовать weighted aggregator | score 0..1 + mask | Числовая стабильность, нормализация весов |
-| `v0.4.7` | Сохранить suitability stage artifact | raster/COG + metadata/statistics | Stage result имеет hash/config provenance |
-| `v0.4.8` | Добавить deterministic tests | одинаковые входы дают одинаковый raster/statistics | Нет скрытой глобальной random state |
-
-**Gate:** suitability можно пересчитать независимо и использовать последующими стадиями через стабильный контракт.
-
----
-
-# 8. Sprint 4 — функциональное зонирование (`v0.5.x`)
-
-Цель: делить пригодную территорию на функциональные зоны с контролем долей и ограничений.
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.5.1` | Определить zone domain types/config | residential/mixed/public/recreation | Enum/config versioned; алгоритм не зависит от UI labels |
-| `v0.5.2` | Реализовать deterministic seed point generator | seed учитывает suitability и fixed zones | Все random операции получают RNG из run seed |
-| `v0.5.3` | Реализовать базовый Voronoi partition | полигоны clipped project boundary | Geometry repair после clip обязательно |
-| `v0.5.4` | Реализовать suitability-aware zone assignment | target share + suitability | Assignment отделён от geometry partition |
-| `v0.5.5` | Реализовать iterative region growth/refinement | min area, adjacency | Ограничить iteration count и логировать convergence |
-| `v0.5.6` | Учесть existing/fixed zones | существующие зоны не изменяются | Fixed inputs отделены от generated outputs |
-| `v0.5.7` | Добавить zoning diagnostics | доли, unmet targets, tiny polygons | Diagnostics сохраняются как stage metrics |
-| `v0.5.8` | Добавить property/integration tests | coverage, non-overlap, valid geometry | Тестировать инварианты, а не точные координаты случайных полигонов |
-
----
-
-# 9. Sprint 5 — дорожная сеть (`v0.6.x`)
-
-Цель: построить масштабируемое графовое представление существующих дорог и расширять его.
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.6.1` | Определить RoadGraph domain contract | node/edge attrs, length, class, source | NetworkX остаётся adapter-реализацией, не API контрактом |
-| `v0.6.2` | Реализовать line snapping/noding | пересечения становятся узлами | STRtree/spatial index вместо полного попарного сравнения |
-| `v0.6.3` | Реализовать graph build from normalized roads | connected graph components | Batch geometry processing, validation diagnostics |
-| `v0.6.4` | Реализовать graph cleanup | duplicate edges, tiny segments, dangling artifacts | Thresholds config-driven |
-| `v0.6.5` | Реализовать Dijkstra/A* service | shortest path API ядра | Cached weights/graph snapshot в пределах stage |
-| `v0.6.6` | Реализовать candidate connection points | suitability/zoning-aware | Ограничивать candidate count spatial sampling'ом |
-| `v0.6.7` | Реализовать MST baseline connector | базовая связность новых anchors | MST — вспомогательная стратегия через общий interface |
-| `v0.6.8` | Реализовать rule-based road growth | local/collector connections | Стратегия pluggable, bounded iterations |
-| `v0.6.9` | Реализовать road classification | arterial/collector/local | Classification правила отделены от генерации геометрии |
-| `v0.6.10` | Реализовать road validation | disconnected, excessive dead ends, forbidden intersections | Validation возвращает structured violations |
-| `v0.6.11` | Реализовать network metrics | degree, density, circuity, components | Метрики не мутируют graph |
-| `v0.6.12` | Добавить performance fixture | средняя реальная сеть проходит под заданный budget | Профилировать noding/pathfinding отдельно |
-
-**Gate:** существующая сеть корректно превращается в граф, расширяется и остаётся связной в пределах выбранной стратегии.
-
----
-
-# 10. Sprint 6 — кварталы (`v0.7.x`)
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.7.1` | Реализовать polygonize roads -> candidate blocks | валидные полигоны | Geometry operations изолированы в blocks module |
-| `v0.7.2` | Clip/filter blocks по project/developable area | нет внешних/запрещённых кварталов | Spatial index для constraint intersections |
-| `v0.7.3` | Реализовать block metrics | area/perimeter/compactness/aspect | Метрики вычисляются один раз и переиспользуются |
-| `v0.7.4` | Реализовать access/frontage validation | block имеет доступ к road | Не выполнять дорогое nearest-search без index |
-| `v0.7.5` | Реализовать oversized block split strategy | большие блоки делятся | Strategy interface для будущих альтернатив |
-| `v0.7.6` | Реализовать post-split cleanup | tiny slivers merge/drop policy | Все решения отражены в diagnostics |
-| `v0.7.7` | Связать blocks с zones и run | FK/domain IDs корректны | Нет implicit spatial join в каждом downstream stage |
-| `v0.7.8` | Property tests для block partition | valid/non-overlap/inside boundary | Проверять инварианты на synthetic cases |
-
----
-
-# 11. Sprint 7 — генерация зданий (`v0.8.x`)
-
-Цель: реалистично заполнять кварталы параметрическими building footprints без 3D и внутренней планировки.
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.8.1` | Определить BuildingConfig/archetype model | use/floors/setbacks/FAR/coverage | Archetypes data-driven, не ветвления по UI string |
-| `v0.8.2` | Реализовать buildable envelope квартала | road/constraint setbacks | Prepared geometries для повторных contains/intersections |
-| `v0.8.3` | Реализовать initial parcel/placement grid candidates | bounded candidate set | Не генерировать миллионы random candidates |
-| `v0.8.4` | Реализовать basic rectangular footprint placement | valid buildings within envelope | Deterministic RNG; spatial index existing placements |
-| `v0.8.5` | Добавить orientation относительно roads/block axis | footprints ориентированы осмысленно | Orientation strategy pluggable |
-| `v0.8.6` | Добавить inter-building gap enforcement | нет overlap/min gap | STRtree/index вместо O(N²) по всему run |
-| `v0.8.7` | Реализовать coverage/FAR convergence | target density с tolerance | Bounded iterations, diagnostics при недостижимости |
-| `v0.8.8` | Назначить floors/use | zone/archetype/config based | Отделить geometry от attribute assignment |
-| `v0.8.9` | Рассчитать footprint/GFA | согласованные площади | Все area операции в working CRS |
-| `v0.8.10` | Batch persist generated buildings | run/block IDs + metrics | Bulk insert; GiST + run index |
-| `v0.8.11` | Добавить stress/property tests | no hard violations, reproducibility | Performance budget на квартал/1000 зданий |
-
----
-
-# 12. Sprint 8 — население (`v0.9.x`)
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.9.1` | Определить PopulationConfig | m²/person, occupancy, residential share | Versioned assumptions сохраняются в run config |
-| `v0.9.2` | Реализовать residents per building | deterministic numeric result | Pure function, без DB внутри formula |
-| `v0.9.3` | Агрегировать population по blocks/zones | consistency sums | Aggregation service отдельно от persistence |
-| `v0.9.4` | Импортировать population raster calibration source | source metadata + clipping | Windowed raster sampling |
-| `v0.9.5` | Реализовать spatial calibration | generated distribution приближена к исходному raster | Calibration optional adapter, базовая модель работает без raster |
-| `v0.9.6` | Добавить population density metrics | people/ha и diagnostics | Единицы измерения документированы |
-| `v0.9.7` | Тесты числовой устойчивости | edge cases: zero GFA, mixed use, nodata | Без NaN/inf в API results |
-
----
-
-# 13. Sprint 9 — инфраструктура и доступность (`v0.10.x`)
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.10.1` | Определить InfrastructureType config | demand/capacity/max distance/zones | Категории добавляются конфигом |
-| `v0.10.2` | Реализовать demand calculation | unmet demand per block/category | Pure calculation stage |
-| `v0.10.3` | Реализовать candidate location generator | bounded set candidates | Spatial sampling/centroids, candidate cap |
-| `v0.10.4` | Реализовать snapping demand/candidates к road graph | graph node mapping | Один spatial nearest index на graph snapshot |
-| `v0.10.5` | Реализовать batch shortest-path accessibility | distance matrix/coverage | Multi-source Dijkstra там, где выгоднее N отдельных запусков |
-| `v0.10.6` | Реализовать greedy facility placement | максимизация incremental coverage | Кэшировать coverage sets; не пересчитывать всё с нуля |
-| `v0.10.7` | Учесть existing infrastructure | существующие объекты обслуживают demand | Fixed + generated facilities в общем coverage model |
-| `v0.10.8` | Persist facilities/coverage stats | run/category/capacity | Batch writes, structured diagnostics |
-| `v0.10.9` | Реализовать category coverage metrics | population covered, p50/p90 distance | Metrics adapter переиспользует accessibility results |
-| `v0.10.10` | Integration tests на synthetic town | known demand -> expected coverage range | Проверять диапазоны/инварианты, не хрупкие exact paths |
-
----
-
-# 14. Sprint 10 — единая система ограничений (`v0.11.x`)
-
-Цель: убрать правила из отдельных алгоритмов в общий расширяемый constraint engine.
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.11.1` | Определить Constraint protocol/domain model | hard/soft, stage applicability, code | Constraint не знает FastAPI/SQLAlchemy |
-| `v0.11.2` | Реализовать geometry intersection constraints | water/protected etc. | Prepared geometry/index reuse |
-| `v0.11.3` | Реализовать distance/setback constraints | roads/buildings/features | Все distance операции требуют metric CRS guard |
-| `v0.11.4` | Реализовать raster threshold constraints | slope/other raster factors | Window/sample API, без full raster load |
-| `v0.11.5` | Реализовать aggregate constraints | coverage/FAR/density | Отделить feature-level от aggregate validation |
-| `v0.11.6` | Реализовать soft penalties | structured penalty score | Не смешивать penalty с hard invalidity |
-| `v0.11.7` | Реализовать ValidationReport | violations summary + geometries/refs | UI может показать проблемные области без повторного вычисления |
-| `v0.11.8` | Перевести stages на общий engine | нет дублированных hard rules | Regression tests сохраняют поведение |
-
----
-
-# 15. Sprint 11 — метрики и score (`v0.12.x`)
-
-| Версия | Один запрос | DoD | Архитектура |
-|---|---|---|---|
-| `v0.12.1` | Определить Metric protocol/registry | name/unit/scope/value | Новая метрика не требует менять центральный if/else |
-| `v0.12.2` | Реализовать land/building metrics | developed area, coverage, FAR | Переиспользовать сохранённые stage aggregates |
-| `v0.12.3` | Реализовать population metrics | density/distribution | Явные units и null policy |
-| `v0.12.4` | Реализовать road metrics adapter | density/connectivity/circuity | Не перестраивать graph повторно |
-| `v0.12.5` | Реализовать infrastructure metrics | coverage/network distance percentiles | Использовать accessibility cache/artifact |
-| `v0.12.6` | Реализовать constraint metrics | hard count/soft penalty | Metric layer не повторяет validation logic |
-| `v0.12.7` | Реализовать configurable composite score | weighted normalized metrics | Weight config versioned; raw metrics всегда сохраняются |
-| `v0.12.8` | Добавить metric regression fixtures | ожидаемые диапазоны и стабильность | Detect unintended algorithm drift |
-
----
-
-# 16. Sprint 12 — pipeline, сценарии и воспроизводимость (`v0.13.x`)
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.13.1` | Определить Stage interface и pipeline context | stable inputs/outputs | Stage можно запускать отдельно и в pipeline |
-| `v0.13.2` | Реализовать stage dependency graph | корректный порядок и skip rules | Не hardcode длинную функцию `run_all()` без metadata |
-| `v0.13.3` | Реализовать persistent stage checkpoints | restart с последней completed stage | Artifact hashes + stage config hash |
-| `v0.13.4` | Реализовать generation worker job | queued/running/progress/result | Job handler идемпотентен |
-| `v0.13.5` | Реализовать cancellation | cooperative cancellation между stages | Не kill DB transaction в случайной точке |
-| `v0.13.6` | Реализовать retry policy | transient vs permanent errors | Exponential backoff только для transient classes |
-| `v0.13.7` | Реализовать scenario batch 3–10 seeds | parent batch + child runs | Ограничение concurrency/queue pressure |
-| `v0.13.8` | Реализовать run compare backend | metrics delta/ranking | Сравнение читает persisted metrics, не запускает GIS заново |
-| `v0.13.9` | Реализовать exact rerun | clone config/dataset refs/seed | Проверка dataset availability/version hashes |
-| `v0.13.10` | Сохранить provenance manifest | config/code/data/stages/artifacts | Один manifest можно приложить к ВКР как доказательство воспроизводимости |
-
----
-
-# 17. Sprint 13 — полноценный GIS frontend (`v0.14.x`)
-
-Цель: пользователь может провести весь workflow без прямого обращения к API/БД.
-
-| Версия | Один запрос | DoD | Масштабируемость |
-|---|---|---|---|
-| `v0.14.1` | Создать frontend data layer/API client | typed requests/errors | Компоненты не вызывают `fetch` хаотично |
-| `v0.14.2` | Реализовать Project workspace layout | map/sidebar/panels/routes | Layout готов к lazy modules |
-| `v0.14.3` | Реализовать dataset manager | upload/status/version/error UI | Large upload progress, без base64 в браузере |
-| `v0.14.4` | Реализовать layer registry/tree | visibility/order/style | Один declarative layer registry |
-| `v0.14.5` | Отобразить source layers на карте | boundary/roads/buildings/constraints | bbox-based loading; не обязательно весь слой целиком |
-| `v0.14.6` | Реализовать generation parameter forms | schema-driven config | UI model соответствует versioned backend config |
-| `v0.14.7` | Реализовать job progress UI | polling/SSE-ready abstraction | Polling с backoff; data layer допускает будущий SSE/WebSocket |
-| `v0.14.8` | Отобразить generated zoning/roads/blocks/buildings | run-selectable layers | Run namespace, отсутствие смешивания сценариев |
-| `v0.14.9` | Реализовать metrics dashboard | raw metrics + score + units | Не вычислять authoritative metrics на клиенте |
-| `v0.14.10` | Реализовать compare mode | 2–N run table + map switch | Lazy-load run layers, не держать все features в памяти |
-| `v0.14.11` | Реализовать violations/problem areas | click -> details | Геометрии violations приходят отдельным layer endpoint |
-| `v0.14.12` | Добавить frontend e2e happy path | create/upload/run/compare | Playwright test на стабильных fixtures |
-
-### Масштабируемый rendering contract
-
-До условного порога небольшие слои могут отдаваться GeoJSON. Для тяжёлых generated/source layers API должен иметь tile-ready путь:
-
-```text
-/api/v1/projects/{project_id}/layers/{layer_id}/tiles/{z}/{x}/{y}.mvt
-```
-
-Реализация MVT может появиться в следующем спринте, но frontend layer abstraction не должна быть привязана только к GeoJSON.
-
----
-
-# 18. Sprint 14 — экспорт, производительность, эксплуатация и эксперименты (`v0.15.x`)
-
-Цель: превратить функциональную систему в проект, который устойчиво демонстрируется, профилируется и пригоден для ВКР-экспериментов.
-
-| Версия | Один запрос | DoD | Архитектура/масштабируемость |
-|---|---|---|---|
-| `v0.15.1` | Реализовать export job GeoJSON | выбранные run layers -> artifact | Export asynchronous для больших слоёв |
-| `v0.15.2` | Реализовать GeoPackage export | multi-layer GPKG | Streaming/batch read из DB |
-| `v0.15.3` | Реализовать CSV metrics export | run/scenario comparison | Не дублировать metric calculations |
-| `v0.15.4` | Добавить MVT endpoint для больших vector layers | MapLibre tile source работает | `ST_AsMVT`, bbox/spatial index, tile cache headers |
-| `v0.15.5` | Добавить S3/MinIO ArtifactStore adapter | local и S3 backends имеют одинаковый contract | Подготовка к горизонтальному масштабированию API/worker |
-| `v0.15.6` | Разделить worker queues и concurrency config | ingest/generation/analysis/export | Независимое масштабирование worker pools |
-| `v0.15.7` | Провести DB query profiling | список top slow queries + indexes/fixes | `EXPLAIN ANALYZE`, bbox filters, batch operations |
-| `v0.15.8` | Добавить performance benchmarks | ingest, graph, buildings, accessibility | Зафиксированы dataset size и machine-independent относительные metrics |
-| `v0.15.9` | Добавить operational diagnostics | queue depth, job duration, failure rate | Базовые metrics пригодны для Prometheus adapter позже |
-| `v0.15.10` | Подготовить production-like Docker profile | reverse proxy-ready, no dev mounts | Stateless API, shared object storage, DB/Redis externalizable |
-| `v0.15.11` | Подготовить experiment runner | matrix seeds/configs -> batch runs | Эксперименты воспроизводимы и не требуют кликов UI |
-| `v0.15.12` | Подготовить experiment report exporter | run manifests + metrics tables | Данные сразу пригодны для таблиц/графиков ВКР |
-
----
-
-# 19. Release `v1.0.0` — интеграционный gate
-
-`v1.0.0` не добавляет крупную новую функцию. Это версия стабилизации.
-
-Один финальный запрос к нейросети можно формулировать как release-hardening, но выполнять только после всех предыдущих minor gates.
-
-Обязательные условия:
-
-- чистый clone разворачивается по README;
-- migrations проходят на пустой БД;
-- поддерживаются минимум GeoJSON/GPKG/Shapefile/GeoTIFF;
-- реальная территория импортируется и нормализуется;
-- pipeline проходит suitability → zoning → roads → blocks → buildings → population → infrastructure → validation → metrics;
-- существующий город может быть fixed input для expansion mode;
-- минимум 3 сценария различаются seed/parameters и сравниваются;
-- hard constraint violations отображаются;
-- результат экспортируется;
-- повтор запуска с теми же inputs/config/seed воспроизводим в заданных tolerance;
-- API не блокируется тяжёлыми GIS-операциями;
-- большие файлы/слои не обязаны полностью загружаться в RAM/browser;
-- backend/core/frontend tests проходят;
-- 1–2 реальные территории покрыты экспериментами.
-
----
-
-# 20. Критический путь
-
-Строгая зависимость:
-
-```text
-v0.1 baseline
- -> v0.2 domain/persistence
- -> v0.3 ingest
- -> v0.4 suitability
- -> v0.5 zoning
- -> v0.6 roads
- -> v0.7 blocks
- -> v0.8 buildings
- -> v0.9 population
- -> v0.10 infrastructure
- -> v0.11 constraints consolidation
- -> v0.12 metrics
- -> v0.13 orchestration/scenarios
- -> v0.14 complete UI
- -> v0.15 performance/exports/experiments
+S00 baseline
+ -> S01 contracts
+ -> S02 persistence/jobs
+ -> S03 ingest
+ -> S04 constraints+suitability
+ -> S05 zoning
+ -> S06 roads
+ -> S07 blocks/parcels
+ -> S08 buildings
+ -> S09 demography
+ -> S10 infrastructure
+ -> S11 validation/metrics
+ -> S12 orchestration/scenarios
+ -> S13 delivery/export/UI
+ -> S14 hardening/performance
+ -> S15 experiments
  -> v1.0.0
 ```
 
-Некоторые версии допускают параллельность после стабилизации контрактов. Например frontend shell может развиваться раньше, но UI конкретной стадии нельзя считать завершённым до стабилизации backend contract этой стадии.
+Некоторые UI/workflow tasks можно вести параллельно после стабилизации соответствующего backend contract, но sprint gate закрывается только целиком.
 
 ---
 
-# 21. Архитектурные gates между спринтами
+## 6. Architecture gates между sprint
 
-Перед переходом к следующему minor-релизу нужно отвечать «да» на вопросы:
+### Contract gate
+- следующий stage получает typed result предыдущего?
+- нет DB/HTTP leakage в core?
+- version/fingerprint определён?
 
 ### Data gate
+- ownership/version/run явны?
+- CRS/units явны?
+- indexes соответствуют query path?
+- raw artifact не смешан с normalized rows?
 
-- данные имеют явного владельца (`project/dataset/run`)?
-- CRS известна и проверяется?
-- нет неограниченной загрузки всего dataset в память без необходимости?
-- есть пространственный индекс?
-
-### API gate
-
-- тяжёлая операция вынесена в job?
-- endpoint ограничивает pagination/bbox/size?
-- ошибки типизированы?
-- повтор запроса не создаёт неконтролируемые дубликаты?
+### Constraint gate
+- новое правило использует общий engine?
+- hard/soft distinction сохранён?
+- problem geometry/diagnostic доступен?
 
 ### Algorithm gate
+- deterministic?
+- bounded?
+- spatial index/candidate cap?
+- synthetic fixture?
 
-- алгоритм детерминирован относительно seed/config?
-- есть synthetic fixture?
-- есть time/iteration bound?
-- geometry validity проверяется на границе стадии?
-
-### Worker gate
-
-- job можно retry?
-- есть progress/stage state?
-- есть cleanup временных ресурсов?
-- failure одной job не загрязняет run другой job?
-
-### Database gate
-
-- запросы фильтруются по `project_id/run_id`?
-- нужные FK/indexes существуют?
-- большие вставки batch-овые?
-- миграция обратима либо явно документирована как irreversible?
+### Job gate
+- retry?
+- idempotency?
+- cancellation boundary?
+- artifact cleanup?
+- DB/queue consistency?
 
 ### Frontend gate
+- backend authoritative?
+- explicit run/version selection?
+- layer scalable?
+- errors/progress visible?
 
-- state не дублирует authoritative backend state?
-- большие layers lazy/bbox/tile load?
-- run selection явный?
-- ошибки и progress видимы пользователю?
-
----
-
-# 22. Что нельзя делать даже ради ускорения
-
-Не следует:
-
-- помещать весь pipeline в один FastAPI endpoint;
-- хранить большие GeoTIFF/ZIP/GPKG как BYTEA в основной БД;
-- отправлять огромные GeoJSON FeatureCollection без pagination/bbox/tiles;
-- использовать EPSG:4326 для area/distance вычислений;
-- хранить «текущий результат» без `run_id`;
-- мутировать completed run;
-- разбрасывать одинаковые constraint checks по buildings/roads/infrastructure;
-- выполнять N×M геометрические сравнения без spatial index;
-- строить отдельный микросервис для каждого алгоритма на ранней стадии;
-- делать frontend источником бизнес-правил;
-- скрывать algorithm parameters в magic constants;
-- использовать глобальный `random` вместо переданного seeded RNG;
-- переписывать предыдущую dataset version новым upload;
-- считать интегральный score единственным результатом оценки.
+### CI gate
+- HEAD required checks green?
+- если нет — sprint/task не DONE.
 
 ---
 
-# 23. Эволюция после `v1.0.0`
+## 7. Что запрещено «сделать заодно»
 
-Архитектура должна позволять без полного переписывания добавить:
+При реализации одного work item нельзя без отдельного item:
 
-- Overture как дополнительный source adapter;
-- pgRouting вместо/в дополнение NetworkX для отдельных accessibility workloads;
-- Celery/RQ/другой queue backend вместо ARQ через job abstraction;
-- distributed object storage;
-- vector tile cache/CDN;
-- facility-location optimization вместо greedy;
-- более продвинутые road growth strategies;
-- новые infrastructure categories;
-- новые constraints/metrics;
-- auth/multi-user tenancy;
-- 3D визуализацию как отдельный presentation layer, не меняющий 2D algorithmic core.
+- менять public API несвязанного модуля;
+- внедрять новый queue/storage framework;
+- менять CRS policy;
+- объединять fixed/generated tables;
+- переносить GIS logic в controller;
+- переписывать соседний алгоритм ради «красоты»;
+- отключать test/lint rule вместо исправления причины без обоснования;
+- использовать `--force` upgrade зависимостей как способ убрать audit warning;
+- реализовывать следующий sprint заранее.
 
-При этом 3D, BIM и внутренняя планировка зданий не являются условием полноценности первой версии проекта.
+Если обнаружен blocker архитектуры, создаётся отдельный work item/исправление, а не скрытый рефакторинг.
+
+---
+
+## 8. Definition of ready для запроса нейросети
+
+Перед передачей work item нейросети должны быть известны:
+
+- ID задачи;
+- текущий branch/HEAD;
+- входные contracts;
+- acceptance criteria;
+- релевантные fixtures;
+- какие checks являются required.
+
+Если какой-то из этих пунктов отсутствует, сначала уточняется/создаётся contract task, а не начинается большой speculative implementation.
