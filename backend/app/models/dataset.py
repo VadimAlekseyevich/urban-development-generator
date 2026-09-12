@@ -5,14 +5,14 @@ from typing import Any
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
     event,
+    ForeignKey,
     func,
     inspect,
+    Integer,
+    String,
     text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
