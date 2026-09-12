@@ -2,7 +2,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, Protocol, TypeVar, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from core.urban_generator.domain.run_context import RunContext
 from core.urban_generator.domain.territory import TerritorySnapshot
@@ -47,14 +47,11 @@ class StageFingerprint:
         return self.value
 
 
-StageOutputT_co = TypeVar("StageOutputT_co", covariant=True)
-
-
 @dataclass(frozen=True, slots=True)
-class StageResult(Generic[StageOutputT_co]):
+class StageResult[T]:
     """Immutable typed output of one stage execution."""
 
-    output: StageOutputT_co
+    output: T
     fingerprint: StageFingerprint
     diagnostics: tuple[StageDiagnostic, ...] = ()
 
@@ -69,6 +66,7 @@ class StageResult(Generic[StageOutputT_co]):
 
 StageInputT = TypeVar("StageInputT")
 StageConfigT_contra = TypeVar("StageConfigT_contra", contravariant=True)
+StageOutputT_co = TypeVar("StageOutputT_co", covariant=True)
 
 
 @runtime_checkable
@@ -111,12 +109,12 @@ def validate_stage_metadata(name: str, version: str, dependencies: tuple[str, ..
         seen.add(dependency)
 
 
-def require_stage_input(
+def require_stage_input[T](
     value: object,
-    expected_type: type[StageInputT],
+    expected_type: type[T],
     *,
     stage_name: str,
-) -> StageInputT:
+) -> T:
     """Reusable runtime type guard for simple typed stage inputs."""
 
     _require_pattern("stage name", stage_name, _STAGE_NAME_RE)
