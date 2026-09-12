@@ -42,6 +42,14 @@ Lifecycle состоит из состояний `temporary`, `ready`, `referenc
 
 `temporary` и `ready` не имеют owner; `referenced` обязан иметь `owner_type` и `owner_id`. Для `expired` owner сохраняется, если artifact ранее был referenced, чтобы cleanup не разрушал provenance. PostgreSQL constraints и lifecycle trigger дублируют критичные ORM guards.
 
+## Job
+
+`Job` — authoritative запись состояния фоновой задачи в PostgreSQL. Она хранит `project_id`, optional `run_id`, стабильный `job_type`, `idempotency_key`, lifecycle `status`, число выполненных `attempt_count`, предел `max_attempts`, timestamps и структурированную информацию об ошибке.
+
+Повторная постановка логически той же работы не создаёт вторую запись: уникальность обеспечивается по `(project_id, job_type, idempotency_key)`. Счётчик попыток не может быть отрицательным или превышать `max_attempts`; `max_attempts` всегда положителен. Поддерживаются состояния `queued`, `running`, `succeeded`, `failed`, `cancelled`.
+
+Ошибки сохраняются без разбора текста исключения: `error_class` соответствует стабильной core taxonomy (`domain`, `config`, `data`, `transient`, `permanent`, `cancelled`), `error_code` хранит машинный code, а `error_json` — message/details и признаки `retryable`/`cancelled`. Решение о повторной попытке и enqueue semantics остаётся за последующими application/dispatcher work items; S02-T06 фиксирует только authoritative state и idempotency boundary.
+
 ## Следующие сущности
 
-Дальнейшие миграции добавят jobs/outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Дальнейшие миграции добавят outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
