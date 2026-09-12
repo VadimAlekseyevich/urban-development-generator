@@ -1,3 +1,11 @@
+from core.urban_generator.domain.artifacts import (
+    ArtifactContractError,
+    ArtifactRef,
+    ArtifactState,
+    ArtifactStat,
+    ArtifactStore,
+    require_temporary_artifact_ref,
+)
 from core.urban_generator.domain.constraints import (
     Constraint,
     ConstraintContractError,
@@ -44,6 +52,11 @@ from core.urban_generator.domain.territory import (
 )
 
 __all__ = [
+    "ArtifactContractError",
+    "ArtifactRef",
+    "ArtifactState",
+    "ArtifactStat",
+    "ArtifactStore",
     "CRSContractError",
     "ConfigRef",
     "Constraint",
@@ -78,6 +91,7 @@ __all__ = [
     "WorldStateContract",
     "build_stage_fingerprint",
     "require_stage_input",
+    "require_temporary_artifact_ref",
     "require_working_crs",
     "validate_constraint_metadata",
     "validate_stage_metadata",
