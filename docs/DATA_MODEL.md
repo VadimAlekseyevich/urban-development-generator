@@ -48,8 +48,18 @@ Lifecycle состоит из состояний `temporary`, `ready`, `referenc
 
 Повторная постановка логически той же работы не создаёт вторую запись: уникальность обеспечивается по `(project_id, job_type, idempotency_key)`. Счётчик попыток не может быть отрицательным или превышать `max_attempts`; `max_attempts` всегда положителен. Поддерживаются состояния `queued`, `running`, `succeeded`, `failed`, `cancelled`.
 
-Ошибки сохраняются без разбора текста исключения: `error_class` соответствует стабильной core taxonomy (`domain`, `config`, `data`, `transient`, `permanent`, `cancelled`), `error_code` хранит машинный code, а `error_json` — message/details и признаки `retryable`/`cancelled`. Решение о повторной попытке и enqueue semantics остаётся за последующими application/dispatcher work items; S02-T06 фиксирует только authoritative state и idempotency boundary.
+Ошибки сохраняются без разбора текста исключения: `error_class` соответствует стабильной core taxonomy (`domain`, `config`, `data`, `transient`, `permanent`, `cancelled`), `error_code` хранит машинный code, а `error_json` — message/details и признаки `retryable`/`cancelled`.
+
+## JobOutbox
+
+`JobOutbox` — DB-authoritative состояние доставки `Job` из PostgreSQL в Redis/ARQ. Для каждой job существует не более одной outbox-записи (`job_id` unique). Она хранит `queue_name`, JSON payload, состояние `pending/dispatched`, число delivery attempts, время последней попытки, `next_attempt_at`, последнюю ошибку и `dispatched_at`.
+
+Dispatcher выбирает только due `pending` rows ограниченными batch-ами (не более 500) и использует `FOR UPDATE SKIP LOCKED`, чтобы несколько dispatcher processes не забирали один и тот же DB row одновременно. После ошибки Redis запись остаётся `pending` и получает будущий `next_attempt_at`; после подтверждённого enqueue она становится `dispatched`.
+
+Доставка имеет семантику at-least-once. Queue identity детерминирована как `job:<job_id>`. Если Redis принял сообщение, но процесс упал до commit состояния `dispatched`, следующий проход может повторить enqueue с тем же identity. PostgreSQL остаётся source of truth; Redis не определяет lifecycle `Job`. Это сознательно устраняет окно потери работы между независимыми DB и Redis транзакциями.
+
+S02-T07 фиксирует persistence и dispatcher contract, но не привязывает его к конкретному ARQ client lifecycle. Реальный Redis adapter может реализовать `RedisJobEnqueuer`, используя deterministic queue identity, не меняя DB-модель.
 
 ## Следующие сущности
 
-Дальнейшие миграции добавят outbox, canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Дальнейшие миграции добавят canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
