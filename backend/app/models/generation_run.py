@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base
 
 if TYPE_CHECKING:
+    from backend.app.models.dataset import DatasetVersion
     from backend.app.models.run_stage_result import RunStageResult
 
 RUN_SUCCESS_STATUS = "succeeded"
