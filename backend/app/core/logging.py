@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 LogContext = dict[str, str]
-_log_context: contextvars.ContextVar[LogContext] = contextvars.ContextVar(
-    "urban_generator_log_context", default={}
+_log_context: contextvars.ContextVar[LogContext | None] = contextvars.ContextVar(
+    "urban_generator_log_context", default=None
 )
 
 
@@ -19,7 +19,9 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        payload.update(_log_context.get())
+        context = _log_context.get()
+        if context:
+            payload.update(context)
 
         event_fields = getattr(record, "event_fields", None)
         if isinstance(event_fields, dict):
@@ -46,11 +48,11 @@ def configure_logging(level: str = "INFO") -> None:
         logger.propagate = True
 
 
-def bind_log_context(**fields: str | None) -> contextvars.Token[LogContext]:
-    current = dict(_log_context.get())
+def bind_log_context(**fields: str | None) -> contextvars.Token[LogContext | None]:
+    current = dict(_log_context.get() or {})
     current.update({key: value for key, value in fields.items() if value is not None})
     return _log_context.set(current)
 
 
-def reset_log_context(token: contextvars.Token[LogContext]) -> None:
+def reset_log_context(token: contextvars.Token[LogContext | None]) -> None:
     _log_context.reset(token)
