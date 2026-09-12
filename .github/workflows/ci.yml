@@ -41,6 +41,12 @@ jobs:
           python-version: '3.12'
           enable-cache: true
       - run: uv sync --dev
+      - name: Upload generated Python lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-lock
+          path: uv.lock
+          retention-days: 1
       - run: uv run ruff check .
       - run: uv run mypy backend core worker
       - run: uv run pytest
@@ -49,11 +55,6 @@ jobs:
           uv run alembic upgrade head
           uv run alembic downgrade base
           uv run alembic upgrade head
-      - name: Bootstrap uv lock output
-        run: |
-          echo "UV_LOCK_BASE64_BEGIN"
-          base64 -w 0 uv.lock | fold -w 3000
-          echo "UV_LOCK_BASE64_END"
 
   frontend:
     runs-on: ubuntu-latest
@@ -66,10 +67,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - name: Upload generated frontend lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-lock
+          path: frontend/package-lock.json
+          retention-days: 1
       - run: npm run typecheck
       - run: npm run build
-      - name: Bootstrap npm lock output
-        run: |
-          echo "NPM_LOCK_BASE64_BEGIN"
-          base64 -w 0 package-lock.json | fold -w 3000
-          echo "NPM_LOCK_BASE64_END"

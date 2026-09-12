@@ -54,6 +54,7 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 files = ["backend", "core", "worker"]
 exclude = ["database/migrations/versions"]
+explicit_package_bases = true
 ignore_missing_imports = true
 warn_unused_ignores = true
 check_untyped_defs = true
