@@ -4,6 +4,10 @@ from fastapi.responses import ORJSONResponse
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
+from backend.app.core.logging import configure_logging
+from backend.app.middleware.request_context import RequestContextMiddleware
+
+configure_logging("DEBUG" if settings.app_debug else "INFO")
 
 app = FastAPI(
     title="Urban Development Generator API",
@@ -11,6 +15,7 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
 )
 
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

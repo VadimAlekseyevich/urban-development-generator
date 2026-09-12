@@ -8,14 +8,52 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: urban_generator
+          POSTGRES_USER: urban
+          POSTGRES_PASSWORD: urban
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U urban -d urban_generator"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://urban:urban@localhost:5432/urban_generator
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.12'
+          enable-cache: true
       - run: uv sync --dev
       - run: uv run ruff check .
+      - run: uv run mypy backend core worker
       - run: uv run pytest
+      - name: Migration smoke
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - name: Bootstrap uv lock output
+        run: |
+          echo "UV_LOCK_BASE64_BEGIN"
+          base64 -w 0 uv.lock | fold -w 3000
+          echo "UV_LOCK_BASE64_END"
 
   frontend:
     runs-on: ubuntu-latest
@@ -27,5 +65,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
       - run: npm run build
+      - name: Bootstrap npm lock output
+        run: |
+          echo "NPM_LOCK_BASE64_BEGIN"
+          base64 -w 0 package-lock.json | fold -w 3000
+          echo "NPM_LOCK_BASE64_END"

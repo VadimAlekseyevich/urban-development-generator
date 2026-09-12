@@ -1,4 +1,7 @@
-.PHONY: up down logs api worker test lint format migrate frontend
+.PHONY: install up down logs api worker test lint typecheck check format migrate migration-smoke frontend frontend-check
+
+install:
+	uv sync --dev
 
 up:
 	docker compose up --build
@@ -18,12 +21,21 @@ worker:
 migrate:
 	uv run alembic upgrade head
 
+migration-smoke:
+	uv run alembic upgrade head
+	uv run alembic downgrade base
+	uv run alembic upgrade head
+
 test:
 	uv run pytest
 
 lint:
 	uv run ruff check .
+
+typecheck:
 	uv run mypy backend core worker
+
+check: lint typecheck test
 
 format:
 	uv run ruff format .
@@ -31,3 +43,6 @@ format:
 
 frontend:
 	cd frontend && npm run dev
+
+frontend-check:
+	cd frontend && npm run typecheck && npm run build
