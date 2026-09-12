@@ -40,6 +40,8 @@
 
 Требования: Docker Compose, Python 3.12+, Node.js 22+ (если запускать frontend вне Docker).
 
+Полный dev stack поднимается одной стандартной командой:
+
 ```bash
 cp .env.example .env
 docker compose up --build
@@ -52,37 +54,58 @@ docker compose up --build
 - Frontend: `http://localhost:5173`
 - PostgreSQL: `localhost:5432`
 
-Проверка backend:
+Проверка готовности backend и его зависимостей:
 
 ```bash
-curl http://localhost:8000/api/v1/health/live
+curl http://localhost:8000/api/v1/health/ready
 ```
 
 ## Разработка
 
+Python-зависимости фиксируются в `uv.lock`; установка должна быть воспроизводимой:
+
 ```bash
-uv sync --dev
-uv run pytest
-uv run ruff check .
-uv run mypy backend core worker
+make install
+make check
 ```
 
-Frontend:
+Эквивалентные команды:
+
+```bash
+uv sync --frozen --dev
+uv run ruff check .
+uv run mypy backend core worker
+uv run pytest
+```
+
+Frontend-зависимости фиксируются в `frontend/package-lock.json`:
+
+```bash
+make frontend-install
+make frontend-check
+```
+
+Для запуска frontend отдельно:
 
 ```bash
 cd frontend
-npm install
+npm ci --no-audit --no-fund
 npm run dev
 ```
+
+## Quality gates
+
+Required CI проверяет Python lint/typecheck/tests, полный Alembic `upgrade → downgrade → upgrade`, frontend typecheck/build и smoke-запуск полного Docker Compose stack. Work item не считается завершённым при красном HEAD CI.
 
 ## Документация
 
 - `docs/PROJECT_DESCRIPTION.md` — исходная постановка ВКР;
-- `docs/DEVELOPMENT_PLAN.md` — подробный roadmap;
+- `docs/DEVELOPMENT_PLAN.md` — техническое задание и общий roadmap;
+- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — атомарные work items;
 - `docs/ARCHITECTURE.md` — архитектурные решения;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-Проект находится на стадии инженерного baseline: инфраструктура, каркас сервисов и доменные контракты. Реализация ведётся итерационно по `docs/DEVELOPMENT_PLAN.md`.
+Engineering baseline `S00` доведён до воспроизводимой сборки, health/readiness, structured logging, migration discipline и required CI. Следующий архитектурный этап — `S01 Core domain contracts`.

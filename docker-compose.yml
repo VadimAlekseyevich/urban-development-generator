@@ -9,6 +9,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - urban_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-urban} -d ${POSTGRES_DB:-urban_generator}"]
       interval: 5s
@@ -19,6 +21,8 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    networks:
+      - urban_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -31,6 +35,8 @@ services:
       dockerfile: docker/backend.Dockerfile
     env_file: .env
     command: ["uv", "run", "alembic", "upgrade", "head"]
+    networks:
+      - urban_network
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +50,8 @@ services:
       - "8000:8000"
     volumes:
       - ./storage:/app/storage
+    networks:
+      - urban_network
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -71,6 +79,8 @@ services:
     command: ["uv", "run", "arq", "worker.settings.WorkerSettings"]
     volumes:
       - ./storage:/app/storage
+    networks:
+      - urban_network
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -80,13 +90,16 @@ services:
       test:
         [
           "CMD",
+          "uv",
+          "run",
           "python",
           "-c",
-          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_timeout=1); c.ping(); c.close()",
+          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()",
         ]
       interval: 15s
       timeout: 3s
       retries: 5
+      start_period: 5s
     restart: unless-stopped
 
   frontend:
@@ -97,6 +110,8 @@ services:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
     ports:
       - "5173:5173"
+    networks:
+      - urban_network
     depends_on:
       api:
         condition: service_healthy
@@ -115,3 +130,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  urban_network:
+    driver: bridge

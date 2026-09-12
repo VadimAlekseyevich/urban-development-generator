@@ -1,7 +1,10 @@
-.PHONY: install up down logs api worker test lint typecheck check format migrate migration-smoke frontend frontend-check
+.PHONY: install frontend-install up down logs api worker test lint typecheck check format migrate migration-smoke frontend frontend-check
 
 install:
-	uv sync --dev
+	uv sync --frozen --dev
+
+frontend-install:
+	cd frontend && npm ci --no-audit --no-fund
 
 up:
 	docker compose up --build
