@@ -8,6 +8,12 @@ from core.urban_generator.domain.semantics import (
     StateOwnership,
     WorldStateContract,
 )
+from core.urban_generator.domain.territory import (
+    SnapshotLayerKind,
+    SnapshotLayerRef,
+    TerritorySnapshot,
+    TerritorySnapshotError,
+)
 
 __all__ = [
     "CRSContractError",
@@ -17,7 +23,11 @@ __all__ = [
     "RunMode",
     "RunSemantics",
     "RunSemanticsError",
+    "SnapshotLayerKind",
+    "SnapshotLayerRef",
     "StateOwnership",
+    "TerritorySnapshot",
+    "TerritorySnapshotError",
     "WorkingCRS",
     "WorldStateContract",
     "require_working_crs",
