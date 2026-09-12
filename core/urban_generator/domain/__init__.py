@@ -15,6 +15,17 @@ from core.urban_generator.domain.semantics import (
     StateOwnership,
     WorldStateContract,
 )
+from core.urban_generator.domain.stage import (
+    Stage,
+    StageContractError,
+    StageDiagnostic,
+    StageDiagnosticLevel,
+    StageFingerprint,
+    StageResult,
+    build_stage_fingerprint,
+    require_stage_input,
+    validate_stage_metadata,
+)
 from core.urban_generator.domain.territory import (
     SnapshotLayerKind,
     SnapshotLayerRef,
@@ -37,10 +48,19 @@ __all__ = [
     "RunSemanticsError",
     "SnapshotLayerKind",
     "SnapshotLayerRef",
+    "Stage",
+    "StageContractError",
+    "StageDiagnostic",
+    "StageDiagnosticLevel",
+    "StageFingerprint",
+    "StageResult",
     "StateOwnership",
     "TerritorySnapshot",
     "TerritorySnapshotError",
     "WorkingCRS",
     "WorldStateContract",
+    "build_stage_fingerprint",
+    "require_stage_input",
     "require_working_crs",
+    "validate_stage_metadata",
 ]
