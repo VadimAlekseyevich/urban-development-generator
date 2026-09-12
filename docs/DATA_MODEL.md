@@ -60,6 +60,18 @@ Dispatcher выбирает только due `pending` rows ограниченн
 
 S02-T07 фиксирует persistence и dispatcher contract, но не привязывает его к конкретному ARQ client lifecycle. Реальный Redis adapter может реализовать `RedisJobEnqueuer`, используя deterministic queue identity, не меняя DB-модель.
 
+## Generated entities
+
+Результаты генерации не смешиваются с source layers и хранятся в отдельных run-scoped таблицах: `generated_zones`, `generated_roads`, `generated_blocks`, `generated_parcels`, `generated_buildings` и `generated_infrastructure`.
+
+Каждая строка имеет UUID `id`, обязательный `run_id`, пространственную `geometry`, JSON-объект `attributes_json` и `created_at`. `run_id` ссылается на конкретный `GenerationRun` и не может быть переназначен другой генерации.
+
+Геометрии хранятся в рабочей CRS конкретного run: PostgreSQL trigger сверяет `ST_SRID(geometry)` со snapshot `GenerationRun.working_srid`. Zone хранится как `MULTIPOLYGON`, Road как `LINESTRING`, Block/Parcel/Building как `POLYGON`; Infrastructure использует общий `GEOMETRY`, поскольку инфраструктурный объект может быть точечным или площадным.
+
+Generated rows можно создавать и изменять только пока run не находится в состоянии `succeeded`. После успеха trigger запрещает `INSERT`, `UPDATE` и `DELETE`, поэтому пространственный результат завершённого запуска остаётся неизменяемой частью provenance.
+
+S02-T08 намеренно не добавляет GiST, B-tree и composite indexes: они проектируются в S02-T10 по реальным access patterns. `attributes_json` не заменяет canonical source schema; нормализованные source roads/buildings/landuse/water/facilities/constraints будут отдельными таблицами в S02-T09.
+
 ## Следующие сущности
 
-Дальнейшие миграции добавят canonical source layers и generated roads/blocks/buildings/infrastructure. Пространственные слои получают GiST-индексы; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Следующая миграция добавит canonical source layers. Пространственные и run-scoped слои получат GiST и B-tree/composite indexes в S02-T10; площади и расстояния считаются только в метрической рабочей CRS проекта.

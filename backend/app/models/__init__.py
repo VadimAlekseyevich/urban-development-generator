@@ -1,5 +1,13 @@
 from backend.app.models.artifact import Artifact
 from backend.app.models.dataset import Dataset, DatasetVersion
+from backend.app.models.generated_entity import (
+    GeneratedBlock,
+    GeneratedBuilding,
+    GeneratedInfrastructure,
+    GeneratedParcel,
+    GeneratedRoad,
+    GeneratedZone,
+)
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
@@ -10,6 +18,12 @@ __all__ = [
     "Artifact",
     "Dataset",
     "DatasetVersion",
+    "GeneratedBlock",
+    "GeneratedBuilding",
+    "GeneratedInfrastructure",
+    "GeneratedParcel",
+    "GeneratedRoad",
+    "GeneratedZone",
     "GenerationRun",
     "Job",
     "JobOutbox",
