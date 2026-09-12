@@ -32,7 +32,9 @@ def test_generated_entity_schema_is_run_scoped(
     table = model.__table__
 
     assert table.name == table_name
-    assert {"id", "run_id", "geometry", "attributes_json", "created_at"} <= set(table.c)
+    assert {"id", "run_id", "geometry", "attributes_json", "created_at"} <= set(
+        table.c.keys()
+    )
 
     run_fk = next(iter(table.c.run_id.foreign_keys))
     assert run_fk.target_fullname == "generation_runs.id"
