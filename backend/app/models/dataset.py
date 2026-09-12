@@ -5,20 +5,19 @@ from typing import Any
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    event,
     ForeignKey,
-    func,
-    inspect,
     Integer,
     String,
-    text,
     UniqueConstraint,
+    event,
+    func,
+    inspect,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
-
 
 IMMUTABLE_DATASET_VERSION_FIELDS = frozenset(
     {
