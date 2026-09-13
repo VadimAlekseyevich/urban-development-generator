@@ -24,7 +24,7 @@ from core.urban_generator.domain import ArtifactRef, ArtifactState, ArtifactStor
 _SCHEMA_VERSION = "suitability-artifact-v1"
 _STATUS_CODES = {"invalid_data": 0, "valid": 1, "hard_excluded": 2}
 _ALLOWED_STATES = frozenset({"ready", "referenced"})
-_NORMALIZATIONS = frozenset({"identity", "min_max", "inverted_min_max"})
+_NORMALIZATIONS = frozenset({"IDENTITY", "MIN_MAX", "INVERTED_MIN_MAX"})
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _CONFIG_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{64}$")
 _DEFAULT_SPOOL_CHUNK_BYTES = 1024 * 1024
@@ -480,7 +480,7 @@ def _parse_factors(value: object) -> tuple[SuitabilityFactorMetadata, ...]:
             raise SuitabilityArtifactContractError("factor normalization is unsupported")
         raw_min = _optional_finite_float(payload.get("raw_min"), "factor raw_min")
         raw_max = _optional_finite_float(payload.get("raw_max"), "factor raw_max")
-        if normalization == "identity":
+        if normalization == "IDENTITY":
             if raw_min is not None or raw_max is not None:
                 raise SuitabilityArtifactContractError(
                     "identity factor must not declare raw normalization bounds"
