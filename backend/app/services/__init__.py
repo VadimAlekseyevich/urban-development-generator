@@ -6,6 +6,20 @@ from backend.app.services.job_dispatcher import (
     build_pending_outbox_query,
     dispatch_outbox_message,
 )
+from backend.app.services.osm_pbf_reader import (
+    DEFAULT_RELEVANT_OSM_TAG_KEYS,
+    OsmElementType,
+    OsmFeature,
+    OsmFeatureBatch,
+    OsmFeatureCategory,
+    OsmPbfBackend,
+    OsmPbfLimitError,
+    OsmPbfReadError,
+    OsmPbfReader,
+    OsmPbfReadLimits,
+    OsmPbfSource,
+    PyogrioOsmPbfBackend,
+)
 from backend.app.services.raster_inspection import (
     RasterInspection,
     RasterInspectionError,
@@ -58,6 +72,7 @@ from backend.app.services.vector_normalization import (
 )
 
 __all__ = [
+    "DEFAULT_RELEVANT_OSM_TAG_KEYS",
     "MAX_DISPATCH_BATCH_SIZE",
     "DispatchOutcome",
     "EmptyGeometryPolicy",
@@ -71,7 +86,18 @@ __all__ = [
     "MissingVectorCRSError",
     "NormalizedRasterArtifact",
     "NormalizedVectorBatch",
+    "OsmElementType",
+    "OsmFeature",
+    "OsmFeatureBatch",
+    "OsmFeatureCategory",
+    "OsmPbfBackend",
+    "OsmPbfLimitError",
+    "OsmPbfReadError",
+    "OsmPbfReadLimits",
+    "OsmPbfReader",
+    "OsmPbfSource",
     "PyogrioMetadataBackend",
+    "PyogrioOsmPbfBackend",
     "PyogrioVectorBatchBackend",
     "RasterBandContractError",
     "RasterInspection",
