@@ -6,6 +6,13 @@ from backend.app.services.job_dispatcher import (
     build_pending_outbox_query,
     dispatch_outbox_message,
 )
+from backend.app.services.raster_inspection import (
+    RasterInspection,
+    RasterInspectionError,
+    RasterInspector,
+    RasterMetadataBackend,
+    RasterioMetadataBackend,
+)
 from backend.app.services.shapefile_zip import (
     ExtractedShapefileArchive,
     ShapefileZipError,
@@ -53,6 +60,11 @@ __all__ = [
     "NormalizedVectorBatch",
     "PyogrioMetadataBackend",
     "PyogrioVectorBatchBackend",
+    "RasterInspection",
+    "RasterInspectionError",
+    "RasterInspector",
+    "RasterMetadataBackend",
+    "RasterioMetadataBackend",
     "RedisJobEnqueuer",
     "ShapefileZipError",
     "ShapefileZipExtractor",
