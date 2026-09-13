@@ -9,9 +9,9 @@ from backend.app.services.osm_pbf_reader import (
     OsmFeatureCategory,
     OsmPbfBackend,
     OsmPbfLimitError,
+    OsmPbfReader,
     OsmPbfReadError,
     OsmPbfReadLimits,
-    OsmPbfReader,
     OsmPbfSource,
 )
 
