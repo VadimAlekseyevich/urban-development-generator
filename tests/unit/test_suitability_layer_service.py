@@ -193,7 +193,7 @@ def test_metadata_reads_stats_factor_provenance_and_wgs84_extent() -> None:
     assert metadata.statistics.preferred_score_threshold == pytest.approx(0.8)
     assert metadata.factors[0].code == "landuse"
     assert metadata.factors[0].version == "landuse-v1"
-    assert metadata.factors[0].normalization == "identity"
+    assert metadata.factors[0].normalization == "IDENTITY"
     assert metadata.hard_exclusion_source_codes == ("boundary", "water")
     west, south, east, north = metadata.wgs84_bounds
     assert west == pytest.approx(0.0)
