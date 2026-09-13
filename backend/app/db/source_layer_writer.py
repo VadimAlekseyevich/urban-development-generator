@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from geoalchemy2.shape import from_shape
@@ -82,7 +82,7 @@ class _LayerSpec:
 
 _LAYER_SPECS: dict[CanonicalSourceLayer, _LayerSpec] = {
     CanonicalSourceLayer.ROADS: _LayerSpec(
-        table=SourceRoad.__table__,
+        table=cast(Table, SourceRoad.__table__),
         required_columns=frozenset({"road_class"}),
         canonical_columns=frozenset(
             {"road_class", "name", "lanes", "max_speed_kph", "one_way"}
@@ -91,7 +91,7 @@ _LAYER_SPECS: dict[CanonicalSourceLayer, _LayerSpec] = {
         force_multiline=True,
     ),
     CanonicalSourceLayer.BUILDINGS: _LayerSpec(
-        table=SourceBuilding.__table__,
+        table=cast(Table, SourceBuilding.__table__),
         required_columns=frozenset({"building_class"}),
         canonical_columns=frozenset(
             {"building_class", "name", "levels", "height_m"}
@@ -100,26 +100,26 @@ _LAYER_SPECS: dict[CanonicalSourceLayer, _LayerSpec] = {
         force_multipolygon=True,
     ),
     CanonicalSourceLayer.LANDUSE: _LayerSpec(
-        table=SourceLanduse.__table__,
+        table=cast(Table, SourceLanduse.__table__),
         required_columns=frozenset({"landuse_class"}),
         canonical_columns=frozenset({"landuse_class"}),
         defaults={},
         force_multipolygon=True,
     ),
     CanonicalSourceLayer.WATER: _LayerSpec(
-        table=SourceWater.__table__,
+        table=cast(Table, SourceWater.__table__),
         required_columns=frozenset({"water_class"}),
         canonical_columns=frozenset({"water_class"}),
         defaults={},
     ),
     CanonicalSourceLayer.FACILITIES: _LayerSpec(
-        table=SourceFacility.__table__,
+        table=cast(Table, SourceFacility.__table__),
         required_columns=frozenset({"facility_class"}),
         canonical_columns=frozenset({"facility_class", "name", "capacity"}),
         defaults={"name": None, "capacity": None},
     ),
     CanonicalSourceLayer.CONSTRAINTS: _LayerSpec(
-        table=SourceConstraint.__table__,
+        table=cast(Table, SourceConstraint.__table__),
         required_columns=frozenset({"constraint_code", "severity", "scope"}),
         canonical_columns=frozenset({"constraint_code", "severity", "scope"}),
         defaults={},
