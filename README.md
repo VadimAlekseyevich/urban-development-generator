@@ -102,6 +102,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/PROJECT_DESCRIPTION.md` — исходная постановка ВКР;
 - `docs/DEVELOPMENT_PLAN.md` — техническое задание и общий roadmap;
 - `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — атомарные work items;
+- `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
 - `docs/ARCHITECTURE.md` — архитектурные решения;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
