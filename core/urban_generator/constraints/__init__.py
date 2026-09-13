@@ -23,6 +23,20 @@ from core.urban_generator.constraints.geometry_exclusion import (
     GeometryExclusionReason,
     GeometryExclusionSubject,
 )
+from core.urban_generator.constraints.raster_threshold import (
+    RasterNoDataPolicy,
+    RasterThresholdComparison,
+    RasterThresholdConstraint,
+    RasterThresholdError,
+    RasterThresholdEvaluator,
+    RasterThresholdHit,
+    RasterThresholdHitReason,
+    RasterThresholdPolicy,
+    RasterThresholdSampleLimitError,
+    RasterThresholdSource,
+    RasterThresholdSubject,
+    RasterWindow,
+)
 
 __all__ = [
     "ConstraintRegistration",
@@ -43,5 +57,17 @@ __all__ = [
     "GeometryExclusionIndex",
     "GeometryExclusionReason",
     "GeometryExclusionSubject",
+    "RasterNoDataPolicy",
+    "RasterThresholdComparison",
+    "RasterThresholdConstraint",
+    "RasterThresholdError",
+    "RasterThresholdEvaluator",
+    "RasterThresholdHit",
+    "RasterThresholdHitReason",
+    "RasterThresholdPolicy",
+    "RasterThresholdSampleLimitError",
+    "RasterThresholdSource",
+    "RasterThresholdSubject",
+    "RasterWindow",
     "RegisteredConstraintEngine",
 ]
