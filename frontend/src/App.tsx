@@ -13,6 +13,7 @@ import maplibregl, {
   type MapGeoJSONFeature,
 } from 'maplibre-gl'
 
+import { SuitabilityPanel } from './SuitabilityPanel'
 import {
   EMPTY_FEATURE_COLLECTION,
   SOURCE_LAYER_API_NAMES,
@@ -493,8 +494,8 @@ function App() {
       <aside className="sidebar">
         <header className="brand">
           <p className="eyebrow">Urban Development Generator</p>
-          <h1>Source layers</h1>
-          <p className="muted">Визуальная проверка нормализованных исходных данных</p>
+          <h1>Source & suitability</h1>
+          <p className="muted">Исходные слои и constraint-aware карта пригодности</p>
         </header>
 
         <div className={`status status-${apiStatus}`}>
@@ -589,6 +590,8 @@ function App() {
           )}
         </section>
 
+        <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
+
         <section className="panel inspector-panel">
           <div className="section-heading">
             <div>
@@ -628,7 +631,7 @@ function App() {
         </section>
       </aside>
 
-      <section className="map-shell" aria-label="Карта исходных слоёв">
+      <section className="map-shell" aria-label="Карта исходных слоёв и suitability">
         <div className="map-overlay">
           <span className={`map-state map-state-${loadStatus}`}>
             {context ? context.datasetVersionId.slice(0, 8) : 'no dataset'}

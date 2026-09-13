@@ -14,11 +14,28 @@ City-specific assumptions must not be embedded into `core`, persistence schemas,
 - `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — what is being implemented next and when new UI vertical slices appear.
 - `docs/INGEST_WORKER.md` — how uploaded vector/raster source data is normalized and promoted to a ready DatasetVersion.
 - `docs/SOURCE_LAYER_GEOJSON_API.md` — API used to read normalized source layers by viewport.
-- `docs/SOURCE_LAYERS_UI.md` — current interactive source-map capabilities: boundary, roads, buildings, water, landuse, layer toggles, fit and feature inspector.
+- `docs/SOURCE_LAYERS_UI.md` — interactive source-map capabilities: boundary, roads, buildings, water, landuse, layer toggles, fit and feature inspector.
+- `docs/SUITABILITY_LAYER_API_UI.md` — suitability artifact metadata/preview API, MapLibre raster UI and the exact synthetic Ryazan demo command.
 - `docs/OSM_PBF_READER.md`, `docs/OSM_MAPPING_RULES.md`, `docs/OSM_CANONICAL_WRITER.md` — OSM import path when preparing Ryazan source data from PBF.
 
 ## Current hands-on status
 
-The source-layers map is already implemented, but it expects an existing project and a ready `dataset_version_id`. The remaining usability gap for a non-developer demo is a single guided flow that creates/selects the project, imports the source dataset, waits for ingest, and opens the resulting map without manually assembling IDs.
+The source-layers map expects an existing project and a ready `dataset_version_id`. The suitability UI can now also open an existing canonical suitability artifact by `suitability_artifact_id` and display its heatmap, hard exclusions, statistics and factor metadata.
 
-When such a guided demo flow or checked-in Ryazan fixture is added, document the exact command/file/source here so this page remains the first place to find it.
+For an immediately runnable suitability visualization, start the stack and seed the **synthetic demo only**:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose exec api uv run python scripts/seed_ryazan_suitability_demo.py
+```
+
+The command prints a URL of the form:
+
+```text
+http://localhost:5173/?suitability_artifact_id=<printed-uuid>
+```
+
+This raster is only a UI fixture positioned over the Ryazan reference area; it is not derived from real Ryazan terrain, roads or landuse and is not a planning result.
+
+The remaining usability gap for real user data is a single guided flow that creates/selects the project, imports source datasets, waits for ingest, runs suitability calculation, persists the resulting artifact and opens the combined source+suitability map without manually assembling IDs.

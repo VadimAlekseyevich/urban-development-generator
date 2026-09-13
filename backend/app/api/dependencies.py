@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.app.adapters import LocalArtifactStore
 from backend.app.application.projects import ProjectService
 from backend.app.application.source_layers import SourceLayerQueryService
+from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
@@ -13,6 +14,9 @@ from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.session import get_db
 from backend.app.db.source_layer_query_repository import (
     SqlAlchemySourceLayerQueryRepository,
+)
+from backend.app.db.suitability_artifact_repository import (
+    SqlAlchemySuitabilityArtifactRepository,
 )
 from core.urban_generator.domain import ArtifactStore
 
@@ -63,3 +67,21 @@ def get_upload_service(
 
 
 UploadServiceDep = Annotated[UploadService, Depends(get_upload_service)]
+
+
+def get_suitability_layer_service(
+    db: DbSession,
+    store: ArtifactStoreDep,
+) -> SuitabilityLayerService:
+    """Compose read-only suitability artifact inspection and preview rendering."""
+
+    return SuitabilityLayerService(
+        store,
+        SqlAlchemySuitabilityArtifactRepository(db),
+    )
+
+
+SuitabilityLayerServiceDep = Annotated[
+    SuitabilityLayerService,
+    Depends(get_suitability_layer_service),
+]
