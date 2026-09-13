@@ -183,7 +183,11 @@ def test_metric_crs_must_match_index_grid_snapshot_and_context() -> None:
     other_grid = make_grid(working_srid=3857)
 
     with pytest.raises(RoadProximityError, match="road index working_srid"):
-        factor.evaluate(grid=other_grid, snapshot=make_snapshot(3857), context=make_context(3857))
+        factor.evaluate(
+            grid=other_grid,
+            snapshot=make_snapshot(working_srid=3857),
+            context=make_context(working_srid=3857),
+        )
     with pytest.raises(RoadProximityError, match="snapshot working_srid"):
         factor.evaluate(
             grid=grid,
