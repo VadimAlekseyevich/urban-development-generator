@@ -116,17 +116,18 @@ class Constraint[SubjectT](Protocol):
 
 @runtime_checkable
 class ConstraintEngine(Protocol):
-    """Port used by algorithms before a concrete registry/engine implementation exists."""
+    """Port used by stages to evaluate the registry for one exact stage/scope pair."""
 
     def evaluate[SubjectT](
         self,
         *,
         subject: SubjectT,
+        stage: str,
         scope: ConstraintScope,
         snapshot: TerritorySnapshot,
         context: RunContext,
     ) -> ValidationReport:
-        """Evaluate all applicable constraints and return their immutable report."""
+        """Evaluate all rules registered for ``stage`` and ``scope``."""
 
 
 def validate_constraint_metadata(

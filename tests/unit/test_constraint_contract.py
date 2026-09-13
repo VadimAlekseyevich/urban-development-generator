@@ -83,12 +83,15 @@ class DummyConstraintEngine:
         self,
         *,
         subject: SubjectT,
+        stage: str,
         scope: ConstraintScope,
         snapshot: TerritorySnapshot,
         context: RunContext,
     ) -> ValidationReport:
         if not isinstance(subject, DummySubject):
             raise TypeError("dummy engine expects DummySubject")
+        if stage != "buildings":
+            return ValidationReport()
         results = tuple(
             constraint.evaluate(subject=subject, snapshot=snapshot, context=context)
             for constraint in self.constraints
@@ -131,6 +134,7 @@ def test_constraint_and_engine_protocols_work_without_backend() -> None:
     )
     report = engine.evaluate(
         subject=DummySubject(value=5),
+        stage="buildings",
         scope=ConstraintScope.BUILDING,
         snapshot=make_snapshot(),
         context=make_context(),
@@ -146,6 +150,7 @@ def test_constraint_and_engine_protocols_work_without_backend() -> None:
 def test_hard_failure_invalidates_report() -> None:
     report = DummyConstraintEngine().evaluate(
         subject=DummySubject(value=-1),
+        stage="buildings",
         scope=ConstraintScope.BUILDING,
         snapshot=make_snapshot(),
         context=make_context(),
@@ -159,6 +164,7 @@ def test_hard_failure_invalidates_report() -> None:
 def test_soft_failure_does_not_invalidate_report() -> None:
     report = DummyConstraintEngine().evaluate(
         subject=DummySubject(value=5),
+        stage="buildings",
         scope=ConstraintScope.BUILDING,
         snapshot=make_snapshot(),
         context=make_context(),
