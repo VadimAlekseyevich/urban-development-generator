@@ -5,10 +5,11 @@ import math
 import re
 import tempfile
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Protocol, cast
+from typing import Protocol, cast
 
 import numpy as np
 import rasterio
@@ -613,7 +614,9 @@ def _artifact_ref_from_uri(uri: str) -> ArtifactRef:
     try:
         return ArtifactRef(key=key, state=ArtifactState.READY)
     except ValueError as exc:
-        raise SuitabilityArtifactContractError("artifact URI contains an invalid logical key") from exc
+        raise SuitabilityArtifactContractError(
+            "artifact URI contains an invalid logical key"
+        ) from exc
 
 
 def _json_object_tag(tags: dict[str, str], key: str) -> dict[str, object]:
