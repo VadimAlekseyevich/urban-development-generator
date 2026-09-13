@@ -7,13 +7,13 @@ from backend.app.services.job_dispatcher import (
     dispatch_outbox_message,
 )
 from backend.app.services.osm_mapping import (
-    BuildingClass,
     DEFAULT_OSM_MAPPING_RULESET,
+    OSM_MAPPING_RULESET_VERSION,
+    BuildingClass,
     FacilityClass,
     LanduseClass,
     MappedOsmBatch,
     MappedOsmFeature,
-    OSM_MAPPING_RULESET_VERSION,
     OsmCategoryMapping,
     OsmInternalClass,
     OsmMappedLayer,

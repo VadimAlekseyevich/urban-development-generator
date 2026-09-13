@@ -4,11 +4,11 @@ import pytest
 from shapely.geometry import LineString, Point, Polygon
 
 from backend.app.services.osm_mapping import (
-    BuildingClass,
     DEFAULT_OSM_MAPPING_RULESET,
+    OSM_MAPPING_RULESET_VERSION,
+    BuildingClass,
     FacilityClass,
     LanduseClass,
-    OSM_MAPPING_RULESET_VERSION,
     OsmCategoryMapping,
     OsmMappedLayer,
     OsmMappingError,
@@ -23,8 +23,8 @@ from backend.app.services.osm_pbf_reader import (
     OsmFeature,
     OsmFeatureBatch,
     OsmFeatureCategory,
-    OsmPbfReadLimits,
     OsmPbfReader,
+    OsmPbfReadLimits,
 )
 
 FIXTURE = Path("tests/fixtures/osm/minimal.pbf")
