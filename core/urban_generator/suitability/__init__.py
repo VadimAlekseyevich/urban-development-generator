@@ -28,6 +28,12 @@ from core.urban_generator.suitability.hard_exclusion import (
     HardExclusionRasterLayer,
     build_hard_exclusion_mask,
 )
+from core.urban_generator.suitability.road_proximity import (
+    RoadProximityError,
+    RoadProximityFactor,
+    RoadProximityIndex,
+    RoadProximityTile,
+)
 
 __all__ = [
     "DEMSlopeError",
@@ -41,6 +47,10 @@ __all__ = [
     "HardExclusionMask",
     "HardExclusionMaskError",
     "HardExclusionRasterLayer",
+    "RoadProximityError",
+    "RoadProximityFactor",
+    "RoadProximityIndex",
+    "RoadProximityTile",
     "SuitabilityConfig",
     "SuitabilityConfigError",
     "SuitabilityFactor",
