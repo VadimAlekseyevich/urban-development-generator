@@ -167,7 +167,11 @@ def build_hard_exclusion_mask(
             f"hard exclusion shape limit exceeded: {shape_count} > {max_shapes}"
         )
 
-    source_codes = ("boundary", *(layer.code for layer in geometry_layers), *(layer.code for layer in raster_layers))
+    source_codes = (
+        "boundary",
+        *(layer.code for layer in geometry_layers),
+        *(layer.code for layer in raster_layers),
+    )
     if len(source_codes) != len(set(source_codes)):
         raise HardExclusionMaskError("hard exclusion source codes must be unique")
 
