@@ -119,21 +119,24 @@ def test_real_pbf_mapping_persists_all_supported_canonical_layers() -> None:
         ).one()
         building = session.execute(
             text(
-                "SELECT source_feature_id, building_class, ST_SRID(geometry), GeometryType(geometry) "
+                "SELECT source_feature_id, building_class, ST_SRID(geometry), "
+                "GeometryType(geometry) "
                 "FROM source_buildings WHERE dataset_version_id = :version_id"
             ),
             {"version_id": version_id},
         ).one()
         facility = session.execute(
             text(
-                "SELECT source_feature_id, facility_class, ST_SRID(geometry), GeometryType(geometry) "
+                "SELECT source_feature_id, facility_class, ST_SRID(geometry), "
+                "GeometryType(geometry) "
                 "FROM source_facilities WHERE dataset_version_id = :version_id"
             ),
             {"version_id": version_id},
         ).one()
         landuse = session.execute(
             text(
-                "SELECT source_feature_id, landuse_class, ST_SRID(geometry), GeometryType(geometry) "
+                "SELECT source_feature_id, landuse_class, ST_SRID(geometry), "
+                "GeometryType(geometry) "
                 "FROM source_landuse WHERE dataset_version_id = :version_id"
             ),
             {"version_id": version_id},
