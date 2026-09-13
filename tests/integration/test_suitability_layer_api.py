@@ -61,7 +61,7 @@ class FakeSuitabilityLayerService:
                     code="landuse",
                     version="landuse-v1",
                     weight=1.0,
-                    normalization="identity",
+                    normalization="IDENTITY",
                     raw_min=None,
                     raw_max=None,
                 ),
@@ -106,6 +106,7 @@ def test_metadata_and_preview_endpoints_expose_map_contract() -> None:
     assert body["working_srid"] == 3857
     assert body["statistics"]["valid_cells"] == 75
     assert body["factors"][0]["code"] == "landuse"
+    assert body["factors"][0]["normalization"] == "IDENTITY"
     assert body["hard_exclusion_source_codes"] == ["boundary", "water"]
 
     preview_response = client.get(
