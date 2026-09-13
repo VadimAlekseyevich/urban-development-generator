@@ -355,12 +355,7 @@ def test_weighted_aggregation_is_deterministic_and_hard_mask_dominates(seed: int
     assert first.factor_versions == permuted.factor_versions
     assert first.diagnostics == permuted.diagnostics
 
-    expected_valid = (
-        ~hard_mask.excluded
-        & landuse_valid
-        & slope_valid
-        & road_valid
-    )
+    expected_valid = ~hard_mask.excluded & landuse_valid & slope_valid & road_valid
     expected = (
         0.5 * landuse_values
         + 0.3 * np.clip(slope_values / 45.0, 0.0, 1.0)
@@ -373,8 +368,8 @@ def test_weighted_aggregation_is_deterministic_and_hard_mask_dominates(seed: int
     assert not np.any(first.valid_mask & hard_mask.excluded)
     assert np.all(first.scores[hard_mask.excluded] == 0.0)
     assert np.all(first.scores[~first.valid_mask] == 0.0)
-    assert np.all((first.scores[first.valid_mask] >= 0.0))
-    assert np.all((first.scores[first.valid_mask] <= 1.0))
+    assert np.all(first.scores[first.valid_mask] >= 0.0)
+    assert np.all(first.scores[first.valid_mask] <= 1.0)
     assert (
         first.valid_count
         + first.hard_excluded_count
