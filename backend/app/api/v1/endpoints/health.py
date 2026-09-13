@@ -3,11 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from redis import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.db.readiness import probe_database
 from backend.app.db.session import get_db
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -35,7 +35,7 @@ def liveness() -> dict[str, str]:
 @router.get("/ready")
 def readiness(db: DbSession) -> dict[str, str]:
     try:
-        db.execute(text("SELECT 1"))
+        probe_database(db)
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
