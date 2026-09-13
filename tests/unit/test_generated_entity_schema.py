@@ -65,10 +65,17 @@ def test_generated_entity_attributes_are_json_objects(
     assert model.__table__.c.attributes_json.nullable is False
 
 
-@pytest.mark.parametrize(("model", "_table_name", "_geometry_type"), GENERATED_ENTITY_CASES)
-def test_generated_entity_indexes_are_deferred_to_s02_t10(
+@pytest.mark.parametrize(("model", "table_name", "_geometry_type"), GENERATED_ENTITY_CASES)
+def test_generated_entity_has_run_and_spatial_access_indexes(
     model: Any,
-    _table_name: str,
+    table_name: str,
     _geometry_type: str,
 ) -> None:
-    assert not model.__table__.indexes
+    indexes = {index.name: index for index in model.__table__.indexes}
+
+    scoped_index = indexes[f"ix_{table_name}_run_id_id"]
+    assert tuple(column.name for column in scoped_index.columns) == ("run_id", "id")
+
+    geometry_index = indexes[f"ix_{table_name}_geometry"]
+    assert tuple(column.name for column in geometry_index.columns) == ("geometry",)
+    assert geometry_index.dialect_options["postgresql"]["using"] == "gist"

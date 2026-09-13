@@ -89,16 +89,26 @@ def test_source_layer_attributes_and_external_identity_are_constrained(
 
 
 @pytest.mark.parametrize(
-    ("model", "_table_name", "_geometry_type", "_classification_column"),
+    ("model", "table_name", "_geometry_type", "_classification_column"),
     SOURCE_LAYER_CASES,
 )
-def test_source_layer_indexes_are_deferred_to_s02_t10(
+def test_source_layer_has_version_and_spatial_access_indexes(
     model: Any,
-    _table_name: str,
+    table_name: str,
     _geometry_type: str,
     _classification_column: str,
 ) -> None:
-    assert not model.__table__.indexes
+    indexes = {index.name: index for index in model.__table__.indexes}
+
+    scoped_index = indexes[f"ix_{table_name}_dataset_version_id_id"]
+    assert tuple(column.name for column in scoped_index.columns) == (
+        "dataset_version_id",
+        "id",
+    )
+
+    geometry_index = indexes[f"ix_{table_name}_geometry"]
+    assert tuple(column.name for column in geometry_index.columns) == ("geometry",)
+    assert geometry_index.dialect_options["postgresql"]["using"] == "gist"
 
 
 def test_source_road_has_normalized_transport_fields() -> None:

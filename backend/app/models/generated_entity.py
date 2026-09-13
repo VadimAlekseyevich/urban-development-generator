@@ -4,11 +4,24 @@ from typing import Any
 
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.db.base import Base
+
+
+def _generated_access_indexes(table_name: str) -> tuple[Index, Index]:
+    """Indexes for run-scoped keyset and bbox access."""
+
+    return (
+        Index(f"ix_{table_name}_run_id_id", "run_id", "id"),
+        Index(
+            f"ix_{table_name}_geometry",
+            "geometry",
+            postgresql_using="gist",
+        ),
+    )
 
 
 class GeneratedEntityMixin:
@@ -36,6 +49,7 @@ class GeneratedEntityMixin:
 class GeneratedZone(GeneratedEntityMixin, Base):
     __tablename__ = "generated_zones"
     __table_args__ = (
+        *_generated_access_indexes("generated_zones"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_zones_attributes_object",
@@ -51,6 +65,7 @@ class GeneratedZone(GeneratedEntityMixin, Base):
 class GeneratedRoad(GeneratedEntityMixin, Base):
     __tablename__ = "generated_roads"
     __table_args__ = (
+        *_generated_access_indexes("generated_roads"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_roads_attributes_object",
@@ -66,6 +81,7 @@ class GeneratedRoad(GeneratedEntityMixin, Base):
 class GeneratedBlock(GeneratedEntityMixin, Base):
     __tablename__ = "generated_blocks"
     __table_args__ = (
+        *_generated_access_indexes("generated_blocks"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_blocks_attributes_object",
@@ -81,6 +97,7 @@ class GeneratedBlock(GeneratedEntityMixin, Base):
 class GeneratedParcel(GeneratedEntityMixin, Base):
     __tablename__ = "generated_parcels"
     __table_args__ = (
+        *_generated_access_indexes("generated_parcels"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_parcels_attributes_object",
@@ -96,6 +113,7 @@ class GeneratedParcel(GeneratedEntityMixin, Base):
 class GeneratedBuilding(GeneratedEntityMixin, Base):
     __tablename__ = "generated_buildings"
     __table_args__ = (
+        *_generated_access_indexes("generated_buildings"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_buildings_attributes_object",
@@ -111,6 +129,7 @@ class GeneratedBuilding(GeneratedEntityMixin, Base):
 class GeneratedInfrastructure(GeneratedEntityMixin, Base):
     __tablename__ = "generated_infrastructure"
     __table_args__ = (
+        *_generated_access_indexes("generated_infrastructure"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_infrastructure_attributes_object",

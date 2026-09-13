@@ -70,7 +70,7 @@ S02-T07 фиксирует persistence и dispatcher contract, но не при�
 
 Generated rows можно создавать и изменять только пока run не находится в состоянии `succeeded`. После успеха trigger запрещает `INSERT`, `UPDATE` и `DELETE`, поэтому пространственный результат завершённого запуска остаётся неизменяемой частью provenance.
 
-S02-T08 намеренно не добавляет GiST, B-tree и composite indexes: они проектируются в S02-T10 по реальным access patterns.
+S02-T10 добавляет каждому generated layer составной B-tree `(run_id, id)` для run-scoped/keyset access и GiST по `geometry` для bbox/spatial predicates.
 
 ## Canonical source layers
 
@@ -84,8 +84,8 @@ Road geometry нормализуется к `MULTILINESTRING`, building/landuse 
 
 До перехода `DatasetVersion` в `ready` ingest может вставлять, заменять и очищать строки для retry-safe нормализации. После `status = ready` source rows этой версии становятся immutable: `INSERT`, `UPDATE` и `DELETE` запрещены. Перенос строки на другой `dataset_version_id` запрещён всегда.
 
-S02-T09 намеренно не добавляет GiST/B-tree access indexes: они проектируются в S02-T10 по реальным `project/dataset_version/run` access patterns. Unique constraints на внешний feature id являются integrity rules, а не заменой spatial/access indexing.
+S02-T10 добавляет каждому source layer составной B-tree `(dataset_version_id, id)` для version-scoped/keyset access и GiST по `geometry` для bbox/spatial predicates. Integrity unique `(dataset_version_id, source_feature_id)` остаётся отдельным контрактом и не заменяет access indexes. Подробная policy зафиксирована в `docs/SPATIAL_INDEXING.md`.
 
 ## Следующие сущности
 
-Следующий work item S02-T10 добавит пространственные GiST и B-tree/composite indexes под реальные access patterns canonical source и generated tables. Площади и расстояния считаются только в метрической рабочей CRS проекта.
+Следующий work item S02-T11 вводит repository/application service boundary: controllers не должны содержать SQL query details, а прикладные сервисы должны тестироваться без HTTP. Площади и расстояния считаются только в метрической рабочей CRS проекта.

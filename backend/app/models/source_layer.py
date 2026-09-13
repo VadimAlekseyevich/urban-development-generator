@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -20,6 +21,23 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.db.base import Base
+
+
+def _source_access_indexes(table_name: str) -> tuple[Index, Index]:
+    """Indexes for dataset-version-scoped keyset and bbox access."""
+
+    return (
+        Index(
+            f"ix_{table_name}_dataset_version_id_id",
+            "dataset_version_id",
+            "id",
+        ),
+        Index(
+            f"ix_{table_name}_geometry",
+            "geometry",
+            postgresql_using="gist",
+        ),
+    )
 
 
 class SourceEntityMixin:
@@ -48,6 +66,7 @@ class SourceEntityMixin:
 class SourceRoad(SourceEntityMixin, Base):
     __tablename__ = "source_roads"
     __table_args__ = (
+        *_source_access_indexes("source_roads"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_roads_attributes_object",
@@ -80,6 +99,7 @@ class SourceRoad(SourceEntityMixin, Base):
 class SourceBuilding(SourceEntityMixin, Base):
     __tablename__ = "source_buildings"
     __table_args__ = (
+        *_source_access_indexes("source_buildings"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_buildings_attributes_object",
@@ -111,6 +131,7 @@ class SourceBuilding(SourceEntityMixin, Base):
 class SourceLanduse(SourceEntityMixin, Base):
     __tablename__ = "source_landuse"
     __table_args__ = (
+        *_source_access_indexes("source_landuse"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_landuse_attributes_object",
@@ -132,6 +153,7 @@ class SourceLanduse(SourceEntityMixin, Base):
 class SourceWater(SourceEntityMixin, Base):
     __tablename__ = "source_water"
     __table_args__ = (
+        *_source_access_indexes("source_water"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_water_attributes_object",
@@ -153,6 +175,7 @@ class SourceWater(SourceEntityMixin, Base):
 class SourceFacility(SourceEntityMixin, Base):
     __tablename__ = "source_facilities"
     __table_args__ = (
+        *_source_access_indexes("source_facilities"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_facilities_attributes_object",
@@ -180,6 +203,7 @@ class SourceFacility(SourceEntityMixin, Base):
 class SourceConstraint(SourceEntityMixin, Base):
     __tablename__ = "source_constraints"
     __table_args__ = (
+        *_source_access_indexes("source_constraints"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_source_constraints_attributes_object",
