@@ -63,7 +63,7 @@ def _create_dataset_versions(
                 DatasetVersion(
                     dataset_id=dataset.id,
                     version=version,
-                    status="ready",
+                    status="processing",
                     source_metadata={"format": "test"},
                 )
                 for version in versions
@@ -105,6 +105,15 @@ def _insert_road(
             )
 
 
+def _mark_ready(*dataset_version_ids: uuid.UUID) -> None:
+    with Session(engine, expire_on_commit=False) as session:
+        with session.begin():
+            for dataset_version_id in dataset_version_ids:
+                version = session.get(DatasetVersion, dataset_version_id)
+                assert version is not None
+                version.status = "ready"
+
+
 def test_bbox_geojson_endpoint_is_project_version_scoped_and_limited() -> None:
     project_id, versions = _create_dataset_versions(
         project_name="Viewport",
@@ -141,6 +150,7 @@ def test_bbox_geojson_endpoint_is_project_version_scoped_and_limited() -> None:
         source_feature_id="other-project",
         coordinates=[(-0.11, 51.50), (-0.09, 51.51)],
     )
+    _mark_ready(version_id, other_version_id, other_project_version_id)
 
     client = TestClient(app)
     url = (
