@@ -1,3 +1,8 @@
+from core.urban_generator.suitability.aggregation import (
+    WeightedSuitabilityError,
+    WeightedSuitabilityResult,
+    aggregate_weighted_suitability,
+)
 from core.urban_generator.suitability.config import (
     SuitabilityConfig,
     SuitabilityConfigError,
@@ -76,6 +81,9 @@ __all__ = [
     "SuitabilityGridSpec",
     "SuitabilityNormalization",
     "SuitabilityThresholds",
+    "WeightedSuitabilityError",
+    "WeightedSuitabilityResult",
+    "aggregate_weighted_suitability",
     "build_hard_exclusion_mask",
     "validate_factor_result",
 ]
