@@ -124,7 +124,7 @@ class RegisteredConstraintEngine(ConstraintEngine):
     ) -> ValidationReport:
         results: list[ConstraintResult] = []
         for constraint in self._registry.rules_for(stage=stage, scope=scope):
-            result = constraint.evaluaue(
+            result = constraint.evaluate(
                 subject=subject,
                 snapshot=snapshot,
                 context=context,
