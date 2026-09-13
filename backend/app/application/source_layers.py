@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal, Protocol
 
-
 GEOJSON_SRID = 4326
 GEOJSON_CRS = "EPSG:4326"
 DEFAULT_SOURCE_LAYER_LIMIT = 1000
