@@ -53,7 +53,11 @@ class ZoningSeedSet:
             raise ZoningSeedError("seeds must be an immutable tuple of ZoningSeed values")
         if not isinstance(self.rng_namespace, str) or not self.rng_namespace.strip():
             raise ZoningSeedError("rng_namespace must be a non-empty string")
-        if isinstance(self.rng_seed, bool) or not isinstance(self.rng_seed, int) or self.rng_seed < 0:
+        if (
+            isinstance(self.rng_seed, bool)
+            or not isinstance(self.rng_seed, int)
+            or self.rng_seed < 0
+        ):
             raise ZoningSeedError("rng_seed must be a non-negative integer")
         _require_non_negative_int("weighted_seed_count", self.weighted_seed_count)
         _require_non_negative_int("uniform_fallback_count", self.uniform_fallback_count)
