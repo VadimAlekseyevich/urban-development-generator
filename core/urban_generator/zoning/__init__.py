@@ -10,8 +10,15 @@ from core.urban_generator.zoning.fixed_existing import (
     FixedExistingZonesAdapter,
     FixedExistingZonesAdapterError,
 )
+from core.urban_generator.zoning.seeds import (
+    DeterministicZoningSeedGenerator,
+    ZoningSeed,
+    ZoningSeedError,
+    ZoningSeedSet,
+)
 
 __all__ = [
+    "DeterministicZoningSeedGenerator",
     "FixedExistingZonesAdapter",
     "FixedExistingZonesAdapterError",
     "ZoneAdjacencyPolicy",
@@ -20,4 +27,7 @@ __all__ = [
     "ZoneClassConfig",
     "ZoningConfig",
     "ZoningConfigError",
+    "ZoningSeed",
+    "ZoningSeedError",
+    "ZoningSeedSet",
 ]
