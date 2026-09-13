@@ -36,6 +36,14 @@ class SourceLayerDatasetVersionNotFoundError(LookupError):
         )
 
 
+class SourceLayerProjectNotFoundError(LookupError):
+    """Raised when a project boundary is requested for an unknown project."""
+
+    def __init__(self, project_id: uuid.UUID) -> None:
+        self.project_id = project_id
+        super().__init__(f"project {project_id} was not found")
+
+
 @dataclass(frozen=True, slots=True)
 class SourceLayerBbox:
     """WGS84 viewport bounds used by the GeoJSON source-layer API."""
@@ -94,6 +102,21 @@ class SourceLayerFeature:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectBoundaryProperties:
+    project_id: uuid.UUID
+    working_srid: int
+    geojson_crs: Literal["EPSG:4326"] = GEOJSON_CRS
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectBoundaryFeature:
+    id: uuid.UUID
+    geometry: dict[str, object] | None
+    properties: ProjectBoundaryProperties
+    type: Literal["Feature"] = field(init=False, default="Feature")
+
+
+@dataclass(frozen=True, slots=True)
 class SourceLayerQueryResult:
     project_id: uuid.UUID
     dataset_version_id: uuid.UUID
@@ -108,7 +131,7 @@ class SourceLayerQueryResult:
 
 
 class SourceLayerQueryRepository(Protocol):
-    """Read-only persistence port for viewport-scoped canonical source features."""
+    """Read-only persistence port for source-layer map reads."""
 
     def get_context(
         self,
@@ -116,6 +139,13 @@ class SourceLayerQueryRepository(Protocol):
         project_id: uuid.UUID,
         dataset_version_id: uuid.UUID,
     ) -> SourceLayerContext | None:
+        ...
+
+    def get_project_boundary(
+        self,
+        *,
+        project_id: uuid.UUID,
+    ) -> ProjectBoundaryFeature | None:
         ...
 
     def list_features(
@@ -131,10 +161,16 @@ class SourceLayerQueryRepository(Protocol):
 
 
 class SourceLayerQueryService:
-    """Validate viewport requests and keep HTTP independent from spatial SQL."""
+    """Validate map requests and keep HTTP independent from spatial SQL."""
 
     def __init__(self, repository: SourceLayerQueryRepository) -> None:
         self._repository = repository
+
+    def get_project_boundary(self, *, project_id: uuid.UUID) -> ProjectBoundaryFeature:
+        boundary = self._repository.get_project_boundary(project_id=project_id)
+        if boundary is None:
+            raise SourceLayerProjectNotFoundError(project_id)
+        return boundary
 
     def get_geojson(
         self,

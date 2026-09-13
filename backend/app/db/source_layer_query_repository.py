@@ -9,7 +9,10 @@ from sqlalchemy import Table, func, select
 from sqlalchemy.orm import Session
 
 from backend.app.application.source_layers import (
+    GEOJSON_CRS,
     GEOJSON_SRID,
+    ProjectBoundaryFeature,
+    ProjectBoundaryProperties,
     SourceLayerBbox,
     SourceLayerContext,
     SourceLayerFeature,
@@ -61,8 +64,17 @@ _LAYER_SPECS: dict[SourceLayerName, _LayerSpec] = {
 }
 
 
+def _parse_geojson_geometry(raw_geometry: object) -> dict[str, object]:
+    if not isinstance(raw_geometry, str):
+        raise ValueError("PostGIS returned a non-text GeoJSON geometry")
+    parsed_geometry: object = json.loads(raw_geometry)
+    if not isinstance(parsed_geometry, dict):
+        raise ValueError("PostGIS returned an invalid GeoJSON geometry")
+    return {str(key): value for key, value in parsed_geometry.items()}
+
+
 class SqlAlchemySourceLayerQueryRepository:
-    """PostGIS adapter for bounded GeoJSON viewport reads."""
+    """PostGIS adapter for bounded source-layer and project-boundary map reads."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -90,6 +102,36 @@ class SqlAlchemySourceLayerQueryRepository:
             project_id=project_id,
             dataset_version_id=dataset_version_id,
             working_srid=working_srid,
+        )
+
+    def get_project_boundary(
+        self,
+        *,
+        project_id: uuid.UUID,
+    ) -> ProjectBoundaryFeature | None:
+        geometry_geojson = func.ST_AsGeoJSON(
+            func.ST_Transform(Project.boundary, GEOJSON_SRID),
+            9,
+        ).label("geometry_geojson")
+        statement = select(
+            Project.id,
+            Project.working_srid,
+            geometry_geojson,
+        ).where(Project.id == project_id)
+        row = self._session.execute(statement).mappings().one_or_none()
+        if row is None:
+            return None
+
+        raw_geometry = row["geometry_geojson"]
+        geometry = None if raw_geometry is None else _parse_geojson_geometry(raw_geometry)
+        return ProjectBoundaryFeature(
+            id=row["id"],
+            geometry=geometry,
+            properties=ProjectBoundaryProperties(
+                project_id=row["id"],
+                working_srid=row["working_srid"],
+                geojson_crs=GEOJSON_CRS,
+            ),
         )
 
     def list_features(
@@ -136,14 +178,7 @@ class SqlAlchemySourceLayerQueryRepository:
         rows = self._session.execute(statement).mappings().all()
         features: list[SourceLayerFeature] = []
         for row in rows:
-            raw_geometry = row["geometry_geojson"]
-            if not isinstance(raw_geometry, str):
-                raise ValueError("PostGIS returned a non-text GeoJSON geometry")
-            parsed_geometry: object = json.loads(raw_geometry)
-            if not isinstance(parsed_geometry, dict):
-                raise ValueError("PostGIS returned an invalid GeoJSON geometry")
-            geometry = {str(key): value for key, value in parsed_geometry.items()}
-
+            geometry = _parse_geojson_geometry(row["geometry_geojson"])
             properties: dict[str, object] = {
                 name: row[name] for name in spec.property_columns
             }

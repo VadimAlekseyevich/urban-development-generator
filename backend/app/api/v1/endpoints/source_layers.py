@@ -7,14 +7,33 @@ from backend.app.api.dependencies import SourceLayerQueryServiceDep
 from backend.app.application.source_layers import (
     DEFAULT_SOURCE_LAYER_LIMIT,
     MAX_SOURCE_LAYER_LIMIT,
+    ProjectBoundaryFeature,
     SourceLayerDatasetVersionNotFoundError,
     SourceLayerName,
+    SourceLayerProjectNotFoundError,
     SourceLayerQueryError,
     SourceLayerQueryResult,
 )
-from backend.app.schemas.source_layer import SourceLayerGeoJSONResponse
+from backend.app.schemas.source_layer import (
+    ProjectBoundaryGeoJSONResponse,
+    SourceLayerGeoJSONResponse,
+)
 
 router = APIRouter(tags=["source-layers"])
+
+
+@router.get(
+    "/projects/{project_id}/boundary/geojson",
+    response_model=ProjectBoundaryGeoJSONResponse,
+)
+def get_project_boundary_geojson(
+    project_id: uuid.UUID,
+    service: SourceLayerQueryServiceDep,
+) -> ProjectBoundaryFeature:
+    try:
+        return service.get_project_boundary(project_id=project_id)
+    except SourceLayerProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
 
 
 @router.get(

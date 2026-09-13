@@ -15,6 +15,23 @@ class SourceLayerGeoJSONFeature(BaseModel):
     properties: dict[str, Any]
 
 
+class ProjectBoundaryPropertiesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    project_id: uuid.UUID
+    working_srid: int = Field(gt=0)
+    geojson_crs: Literal["EPSG:4326"]
+
+
+class ProjectBoundaryGeoJSONResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    type: Literal["Feature"]
+    id: uuid.UUID
+    geometry: dict[str, Any] | None
+    properties: ProjectBoundaryPropertiesResponse
+
+
 class SourceLayerGeoJSONResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
