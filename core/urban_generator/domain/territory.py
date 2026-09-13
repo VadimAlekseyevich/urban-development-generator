@@ -18,6 +18,7 @@ class SnapshotLayerKind(StrEnum):
     BUILDINGS = "BUILDINGS"
     FACILITIES = "FACILITIES"
     LANDUSE = "LANDUSE"
+    ZONES = "ZONES"
     WATER = "WATER"
     CONSTRAINTS = "CONSTRAINTS"
     DEM = "DEM"
@@ -54,6 +55,7 @@ class TerritorySnapshot:
     buildings: tuple[SnapshotLayerRef, ...] = ()
     facilities: tuple[SnapshotLayerRef, ...] = ()
     landuse: tuple[SnapshotLayerRef, ...] = ()
+    fixed_zones: tuple[SnapshotLayerRef, ...] = ()
     water: tuple[SnapshotLayerRef, ...] = ()
     constraints: tuple[SnapshotLayerRef, ...] = ()
     dem: tuple[SnapshotLayerRef, ...] = ()
@@ -72,6 +74,7 @@ class TerritorySnapshot:
         _require_layers("buildings", self.buildings, SnapshotLayerKind.BUILDINGS)
         _require_layers("facilities", self.facilities, SnapshotLayerKind.FACILITIES)
         _require_layers("landuse", self.landuse, SnapshotLayerKind.LANDUSE)
+        _require_layers("fixed_zones", self.fixed_zones, SnapshotLayerKind.ZONES)
         _require_layers("water", self.water, SnapshotLayerKind.WATER)
         _require_layers("constraints", self.constraints, SnapshotLayerKind.CONSTRAINTS)
         _require_layers("dem", self.dem, SnapshotLayerKind.DEM)
@@ -85,6 +88,7 @@ class TerritorySnapshot:
             *self.buildings,
             *self.facilities,
             *self.landuse,
+            *self.fixed_zones,
             *self.water,
             *self.constraints,
             *self.dem,
@@ -93,9 +97,9 @@ class TerritorySnapshot:
 
     @property
     def has_fixed_urban_state(self) -> bool:
-        """Whether existing roads, buildings or facilities are present."""
+        """Whether existing roads, buildings, facilities or zones are present."""
 
-        return bool(self.roads or self.buildings or self.facilities)
+        return bool(self.roads or self.buildings or self.facilities or self.fixed_zones)
 
 
 def _require_layer(
