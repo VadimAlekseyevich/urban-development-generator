@@ -63,8 +63,8 @@ export function formatPercent(numerator: number, denominator: number): string {
 }
 
 export function factorNormalizationLabel(factor: SuitabilityFactorMetadata): string {
-  if (factor.normalization === 'identity') return 'identity'
+  if (factor.normalization === 'IDENTITY') return 'identity'
   if (factor.raw_min === null || factor.raw_max === null) return factor.normalization
-  const direction = factor.normalization === 'inverted_min_max' ? 'inv' : 'min/max'
+  const direction = factor.normalization === 'INVERTED_MIN_MAX' ? 'inv' : 'min/max'
   return `${direction} ${factor.raw_min}…${factor.raw_max}`
 }
