@@ -1,0 +1,30 @@
+{
+  "version": "v1",
+  "factors": [
+    {
+      "code": "slope",
+      "weight": 2.0,
+      "normalization": "INVERTED_MIN_MAX",
+      "raw_min": 0.0,
+      "raw_max": 20.0
+    },
+    {
+      "code": "road_proximity",
+      "weight": 1.0,
+      "normalization": "INVERTED_MIN_MAX",
+      "raw_min": 0.0,
+      "raw_max": 1000.0
+    },
+    {
+      "code": "landuse",
+      "weight": 1.0,
+      "normalization": "IDENTITY",
+      "raw_min": null,
+      "raw_max": null
+    }
+  ],
+  "thresholds": {
+    "minimum_score": 0.45,
+    "preferred_score": 0.75
+  }
+}
