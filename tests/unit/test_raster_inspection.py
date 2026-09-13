@@ -8,9 +8,9 @@ from rasterio.transform import from_origin
 from backend.app.services.raster_inspection import (
     RasterInspectionError,
     RasterInspector,
+    RasterioMetadataBackend,
     RasterMetadataBackend,
     RasterSource,
-    RasterioMetadataBackend,
 )
 
 

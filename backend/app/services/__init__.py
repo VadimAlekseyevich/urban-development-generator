@@ -10,8 +10,8 @@ from backend.app.services.raster_inspection import (
     RasterInspection,
     RasterInspectionError,
     RasterInspector,
-    RasterMetadataBackend,
     RasterioMetadataBackend,
+    RasterMetadataBackend,
 )
 from backend.app.services.shapefile_zip import (
     ExtractedShapefileArchive,
