@@ -5,7 +5,7 @@ import tempfile
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Final
+from typing import Any, Final, cast
 
 import rasterio
 from pyproj import CRS
@@ -383,7 +383,10 @@ def _source_crs(value: object) -> CRS:
     except (CRSError, TypeError, ValueError) as exc:
         raise MissingRasterCRSError("source raster CRS is invalid") from exc
     if crs.is_bound:
-        crs = crs.source_crs
+        source_crs = crs.source_crs
+        if source_crs is None:
+            raise MissingRasterCRSError("source raster bound CRS has no source CRS")
+        crs = source_crs
     return crs
 
 
@@ -409,7 +412,7 @@ def _uniform_nodata(values: tuple[object, ...], *, band_count: int) -> float | N
             normalized.append(None)
             continue
         try:
-            number = float(value)
+            number = float(cast(Any, value))
         except (TypeError, ValueError, OverflowError) as exc:
             raise RasterBandContractError("source raster nodata value is invalid") from exc
         if math.isinf(number):
@@ -466,8 +469,14 @@ def _target_grid(
         *source_bounds,
         densify_pts=21,
     )
+    transformed_bounds: RasterClipBounds = (
+        float(transformed_source_bounds[0]),
+        float(transformed_source_bounds[1]),
+        float(transformed_source_bounds[2]),
+        float(transformed_source_bounds[3]),
+    )
     target_bounds = _intersection(
-        tuple(float(value) for value in transformed_source_bounds),
+        transformed_bounds,
         config.clip_bounds,
     )
     if target_bounds is None:
