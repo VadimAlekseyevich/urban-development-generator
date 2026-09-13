@@ -134,6 +134,7 @@ class BaseZoningPartitioner:
                     f"zoning seed {index} must be covered by the developable area"
                 )
 
+        raw_cell_indexes: tuple[int, ...]
         if len(seed_points) == 1:
             raw_cells = (repaired_developable,)
             raw_cell_indexes = (0,)
