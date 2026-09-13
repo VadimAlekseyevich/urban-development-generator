@@ -169,21 +169,21 @@ def build_hard_exclusion_mask(
 
     source_codes = (
         "boundary",
-        *(layer.code for layer in geometry_layers),
-        *(layer.code for layer in raster_layers),
+        *(geometry_layer.code for geometry_layer in geometry_layers),
+        *(raster_layer.code for raster_layer in raster_layers),
     )
     if len(source_codes) != len(set(source_codes)):
         raise HardExclusionMaskError("hard exclusion source codes must be unique")
 
-    for layer in geometry_layers:
-        if layer.working_srid != grid.working_srid:
+    for geometry_layer in geometry_layers:
+        if geometry_layer.working_srid != grid.working_srid:
             raise HardExclusionMaskError(
-                f"geometry layer {layer.code!r} working_srid must match the target grid"
+                f"geometry layer {geometry_layer.code!r} working_srid must match the target grid"
             )
-    for layer in raster_layers:
-        if layer.grid != grid:
+    for raster_layer in raster_layers:
+        if raster_layer.grid != grid:
             raise HardExclusionMaskError(
-                f"raster layer {layer.code!r} must use exactly the target grid"
+                f"raster layer {raster_layer.code!r} must use exactly the target grid"
             )
 
     transform = from_bounds(*grid.bounds, width=grid.width, height=grid.height)
@@ -199,11 +199,11 @@ def build_hard_exclusion_mask(
     excluded = np.logical_not(inside_boundary)
 
     all_touched = exclusion_policy is ExclusionRasterizationPolicy.ANY_TOUCH
-    for layer in geometry_layers:
-        if not layer.geometries:
+    for geometry_layer in geometry_layers:
+        if not geometry_layer.geometries:
             continue
         burned = rasterize(
-            ((geometry, 1) for geometry in layer.geometries),
+            ((geometry, 1) for geometry in geometry_layer.geometries),
             out_shape=grid.shape,
             transform=transform,
             fill=0,
@@ -213,8 +213,8 @@ def build_hard_exclusion_mask(
         ).astype(np.bool_)
         np.logical_or(excluded, burned, out=excluded)
 
-    for layer in raster_layers:
-        np.logical_or(excluded, layer.excluded, out=excluded)
+    for raster_layer in raster_layers:
+        np.logical_or(excluded, raster_layer.excluded, out=excluded)
 
     return HardExclusionMask(
         grid=grid,
