@@ -197,7 +197,9 @@ class LanduseFactor:
         if not isinstance(grid, SuitabilityGridSpec):
             raise LanduseFactorError("grid must be a SuitabilityGridSpec")
         if self.source.grid != grid:
-            raise LanduseFactorError("landuse source must use exactly the requested suitability grid")
+            raise LanduseFactorError(
+                "landuse source must use exactly the requested suitability grid"
+            )
         if snapshot.settings.working_srid != grid.working_srid:
             raise LanduseFactorError("snapshot working_srid must match the suitability grid")
         if context.working_srid != grid.working_srid:
