@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "fixtures": {
+    "geojson": {
+      "seed": "tests/fixtures/ingest/roads.geojson",
+      "happy": "generated_from_seed",
+      "invalid": "malformed_json"
+    },
+    "gpkg": {
+      "seed": "tests/fixtures/ingest/roads.geojson",
+      "happy": "generated_from_seed",
+      "invalid": "non_sqlite_bytes",
+      "layer": "roads"
+    },
+    "shapefile_zip": {
+      "seed": "tests/fixtures/ingest/roads.geojson",
+      "happy": "generated_from_seed",
+      "invalid": "zip_without_shp",
+      "layer": "roads"
+    },
+    "geotiff": {
+      "happy": "generated_10x10_epsg4326_uint16",
+      "invalid": "non_tiff_bytes"
+    },
+    "osm_pbf": {
+      "happy": "tests/fixtures/osm/minimal.pbf",
+      "invalid": "non_pbf_bytes"
+    }
+  }
+}
