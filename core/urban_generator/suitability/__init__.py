@@ -28,6 +28,15 @@ from core.urban_generator.suitability.hard_exclusion import (
     HardExclusionRasterLayer,
     build_hard_exclusion_mask,
 )
+from core.urban_generator.suitability.landuse import (
+    LanduseClassWeight,
+    LanduseClassWeights,
+    LanduseFactor,
+    LanduseFactorError,
+    LanduseSource,
+    LanduseUnknownClassPolicy,
+    LanduseWindow,
+)
 from core.urban_generator.suitability.road_proximity import (
     RoadProximityError,
     RoadProximityFactor,
@@ -47,6 +56,13 @@ __all__ = [
     "HardExclusionMask",
     "HardExclusionMaskError",
     "HardExclusionRasterLayer",
+    "LanduseClassWeight",
+    "LanduseClassWeights",
+    "LanduseFactor",
+    "LanduseFactorError",
+    "LanduseSource",
+    "LanduseUnknownClassPolicy",
+    "LanduseWindow",
     "RoadProximityError",
     "RoadProximityFactor",
     "RoadProximityIndex",
