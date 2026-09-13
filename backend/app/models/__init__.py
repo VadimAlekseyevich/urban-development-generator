@@ -13,6 +13,14 @@ from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
+from backend.app.models.source_layer import (
+    SourceBuilding,
+    SourceConstraint,
+    SourceFacility,
+    SourceLanduse,
+    SourceRoad,
+    SourceWater,
+)
 
 __all__ = [
     "Artifact",
@@ -29,4 +37,10 @@ __all__ = [
     "JobOutbox",
     "Project",
     "RunStageResult",
+    "SourceBuilding",
+    "SourceConstraint",
+    "SourceFacility",
+    "SourceLanduse",
+    "SourceRoad",
+    "SourceWater",
 ]

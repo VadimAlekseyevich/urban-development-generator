@@ -70,8 +70,22 @@ S02-T07 фиксирует persistence и dispatcher contract, но не при�
 
 Generated rows можно создавать и изменять только пока run не находится в состоянии `succeeded`. После успеха trigger запрещает `INSERT`, `UPDATE` и `DELETE`, поэтому пространственный результат завершённого запуска остаётся неизменяемой частью provenance.
 
-S02-T08 намеренно не добавляет GiST, B-tree и composite indexes: они проектируются в S02-T10 по реальным access patterns. `attributes_json` не заменяет canonical source schema; нормализованные source roads/buildings/landuse/water/facilities/constraints будут отдельными таблицами в S02-T09.
+S02-T08 намеренно не добавляет GiST, B-tree и composite indexes: они проектируются в S02-T10 по реальным access patterns.
+
+## Canonical source layers
+
+Нормализованные исходные векторные данные не складываются в одну EAV/feature-таблицу. S02-T09 вводит отдельные таблицы `source_roads`, `source_buildings`, `source_landuse`, `source_water`, `source_facilities` и `source_constraints`.
+
+Каждая source row принадлежит ровно одному `DatasetVersion` через `dataset_version_id`, может сохранять внешний `source_feature_id`, содержит рабочую `geometry`, JSON-объект `attributes_json` для неканонических provenance/tags и `created_at`. `(dataset_version_id, source_feature_id)` уникален внутри конкретного слоя, если внешний id известен.
+
+Поля, на которые будут опираться алгоритмы, вынесены из JSON в типизированные колонки. Roads имеют `road_class`, `name`, `lanes`, `max_speed_kph`, `one_way`; buildings — `building_class`, `name`, `levels`, `height_m`; landuse/water/facilities имеют соответствующий class, а facilities дополнительно `name` и `capacity`. Source constraints хранят стабильные `constraint_code`, `severity` (`HARD`/`SOFT`) и `scope`, согласованные с core constraint contract.
+
+Road geometry нормализуется к `MULTILINESTRING`, building/landuse — к `MULTIPOLYGON`; water/facility/constraint используют `GEOMETRY`, поскольку допустимая топология зависит от типа источника. PostgreSQL trigger требует, чтобы SRID каждой записываемой геометрии совпадал с `Project.working_srid` через цепочку `DatasetVersion -> Dataset -> Project`.
+
+До перехода `DatasetVersion` в `ready` ingest может вставлять, заменять и очищать строки для retry-safe нормализации. После `status = ready` source rows этой версии становятся immutable: `INSERT`, `UPDATE` и `DELETE` запрещены. Перенос строки на другой `dataset_version_id` запрещён всегда.
+
+S02-T09 намеренно не добавляет GiST/B-tree access indexes: они проектируются в S02-T10 по реальным `project/dataset_version/run` access patterns. Unique constraints на внешний feature id являются integrity rules, а не заменой spatial/access indexing.
 
 ## Следующие сущности
 
-Следующая миграция добавит canonical source layers. Пространственные и run-scoped слои получат GiST и B-tree/composite indexes в S02-T10; площади и расстояния считаются только в метрической рабочей CRS проекта.
+Следующий work item S02-T10 добавит пространственные GiST и B-tree/composite indexes под реальные access patterns canonical source и generated tables. Площади и расстояния считаются только в метрической рабочей CRS проекта.
