@@ -33,6 +33,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
   const initialId = initialArtifactId()
   const [artifactInput, setArtifactInput] = useState(initialId)
   const [artifactId, setArtifactId] = useState(() => (isUuid(initialId) ? initialId : ''))
+  const [reloadToken, setReloadToken] = useState(0)
   const [formError, setFormError] = useState<string | null>(null)
   const [status, setStatus] = useState<LoadStatus>(artifactId ? 'loading' : 'idle')
   const [message, setMessage] = useState(
@@ -95,7 +96,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
     return () => {
       controller.abort()
     }
-  }, [apiBase, artifactId, map])
+  }, [apiBase, artifactId, map, reloadToken])
 
   useEffect(() => {
     if (!map || !metadata || !previewUrl) return
@@ -148,6 +149,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
 
     setFormError(null)
     setArtifactId(value)
+    setReloadToken((current) => current + 1)
     const url = new URL(window.location.href)
     if (value) url.searchParams.set('suitability_artifact_id', value)
     else url.searchParams.delete('suitability_artifact_id')
@@ -247,7 +249,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
             <button
               className="button"
               type="button"
-              onClick={() => setArtifactId((current) => `${current}`)}
+              onClick={() => setReloadToken((current) => current + 1)}
             >
               Обновить
             </button>
