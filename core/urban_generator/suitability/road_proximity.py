@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import numpy as np
@@ -199,7 +200,7 @@ class RoadProximityFactor:
                 ),
             )
 
-        for tile in _tiles(grid=grid, tile_size=self.tile_size):
+        for tile in _iter_tiles(grid=grid, tile_size=self.tile_size):
             x, y = _tile_cell_centers(grid=grid, tile=tile)
             distances = self.index.nearest_distances(x=x, y=y)
             if distances is None:
@@ -230,21 +231,19 @@ class RoadProximityFactor:
         )
 
 
-def _tiles(*, grid: SuitabilityGridSpec, tile_size: int) -> tuple[RoadProximityTile, ...]:
-    tiles: list[RoadProximityTile] = []
+def _iter_tiles(*, grid: SuitabilityGridSpec, tile_size: int) -> Iterator[RoadProximityTile]:
+    """Yield tiles lazily so traversal metadata never scales with total grid cell count."""
+
     for row_off in range(0, grid.height, tile_size):
         height = min(tile_size, grid.height - row_off)
         for col_off in range(0, grid.width, tile_size):
             width = min(tile_size, grid.width - col_off)
-            tiles.append(
-                RoadProximityTile(
-                    row_off=row_off,
-                    col_off=col_off,
-                    height=height,
-                    width=width,
-                )
+            yield RoadProximityTile(
+                row_off=row_off,
+                col_off=col_off,
+                height=height,
+                width=width,
             )
-    return tuple(tiles)
 
 
 def _tile_cell_centers(
