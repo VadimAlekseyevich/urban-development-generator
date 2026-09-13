@@ -52,7 +52,7 @@ def get_suitability_artifact_preview(
         raise HTTPException(status_code=404, detail="Suitability artifact not found") from exc
     except SuitabilityArtifactUnavailableError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except (SuitabilityArtifactContractError, SuitabilityLayerError) as exc:
+    except SuitabilityLayerError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     etag = f'"{preview.source_checksum}-{preview.width}x{preview.height}-v1"'
