@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 
 from core.urban_generator.domain import CRSContractError
@@ -73,13 +73,7 @@ def test_partition_is_clipped_to_concave_developable_area_and_covers_it() -> Non
     assert sum(cell.area_m2 for cell in result.cells) == pytest.approx(developable.area)
     assert all(cell.geometry.is_valid for cell in result.cells)
     assert all(
-        cell.geometry.covers(
-            __import__("shapely.geometry", fromlist=["Point"]).Point(
-                cell.seed.x_m,
-                cell.seed.y_m,
-            )
-        )
-        for cell in result.cells
+        cell.geometry.covers(Point(cell.seed.x_m, cell.seed.y_m)) for cell in result.cells
     )
 
 
