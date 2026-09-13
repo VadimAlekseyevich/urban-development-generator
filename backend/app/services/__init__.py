@@ -7,9 +7,9 @@ from backend.app.services.job_dispatcher import (
     dispatch_outbox_message,
 )
 from backend.app.services.osm_canonical_writer import (
-    OsmCanonicalWriteResult,
     OsmCanonicalWriter,
     OsmCanonicalWriterError,
+    OsmCanonicalWriteResult,
     SourceLayerBatchWriter,
 )
 from backend.app.services.osm_mapping import (
