@@ -1,3 +1,13 @@
+from core.urban_generator.constraints.distance_setback import (
+    DistanceSetbackBand,
+    DistanceSetbackCandidateLimitError,
+    DistanceSetbackConstraint,
+    DistanceSetbackError,
+    DistanceSetbackHit,
+    DistanceSetbackIndex,
+    DistanceSetbackKind,
+    DistanceSetbackSubject,
+)
 from core.urban_generator.constraints.engine import (
     ConstraintRegistration,
     ConstraintRegistry,
@@ -18,6 +28,14 @@ __all__ = [
     "ConstraintRegistration",
     "ConstraintRegistry",
     "ConstraintRegistryError",
+    "DistanceSetbackBand",
+    "DistanceSetbackCandidateLimitError",
+    "DistanceSetbackConstraint",
+    "DistanceSetbackError",
+    "DistanceSetbackHit",
+    "DistanceSetbackIndex",
+    "DistanceSetbackKind",
+    "DistanceSetbackSubject",
     "GeometryExclusionCandidateLimitError",
     "GeometryExclusionConstraint",
     "GeometryExclusionError",
