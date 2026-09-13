@@ -173,11 +173,11 @@ class IngestJobService:
                 },
             )
         except Exception as exc:
-            error = TransientError(
+            unexpected_error = TransientError(
                 "ingest pipeline failed unexpectedly",
                 details={"exception_type": type(exc).__name__},
             )
-            retryable = self._repository.fail(context=context, error=error)
+            retryable = self._repository.fail(context=context, error=unexpected_error)
             return IngestJobRunResult(
                 job_id=job_id,
                 dataset_version_id=dataset_version_id,
@@ -186,8 +186,8 @@ class IngestJobService:
                 max_attempts=context.max_attempts,
                 retryable=retryable,
                 details={
-                    "error_class": error.category.value,
-                    "error_code": error.code.value,
+                    "error_class": unexpected_error.category.value,
+                    "error_code": unexpected_error.code.value,
                 },
             )
 
