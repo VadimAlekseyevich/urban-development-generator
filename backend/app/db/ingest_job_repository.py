@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,7 +21,7 @@ from backend.app.models.artifact import Artifact, ArtifactLifecycleError, Artifa
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.job import Job
 from backend.app.models.project import Project
-from core.urban_generator.domain import ArtifactState, ArtifactStat
+from core.urban_generator.domain import ArtifactStat, ArtifactState
 from core.urban_generator.domain.errors import (
     DataError,
     PermanentError,
@@ -47,7 +47,7 @@ class SqlAlchemyIngestJobRepository:
             raise ValueError("stale_after must be positive")
         self._session_factory = session_factory
         self._stale_after = stale_after
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     def claim(
         self,

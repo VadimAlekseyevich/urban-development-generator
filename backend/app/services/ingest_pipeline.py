@@ -62,7 +62,7 @@ class IngestManifest:
     resampling: RasterResampling = RasterResampling.NEAREST
 
     @classmethod
-    def from_metadata(cls, metadata: dict[str, object]) -> "IngestManifest":
+    def from_metadata(cls, metadata: dict[str, object]) -> IngestManifest:
         artifact_key = _required_text(metadata.get("artifact_key"), field="artifact_key")
         try:
             ArtifactRef(key=artifact_key, state=ArtifactState.READY)
