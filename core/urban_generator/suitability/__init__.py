@@ -5,6 +5,13 @@ from core.urban_generator.suitability.config import (
     SuitabilityNormalization,
     SuitabilityThresholds,
 )
+from core.urban_generator.suitability.dem_slope import (
+    DEMSlopeError,
+    DEMSlopeFactor,
+    DEMSlopeNoDataPolicy,
+    DEMSlopeSource,
+    DEMSlopeWindow,
+)
 from core.urban_generator.suitability.factors import (
     SuitabilityFactor,
     SuitabilityFactorError,
@@ -23,6 +30,11 @@ from core.urban_generator.suitability.hard_exclusion import (
 )
 
 __all__ = [
+    "DEMSlopeError",
+    "DEMSlopeFactor",
+    "DEMSlopeNoDataPolicy",
+    "DEMSlopeSource",
+    "DEMSlopeWindow",
     "ExclusionRasterizationPolicy",
     "HardExclusionBoundary",
     "HardExclusionGeometryLayer",
