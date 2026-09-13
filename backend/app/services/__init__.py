@@ -6,6 +6,12 @@ from backend.app.services.job_dispatcher import (
     build_pending_outbox_query,
     dispatch_outbox_message,
 )
+from backend.app.services.osm_canonical_writer import (
+    OsmCanonicalWriteResult,
+    OsmCanonicalWriter,
+    OsmCanonicalWriterError,
+    SourceLayerBatchWriter,
+)
 from backend.app.services.osm_mapping import (
     DEFAULT_OSM_MAPPING_RULESET,
     OSM_MAPPING_RULESET_VERSION,
@@ -111,6 +117,9 @@ __all__ = [
     "MissingVectorCRSError",
     "NormalizedRasterArtifact",
     "NormalizedVectorBatch",
+    "OsmCanonicalWriteResult",
+    "OsmCanonicalWriter",
+    "OsmCanonicalWriterError",
     "OsmCategoryMapping",
     "OsmElementType",
     "OsmFeature",
@@ -147,6 +156,7 @@ __all__ = [
     "ShapefileZipExtractor",
     "ShapefileZipLimitError",
     "ShapefileZipLimits",
+    "SourceLayerBatchWriter",
     "UnsafeShapefileZipError",
     "VectorBatchBackend",
     "VectorBatchContractError",
