@@ -151,6 +151,75 @@ button, input { font: inherit; }
 .load-state-error { background: #fef2f2; color: #b91c1c; }
 .warning-text { margin: 8px 0 0; color: #a16207; font-size: 11px; line-height: 1.4; }
 
+.suitability-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.suitability-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+.suitability-toggle input { margin: 0; accent-color: #0f172a; }
+.opacity-control { display: grid; gap: 5px; color: #64748b; font-size: 10px; font-weight: 700; }
+.opacity-control input { width: 100%; accent-color: #334155; }
+.suitability-legend { margin-top: 12px; }
+.suitability-gradient {
+  height: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(185, 28, 28), rgb(245, 158, 11), rgb(21, 128, 61));
+}
+.suitability-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 9px;
+}
+.hard-mask-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: #475569;
+  font-size: 10px;
+}
+.hard-mask-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(30, 41, 59, 0.82);
+}
+.suitability-stats { margin-top: 12px; }
+.factor-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1f5;
+}
+.factor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.factor-row > div { display: grid; gap: 2px; min-width: 0; }
+.factor-row > div:last-child { text-align: right; }
+.factor-row strong { color: #1e293b; font-size: 10px; overflow-wrap: anywhere; }
+.factor-row span { color: #64748b; font-size: 9px; overflow-wrap: anywhere; }
+
 .inspector-panel { margin-bottom: 0; }
 .property-grid { display: grid; gap: 0; margin: 0; }
 .property-grid > div {
