@@ -32,9 +32,9 @@ from backend.app.models.source_layer import SourceRoad
 from backend.app.services.ingest_pipeline import DatasetIngestPipeline
 from backend.app.services.osm_pbf_reader import (
     OsmFeatureCategory,
+    OsmPbfReader,
     OsmPbfReadError,
     OsmPbfReadLimits,
-    OsmPbfReader,
 )
 from core.urban_generator.domain import ArtifactRef
 
