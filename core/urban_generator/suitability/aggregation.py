@@ -76,13 +76,17 @@ class WeightedSuitabilityResult:
             not isinstance(self.config_fingerprint, str)
             or _SHA256_RE.fullmatch(self.config_fingerprint) is None
         ):
-            raise WeightedSuitabilityError("config_fingerprint must be a lowercase SHA-256 hex digest")
+            raise WeightedSuitabilityError(
+                "config_fingerprint must be a lowercase SHA-256 hex digest"
+            )
         if not isinstance(self.factor_versions, tuple) or not self.factor_versions:
             raise WeightedSuitabilityError("factor_versions must be a non-empty immutable tuple")
         factor_codes: list[str] = []
         for item in self.factor_versions:
             if not isinstance(item, tuple) or len(item) != 2:
-                raise WeightedSuitabilityError("factor_versions entries must be (code, version) tuples")
+                raise WeightedSuitabilityError(
+                    "factor_versions entries must be (code, version) tuples"
+                )
             code, version = item
             if not isinstance(code, str) or not code:
                 raise WeightedSuitabilityError("factor version code must be a non-empty string")
