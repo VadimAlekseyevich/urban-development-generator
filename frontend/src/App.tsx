@@ -247,10 +247,8 @@ function App() {
       center: [37.6176, 55.7558],
       zoom: 9,
       renderWorldCopies: false,
-      maxBounds: [
-        [-180, -85],
-        [180, 85],
-      ],
+      // Do not use full-world maxBounds here. A 360-degree longitude span can make
+      // MapLibre's projection matrix singular during resize (maplibre-gl-js#6148).
     })
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
