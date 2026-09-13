@@ -47,7 +47,10 @@ def _project_boundary() -> object:
         (-0.15, 51.55),
         (-0.15, 51.49),
     ]
-    ring_working = [_TO_WORKING.transform(longitude, latitude) for longitude, latitude in ring_wgs84]
+    ring_working = [
+        _TO_WORKING.transform(longitude, latitude)
+        for longitude, latitude in ring_wgs84
+    ]
     return from_shape(
         MultiPolygon([Polygon(ring_working)]),
         srid=WORKING_SRID,

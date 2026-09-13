@@ -15,7 +15,7 @@ export type GeoJsonGeometry =
 export type GeoJsonFeature = {
   type: 'Feature'
   id: string
-  geometry: GeoJsonGeometry | null
+  geometry: GeoJsonGeometry
   properties: Record<string, unknown>
 }
 
@@ -35,7 +35,10 @@ export type SourceLayerResponse = GeoJsonFeatureCollection & {
   truncated: boolean
 }
 
-export type ProjectBoundaryResponse = GeoJsonFeature & {
+export type ProjectBoundaryResponse = {
+  type: 'Feature'
+  id: string
+  geometry: GeoJsonGeometry | null
   properties: {
     project_id: string
     working_srid: number

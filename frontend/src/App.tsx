@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type MapGeoJSONFeature } from 'maplibre-gl'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
+import maplibregl, {
+  type GeoJSONSource,
+  type Map as MapLibreMap,
+  type MapGeoJSONFeature,
+} from 'maplibre-gl'
 
 import {
   EMPTY_FEATURE_COLLECTION,
@@ -37,15 +49,15 @@ const SOURCE_IDS: Record<SourceLayerKey, string> = {
 
 const MAP_LAYER_IDS: Record<SourceLayerKey, readonly string[]> = {
   boundary: ['source-boundary-fill', 'source-boundary-line'],
-  landuse: ['source-landuse-fill', 'source-landuse-line'],
-  water: ['source-water-fill', 'source-water-line'],
-  buildings: ['source-buildings-fill', 'source-buildings-line'],
   roads: ['source-roads-line'],
+  buildings: ['source-buildings-fill', 'source-buildings-line'],
+  water: ['source-water-fill', 'source-water-line'],
+  landuse: ['source-landuse-fill', 'source-landuse-line'],
 }
 
-const MAP_LAYER_TO_SOURCE_KEY: Record<string, SourceLayerKey> = Object.fromEntries(
-  Object.entries(MAP_LAYER_IDS).flatMap(([key, layerIds]) =>
-    layerIds.map((layerId) => [layerId, key as SourceLayerKey]),
+const MAP_LAYER_TO_SOURCE: Record<string, SourceLayerKey> = Object.fromEntries(
+  Object.entries(MAP_LAYER_IDS).flatMap(([key, ids]) =>
+    ids.map((id) => [id, key as SourceLayerKey]),
   ),
 ) as Record<string, SourceLayerKey>
 
@@ -61,13 +73,7 @@ type ApiStatus = 'checking' | 'online' | 'offline'
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 type SourceContext = { projectId: string; datasetVersionId: string }
 type SelectedFeature = { layer: SourceLayerKey; feature: GeoJsonFeature }
-
-type LayerStat = {
-  count: number
-  truncated: boolean
-  error: string | null
-}
-
+type LayerStat = { count: number; truncated: boolean; error: string | null }
 type LayerStats = Record<SourceLayerApiName, LayerStat>
 
 const EMPTY_STATS: LayerStats = {
@@ -81,15 +87,19 @@ function initialParam(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? ''
 }
 
-function makeContext(projectId: string, datasetVersionId: string): SourceContext | null {
+function parseContext(projectId: string, datasetVersionId: string): SourceContext | null {
   const project = projectId.trim()
   const version = datasetVersionId.trim()
   if (!isUuid(project) || !isUuid(version)) return null
   return { projectId: project, datasetVersionId: version }
 }
 
-function sourceData(map: MapLibreMap, key: SourceLayerKey, data: GeoJsonFeatureCollection): void {
-  const source = map.getSource(SOURCE_IDS[key]) as GeoJSONSource | undefined
+function setSourceData(
+  map: MapLibreMap,
+  layer: SourceLayerKey,
+  data: GeoJsonFeatureCollection,
+): void {
+  const source = map.getSource(SOURCE_IDS[layer]) as GeoJSONSource | undefined
   source?.setData(data)
 }
 
@@ -119,6 +129,71 @@ function fitMap(map: MapLibreMap, bounds: Bounds): void {
   )
 }
 
+function addSourceLayers(map: MapLibreMap): void {
+  for (const key of Object.keys(SOURCE_IDS) as SourceLayerKey[]) {
+    map.addSource(SOURCE_IDS[key], { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
+  }
+
+  map.addLayer({
+    id: 'source-boundary-fill',
+    type: 'fill',
+    source: SOURCE_IDS.boundary,
+    paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.06 },
+  })
+  map.addLayer({
+    id: 'source-boundary-line',
+    type: 'line',
+    source: SOURCE_IDS.boundary,
+    paint: { 'line-color': '#f59e0b', 'line-width': 3, 'line-dasharray': [2, 2] },
+  })
+  map.addLayer({
+    id: 'source-landuse-fill',
+    type: 'fill',
+    source: SOURCE_IDS.landuse,
+    paint: { 'fill-color': '#65a30d', 'fill-opacity': 0.22 },
+  })
+  map.addLayer({
+    id: 'source-landuse-line',
+    type: 'line',
+    source: SOURCE_IDS.landuse,
+    paint: { 'line-color': '#4d7c0f', 'line-width': 1 },
+  })
+  map.addLayer({
+    id: 'source-water-fill',
+    type: 'fill',
+    source: SOURCE_IDS.water,
+    paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.5 },
+    filter: ['==', ['geometry-type'], 'Polygon'],
+  })
+  map.addLayer({
+    id: 'source-water-line',
+    type: 'line',
+    source: SOURCE_IDS.water,
+    paint: { 'line-color': '#0284c7', 'line-width': 2 },
+  })
+  map.addLayer({
+    id: 'source-buildings-fill',
+    type: 'fill',
+    source: SOURCE_IDS.buildings,
+    paint: { 'fill-color': '#d97706', 'fill-opacity': 0.52 },
+  })
+  map.addLayer({
+    id: 'source-buildings-line',
+    type: 'line',
+    source: SOURCE_IDS.buildings,
+    paint: { 'line-color': '#92400e', 'line-width': 0.8 },
+  })
+  map.addLayer({
+    id: 'source-roads-line',
+    type: 'line',
+    source: SOURCE_IDS.roads,
+    paint: {
+      'line-color': '#334155',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1, 12, 2, 16, 4],
+    },
+  })
+}
+
 function App() {
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
@@ -133,11 +208,11 @@ function App() {
   })
 
   const initialProjectId = initialParam('project_id')
-  const initialDatasetVersionId = initialParam('dataset_version_id')
+  const initialVersionId = initialParam('dataset_version_id')
   const [projectId, setProjectId] = useState(initialProjectId)
-  const [datasetVersionId, setDatasetVersionId] = useState(initialDatasetVersionId)
+  const [datasetVersionId, setDatasetVersionId] = useState(initialVersionId)
   const [context, setContext] = useState<SourceContext | null>(() =>
-    makeContext(initialProjectId, initialDatasetVersionId),
+    parseContext(initialProjectId, initialVersionId),
   )
   const [contextError, setContextError] = useState<string | null>(null)
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking')
@@ -155,7 +230,7 @@ function App() {
   )
 
   useEffect(() => {
-    fetch(`${API_BASE}/health/live`)
+    void fetch(`${API_BASE}/health/live`)
       .then((response) => {
         if (!response.ok) throw new Error('API unavailable')
         setApiStatus('online')
@@ -182,95 +257,25 @@ function App() {
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right')
 
     map.on('load', () => {
-      for (const key of Object.keys(SOURCE_IDS) as SourceLayerKey[]) {
-        map.addSource(SOURCE_IDS[key], {
-          type: 'geojson',
-          data: EMPTY_FEATURE_COLLECTION,
-        })
-      }
-
-      map.addLayer({
-        id: 'source-boundary-fill',
-        type: 'fill',
-        source: SOURCE_IDS.boundary,
-        paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.06 },
-      })
-      map.addLayer({
-        id: 'source-boundary-line',
-        type: 'line',
-        source: SOURCE_IDS.boundary,
-        paint: {
-          'line-color': '#f59e0b',
-          'line-width': 3,
-          'line-dasharray': [2, 2],
-        },
-      })
-      map.addLayer({
-        id: 'source-landuse-fill',
-        type: 'fill',
-        source: SOURCE_IDS.landuse,
-        paint: { 'fill-color': '#65a30d', 'fill-opacity': 0.22 },
-      })
-      map.addLayer({
-        id: 'source-landuse-line',
-        type: 'line',
-        source: SOURCE_IDS.landuse,
-        paint: { 'line-color': '#4d7c0f', 'line-width': 1 },
-      })
-      map.addLayer({
-        id: 'source-water-fill',
-        type: 'fill',
-        source: SOURCE_IDS.water,
-        paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.5 },
-        filter: ['==', ['geometry-type'], 'Polygon'],
-      })
-      map.addLayer({
-        id: 'source-water-line',
-        type: 'line',
-        source: SOURCE_IDS.water,
-        paint: { 'line-color': '#0284c7', 'line-width': 2 },
-      })
-      map.addLayer({
-        id: 'source-buildings-fill',
-        type: 'fill',
-        source: SOURCE_IDS.buildings,
-        paint: { 'fill-color': '#d97706', 'fill-opacity': 0.52 },
-      })
-      map.addLayer({
-        id: 'source-buildings-line',
-        type: 'line',
-        source: SOURCE_IDS.buildings,
-        paint: { 'line-color': '#92400e', 'line-width': 0.8 },
-      })
-      map.addLayer({
-        id: 'source-roads-line',
-        type: 'line',
-        source: SOURCE_IDS.roads,
-        paint: {
-          'line-color': '#334155',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1, 12, 2, 16, 4],
-        },
-      })
+      addSourceLayers(map)
       setMapReady(true)
     })
 
     map.on('click', (event) => {
-      const interactiveLayers = Object.keys(MAP_LAYER_TO_SOURCE_KEY).filter((id) => map.getLayer(id))
-      const features = map.queryRenderedFeatures(event.point, { layers: interactiveLayers })
-      const first = features[0]
-      if (!first) {
+      const layers = Object.keys(MAP_LAYER_TO_SOURCE).filter((id) => map.getLayer(id))
+      const feature = map.queryRenderedFeatures(event.point, { layers })[0]
+      if (!feature) {
         setSelected(null)
         return
       }
-      const layer = MAP_LAYER_TO_SOURCE_KEY[first.layer.id]
-      if (!layer) return
-      setSelected({ layer, feature: mapFeature(first) })
+      const layer = MAP_LAYER_TO_SOURCE[feature.layer.id]
+      if (layer) setSelected({ layer, feature: mapFeature(feature) })
     })
 
     map.on('mousemove', (event) => {
-      const interactiveLayers = Object.keys(MAP_LAYER_TO_SOURCE_KEY).filter((id) => map.getLayer(id))
-      const hit = map.queryRenderedFeatures(event.point, { layers: interactiveLayers }).length > 0
-      map.getCanvas().style.cursor = hit ? 'pointer' : ''
+      const layers = Object.keys(MAP_LAYER_TO_SOURCE).filter((id) => map.getLayer(id))
+      const hasHit = map.queryRenderedFeatures(event.point, { layers }).length > 0
+      map.getCanvas().style.cursor = hasHit ? 'pointer' : ''
     })
 
     return () => {
@@ -287,7 +292,11 @@ function App() {
     for (const config of SOURCE_LAYER_CONFIG) {
       for (const layerId of MAP_LAYER_IDS[config.key]) {
         if (!map.getLayer(layerId)) continue
-        map.setLayoutProperty(layerId, 'visibility', visibility[config.key] ? 'visible' : 'none')
+        map.setLayoutProperty(
+          layerId,
+          'visibility',
+          visibility[config.key] ? 'visible' : 'none',
+        )
       }
     }
   }, [mapReady, visibility])
@@ -300,76 +309,78 @@ function App() {
     const controller = new AbortController()
     viewportAbortRef.current = controller
 
-    const bounds = map.getBounds()
+    const mapBounds = map.getBounds()
     const bbox = bboxParam(
-      viewportBounds(bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()),
+      viewportBounds(
+        mapBounds.getWest(),
+        mapBounds.getSouth(),
+        mapBounds.getEast(),
+        mapBounds.getNorth(),
+      ),
     )
-    const requestedLayers = SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer])
-
-    if (requestedLayers.length === 0) {
+    const requested = SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer])
+    if (requested.length === 0) {
       setLoadStatus('ready')
       setLoadMessage('Все source layers скрыты.')
       return
     }
 
     setLoadStatus('loading')
-    setLoadMessage(`Загружаю ${requestedLayers.length} слоёв для текущего viewport…`)
+    setLoadMessage(`Загружаю ${requested.length} слоёв для текущего viewport…`)
 
     const results = await Promise.allSettled(
-      requestedLayers.map(async (layer) => {
-        const path =
+      requested.map(async (layer) => {
+        const url =
           `${API_BASE}/projects/${encodeURIComponent(context.projectId)}` +
           `/dataset-versions/${encodeURIComponent(context.datasetVersionId)}` +
           `/source-layers/${layer}/geojson` +
           `?bbox=${encodeURIComponent(bbox)}&limit=${VIEWPORT_LIMIT}`
-        const response = await fetch(path, { signal: controller.signal })
+        const response = await fetch(url, { signal: controller.signal })
         if (!response.ok) {
-          const detail = await response.text()
-          throw new Error(`${layer}: HTTP ${response.status} ${detail}`)
+          throw new Error(`${layer}: HTTP ${response.status} ${await response.text()}`)
         }
         return (await response.json()) as SourceLayerResponse
       }),
     )
-
     if (controller.signal.aborted) return
 
     const updates: Partial<LayerStats> = {}
-    let failed = 0
+    let failures = 0
     let total = 0
 
     results.forEach((result, index) => {
-      const layer = requestedLayers[index]
-      if (result.status === 'fulfilled') {
-        const collection: GeoJsonFeatureCollection = {
-          type: 'FeatureCollection',
-          features: result.value.features,
-        }
-        collectionsRef.current[layer] = collection
-        sourceData(map, layer, collection)
+      const layer = requested[index]
+      if (result.status === 'rejected') {
+        failures += 1
         updates[layer] = {
-          count: result.value.features.length,
-          truncated: result.value.truncated,
-          error: null,
+          count: 0,
+          truncated: false,
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         }
-        total += result.value.features.length
         return
       }
-      failed += 1
-      updates[layer] = {
-        count: 0,
-        truncated: false,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+
+      const collection: GeoJsonFeatureCollection = {
+        type: 'FeatureCollection',
+        features: result.value.features,
       }
+      collectionsRef.current[layer] = collection
+      setSourceData(map, layer, collection)
+      updates[layer] = {
+        count: result.value.features.length,
+        truncated: result.value.truncated,
+        error: null,
+      }
+      total += result.value.features.length
     })
 
     setLayerStats((current) => ({ ...current, ...updates }))
-    if (failed > 0) {
-      setLoadStatus('error')
-      setLoadMessage(`Загружено объектов: ${total}. Ошибок слоёв: ${failed}.`)
-    } else {
-      setLoadStatus('ready')
-      setLoadMessage(`В viewport загружено объектов: ${total}.`)
-    }
+    setLoadStatus(failures ? 'error' : 'ready')
+    setLoadMessage(
+      failures
+        ? `Загружено объектов: ${total}. Ошибок слоёв: ${failures}.`
+        : `В viewport загружено объектов: ${total}.`,
+    )
   }, [context, mapReady, visibility])
 
   useEffect(() => {
@@ -378,7 +389,9 @@ function App() {
     const handleMoveEnd = () => void loadViewport()
     map.on('moveend', handleMoveEnd)
     void loadViewport()
-    return () => map.off('moveend', handleMoveEnd)
+    return () => {
+      map.off('moveend', handleMoveEnd)
+    }
   }, [context, loadViewport, mapReady])
 
   useEffect(() => {
@@ -388,28 +401,35 @@ function App() {
     boundaryAbortRef.current?.abort()
     boundaryRef.current = null
     setBoundaryAvailable(false)
-    sourceData(map, 'boundary', EMPTY_FEATURE_COLLECTION)
-
+    setSourceData(map, 'boundary', EMPTY_FEATURE_COLLECTION)
     if (!context) return
 
     const controller = new AbortController()
     boundaryAbortRef.current = controller
-    const path = `${API_BASE}/projects/${encodeURIComponent(context.projectId)}/boundary/geojson`
+    const url = `${API_BASE}/projects/${encodeURIComponent(context.projectId)}/boundary/geojson`
 
-    void fetch(path, { signal: controller.signal })
+    void fetch(url, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`boundary: HTTP ${response.status} ${await response.text()}`)
+        if (!response.ok) {
+          throw new Error(`boundary: HTTP ${response.status} ${await response.text()}`)
+        }
         return (await response.json()) as ProjectBoundaryResponse
       })
       .then((boundary) => {
         if (controller.signal.aborted) return
         boundaryRef.current = boundary
         setBoundaryAvailable(boundary.geometry !== null)
-        sourceData(map, 'boundary', featureCollectionOf(boundary.geometry ? boundary : null))
-        if (boundary.geometry) {
-          const bounds = geometryBounds(boundary.geometry)
-          if (bounds) fitMap(map, bounds)
-        }
+        const feature: GeoJsonFeature | null = boundary.geometry
+          ? {
+              type: 'Feature',
+              id: boundary.id,
+              geometry: boundary.geometry,
+              properties: boundary.properties,
+            }
+          : null
+        setSourceData(map, 'boundary', featureCollectionOf(feature))
+        const bounds = geometryBounds(boundary.geometry)
+        if (bounds) fitMap(map, bounds)
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
@@ -418,12 +438,14 @@ function App() {
         setLoadMessage(error instanceof Error ? error.message : String(error))
       })
 
-    return () => controller.abort()
+    return () => {
+      controller.abort()
+    }
   }, [context, mapReady])
 
   function applyContext(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    const next = makeContext(projectId, datasetVersionId)
+    const next = parseContext(projectId, datasetVersionId)
     if (!next) {
       setContextError('Оба идентификатора должны быть UUID.')
       return
@@ -437,6 +459,14 @@ function App() {
     url.searchParams.set('project_id', next.projectId)
     url.searchParams.set('dataset_version_id', next.datasetVersionId)
     window.history.replaceState({}, '', url)
+  }
+
+  function updateProjectId(event: ChangeEvent<HTMLInputElement>): void {
+    setProjectId(event.target.value)
+  }
+
+  function updateDatasetVersionId(event: ChangeEvent<HTMLInputElement>): void {
+    setDatasetVersionId(event.target.value)
   }
 
   function toggleLayer(layer: SourceLayerKey): void {
@@ -457,6 +487,8 @@ function App() {
     }
     if (bounds) fitMap(map, bounds)
   }
+
+  const anyTruncated = Object.values(layerStats).some((stat) => stat.truncated)
 
   return (
     <main className="layout">
@@ -483,7 +515,7 @@ function App() {
               <span>Project ID</span>
               <input
                 value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
+                onChange={updateProjectId}
                 placeholder="UUID проекта"
                 autoComplete="off"
               />
@@ -492,7 +524,7 @@ function App() {
               <span>DatasetVersion ID</span>
               <input
                 value={datasetVersionId}
-                onChange={(event) => setDatasetVersionId(event.target.value)}
+                onChange={updateDatasetVersionId}
                 placeholder="UUID версии"
                 autoComplete="off"
               />
@@ -542,12 +574,17 @@ function App() {
             <button className="button" type="button" onClick={fitVisibleData} disabled={!context}>
               Fit to data
             </button>
-            <button className="button" type="button" onClick={() => void loadViewport()} disabled={!context}>
+            <button
+              className="button"
+              type="button"
+              onClick={() => void loadViewport()}
+              disabled={!context}
+            >
               Обновить
             </button>
           </div>
           <div className={`load-state load-state-${loadStatus}`}>{loadMessage}</div>
-          {Object.entries(layerStats).some(([, stat]) => stat.truncated) && (
+          {anyTruncated && (
             <p className="warning-text">
               Один или несколько слоёв достигли viewport limit ({VIEWPORT_LIMIT}); приблизьте карту.
             </p>
@@ -558,7 +595,11 @@ function App() {
           <div className="section-heading">
             <div>
               <p className="section-kicker">Inspector</p>
-              <h2>{selected ? featureTitle(selected.layer, selected.feature) : 'Выберите объект на карте'}</h2>
+              <h2>
+                {selected
+                  ? featureTitle(selected.layer, selected.feature)
+                  : 'Выберите объект на карте'}
+              </h2>
             </div>
           </div>
           {selected ? (
@@ -582,7 +623,9 @@ function App() {
                 ))}
             </dl>
           ) : (
-            <p className="helper-text">Кликните по дороге, зданию, воде, landuse или границе проекта.</p>
+            <p className="helper-text">
+              Кликните по дороге, зданию, воде, landuse или границе проекта.
+            </p>
           )}
         </section>
       </aside>
