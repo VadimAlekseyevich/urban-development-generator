@@ -7,8 +7,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from types import MappingProxyType
 
-import pyogrio
 from geoalchemy2.shape import from_shape
+import pyogrio
 from pyproj import Transformer
 from shapely import make_valid
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Polygon, box
