@@ -6,8 +6,8 @@ from core.urban_generator.domain import NetworkPoint
 from core.urban_generator.roads import (
     SpatialSnapIndex,
     SpatialSnapMatch,
-    SpatialSnapTarget,
     SpatialSnappingError,
+    SpatialSnapTarget,
 )
 
 WORKING_SRID = 32637
