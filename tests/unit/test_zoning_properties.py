@@ -4,7 +4,7 @@ import math
 import random
 
 import pytest
-from shapely.geometry import MultiPolygon, Polygon, box
+from shapely.geometry import MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
 from core.urban_generator.domain import SnapshotLayerKind, SnapshotLayerRef
@@ -17,6 +17,7 @@ from core.urban_generator.zoning import (
     ZoneAdjacencyRule,
     ZoneClass,
     ZoneClassConfig,
+    ZoneRefinementResult,
     ZoningConfig,
     ZoningPartitionCell,
     ZoningPartitionResult,
@@ -110,7 +111,7 @@ def _assert_partition_properties(result: ZoningPartitionResult) -> None:
         assert cell.geometry.is_valid
         assert cell.geometry.geom_type in {"Polygon", "MultiPolygon"}
         assert result.developable_area.covers(cell.geometry)
-        assert cell.geometry.covers(cell.geometry.representative_point())
+        assert cell.geometry.covers(Point(cell.seed.x_m, cell.seed.y_m))
 
     for first_index, first in enumerate(result.cells):
         for second in result.cells[first_index + 1 :]:
@@ -257,7 +258,7 @@ def test_zoning_pipeline_is_deterministic_across_generated_cases(case_seed: int)
     )
     config = _config(minimum_area_m2=650.0, with_adjacency=True)
 
-    def run_once() -> tuple[ZoningPartitionResult, object]:
+    def run_once() -> tuple[ZoningPartitionResult, ZoneRefinementResult]:
         partition = _partition(developable, coordinates, score_offset=case_seed)
         assignment = SuitabilityTargetShareAssigner().assign(
             partition=partition,
