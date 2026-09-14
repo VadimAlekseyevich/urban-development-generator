@@ -85,9 +85,28 @@ _LAYER_SPECS: dict[CanonicalSourceLayer, _LayerSpec] = {
         table=cast(Table, SourceRoad.__table__),
         required_columns=frozenset({"road_class"}),
         canonical_columns=frozenset(
-            {"road_class", "name", "lanes", "max_speed_kph", "one_way"}
+            {
+                "road_class",
+                "name",
+                "lanes",
+                "max_speed_kph",
+                "one_way",
+                "one_way_direction",
+                "bridge",
+                "tunnel",
+                "layer",
+            }
         ),
-        defaults={"name": None, "lanes": None, "max_speed_kph": None, "one_way": False},
+        defaults={
+            "name": None,
+            "lanes": None,
+            "max_speed_kph": None,
+            "one_way": False,
+            "one_way_direction": "both",
+            "bridge": False,
+            "tunnel": False,
+            "layer": 0,
+        },
         force_multiline=True,
     ),
     CanonicalSourceLayer.BUILDINGS: _LayerSpec(

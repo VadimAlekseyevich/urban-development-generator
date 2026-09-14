@@ -39,7 +39,17 @@ class _LayerSpec:
 _LAYER_SPECS: dict[SourceLayerName, _LayerSpec] = {
     SourceLayerName.ROADS: _LayerSpec(
         table=cast(Table, SourceRoad.__table__),
-        property_columns=("road_class", "name", "lanes", "max_speed_kph", "one_way"),
+        property_columns=(
+            "road_class",
+            "name",
+            "lanes",
+            "max_speed_kph",
+            "one_way",
+            "one_way_direction",
+            "bridge",
+            "tunnel",
+            "layer",
+        ),
     ),
     SourceLayerName.BUILDINGS: _LayerSpec(
         table=cast(Table, SourceBuilding.__table__),

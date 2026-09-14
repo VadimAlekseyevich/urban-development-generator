@@ -111,7 +111,8 @@ def test_real_pbf_mapping_persists_all_supported_canonical_layers() -> None:
     with _session_factory() as session:
         road = session.execute(
             text(
-                "SELECT source_feature_id, road_class, ST_SRID(geometry), GeometryType(geometry), "
+                "SELECT source_feature_id, road_class, one_way, one_way_direction, "
+                "bridge, tunnel, layer, ST_SRID(geometry), GeometryType(geometry), "
                 "attributes_json ->> 'osm_mapping_version' "
                 "FROM source_roads WHERE dataset_version_id = :version_id"
             ),
@@ -150,7 +151,18 @@ def test_real_pbf_mapping_persists_all_supported_canonical_layers() -> None:
             {"version_id": version_id},
         ).all()
 
-    assert road == ("osm:way:100", "local", WORKING_SRID, "MULTILINESTRING", "osm-v1")
+    assert road == (
+        "osm:way:100",
+        "local",
+        False,
+        "both",
+        False,
+        False,
+        0,
+        WORKING_SRID,
+        "MULTILINESTRING",
+        "osm-v1",
+    )
     assert building[0] == "osm:way:101"
     assert building[1] == "other"
     assert building[2] == WORKING_SRID

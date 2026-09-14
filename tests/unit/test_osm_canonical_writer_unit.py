@@ -48,7 +48,11 @@ class FakeBatchWriter:
         )
 
 
-def _road_feature(*, osm_id: int = 10) -> MappedOsmFeature:
+def _road_feature(
+    *,
+    osm_id: int = 10,
+    tags: dict[str, str] | None = None,
+) -> MappedOsmFeature:
     return MappedOsmFeature(
         source_feature_id=f"osm:way:{osm_id}",
         element_type=OsmElementType.WAY,
@@ -66,7 +70,7 @@ def _road_feature(*, osm_id: int = 10) -> MappedOsmFeature:
                 "osm_mapping_rule": "road.local",
             },
         },
-        source_tags={"highway": "residential"},
+        source_tags=tags or {"highway": "residential"},
         geometry=LineString([(0.0, 0.0), (0.01, 0.01)]),
         rule_id="road.local",
         mapping_version="osm-v1",
@@ -114,6 +118,34 @@ def test_writer_reprojects_bounded_batch_and_preserves_canonical_attributes() ->
     assert batch.frame.iloc[0]["road_class"] == "local"
     assert batch.frame.iloc[0]["attributes_json"]["osm_mapping_version"] == "osm-v1"
     assert batch.frame.geometry.iloc[0].bounds[2] > 1000
+
+
+def test_writer_normalizes_osm_crossing_and_direction_semantics() -> None:
+    backend = FakeBatchWriter()
+    feature = _road_feature(
+        tags={
+            "highway": "primary",
+            "oneway": "-1",
+            "bridge": "yes",
+            "tunnel": "no",
+            "layer": "2",
+        }
+    )
+
+    OsmCanonicalWriter(batch_writer=backend).replace_layer(
+        dataset_version_id=uuid.uuid4(),
+        target_layer=OsmMappedLayer.ROADS,
+        working_crs=WorkingCRS(3857),
+        mapping_version="osm-v1",
+        batches=[_road_batch(feature)],
+    )
+
+    row = backend.batches[0].frame.iloc[0]
+    assert row["one_way"] is True or bool(row["one_way"]) is True
+    assert row["one_way_direction"] == "reverse"
+    assert row["bridge"] is True or bool(row["bridge"]) is True
+    assert row["tunnel"] is False or bool(row["tunnel"]) is False
+    assert row["layer"] == 2
 
 
 def test_writer_streams_multiple_batches_without_materializing_layer() -> None:
