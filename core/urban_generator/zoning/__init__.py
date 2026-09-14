@@ -13,6 +13,14 @@ from core.urban_generator.zoning.config import (
     ZoningConfig,
     ZoningConfigError,
 )
+from core.urban_generator.zoning.constraints import (
+    ZONE_CONSTRAINT_STAGE,
+    EvaluatedZoneConstraints,
+    ZoneConstraintEvaluationError,
+    ZoneConstraintEvaluationResult,
+    ZoneConstraintEvaluator,
+    ZoneConstraintSubject,
+)
 from core.urban_generator.zoning.fixed_existing import (
     FixedExistingZonesAdapter,
     FixedExistingZonesAdapterError,
@@ -37,9 +45,11 @@ from core.urban_generator.zoning.seeds import (
 )
 
 __all__ = [
+    "ZONE_CONSTRAINT_STAGE",
     "BaseZoningPartitioner",
     "BoundedRegionRefiner",
     "DeterministicZoningSeedGenerator",
+    "EvaluatedZoneConstraints",
     "FixedExistingZonesAdapter",
     "FixedExistingZonesAdapterError",
     "SuitabilityTargetShareAssigner",
@@ -50,6 +60,10 @@ __all__ = [
     "ZoneAssignmentResult",
     "ZoneClass",
     "ZoneClassConfig",
+    "ZoneConstraintEvaluationError",
+    "ZoneConstraintEvaluationResult",
+    "ZoneConstraintEvaluator",
+    "ZoneConstraintSubject",
     "ZoneRefinementError",
     "ZoneRefinementObjective",
     "ZoneRefinementResult",
