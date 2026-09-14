@@ -20,8 +20,8 @@ from core.urban_generator.domain import (
 from core.urban_generator.roads.spatial_snapping import (
     DEFAULT_MAX_SNAP_TARGETS,
     SpatialSnapIndex,
-    SpatialSnapTarget,
     SpatialSnappingError,
+    SpatialSnapTarget,
 )
 
 NODE_X_ATTRIBUTE = "x_m"
