@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import hypot, isfinite
+from math import isfinite
 
 import networkx as nx
 
@@ -17,6 +17,12 @@ from core.urban_generator.domain import (
     require_max_distance_m,
     require_node_refs,
 )
+from core.urban_generator.roads.spatial_snapping import (
+    DEFAULT_MAX_SNAP_TARGETS,
+    SpatialSnapIndex,
+    SpatialSnapTarget,
+    SpatialSnappingError,
+)
 
 NODE_X_ATTRIBUTE = "x_m"
 NODE_Y_ATTRIBUTE = "y_m"
@@ -32,7 +38,8 @@ class NetworkXBackend(NetworkBackend):
 
     The adapter owns an immutable copy of the supplied graph. Node identifiers stay
     backend-independent strings; node coordinates and edge costs are expressed in metres
-    in the supplied working CRS.
+    in the supplied working CRS. Node snapping delegates to the reusable STRtree-backed
+    spatial index instead of scanning all graph nodes.
     """
 
     def __init__(
@@ -41,15 +48,28 @@ class NetworkXBackend(NetworkBackend):
         *,
         snapshot_id: str,
         working_crs: WorkingCRS,
+        max_snap_targets: int = DEFAULT_MAX_SNAP_TARGETS,
     ) -> None:
         if not isinstance(graph, nx.Graph):
             raise NetworkXBackendError("graph must be a NetworkX graph")
+        if not isinstance(working_crs, WorkingCRS):
+            raise NetworkXBackendError("working_crs must be a validated WorkingCRS")
 
         graph_copy = graph.copy(as_view=False)
         positions = self._validate_graph(graph_copy)
+        try:
+            self._snap_index = SpatialSnapIndex(
+                targets=tuple(
+                    SpatialSnapTarget(target_id=node.node_id, point=position)
+                    for node, position in positions
+                ),
+                working_srid=working_crs.srid,
+                max_targets=max_snap_targets,
+            )
+        except SpatialSnappingError as exc:
+            raise NetworkXBackendError(str(exc)) from exc
 
         self._graph = nx.freeze(graph_copy)
-        self._positions = positions
         self._snapshot = NetworkGraphSnapshot(
             snapshot_id=snapshot_id,
             working_crs=working_crs,
@@ -73,23 +93,16 @@ class NetworkXBackend(NetworkBackend):
 
         limit = require_max_distance_m(max_distance_m)
         assert limit is not None
-
-        best_node: NetworkNodeRef | None = None
-        best_distance_m: float | None = None
-        for node, position in self._positions:
-            distance_m = hypot(position.x_m - point.x_m, position.y_m - point.y_m)
-            if distance_m > limit:
-                continue
-            if best_distance_m is None or (distance_m, node.node_id) < (
-                best_distance_m,
-                best_node.node_id if best_node is not None else "",
-            ):
-                best_node = node
-                best_distance_m = distance_m
-
-        if best_node is None or best_distance_m is None:
+        try:
+            match = self._snap_index.snap(point, tolerance_m=limit)
+        except SpatialSnappingError as exc:
+            raise NetworkXBackendError(str(exc)) from exc
+        if match is None:
             return None
-        return NetworkSnapResult(node=best_node, distance_m=best_distance_m)
+        return NetworkSnapResult(
+            node=NetworkNodeRef(node_id=match.target.target_id),
+            distance_m=match.distance_m,
+        )
 
     def shortest_path(
         self,
