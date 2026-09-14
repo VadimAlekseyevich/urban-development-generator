@@ -168,7 +168,11 @@ class BoundedRegionRefiner:
             for cell_index in range(len(labels)):
                 current_class = labels[cell_index]
                 candidate_classes = sorted(
-                    {labels[index] for index in neighbors[cell_index] if labels[index] is not current_class},
+                    {
+                        labels[index]
+                        for index in neighbors[cell_index]
+                        if labels[index] is not current_class
+                    },
                     key=lambda zone_class: canonical_order[zone_class],
                 )
                 for candidate_class in candidate_classes:
