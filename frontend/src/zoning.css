@@ -1,0 +1,85 @@
+.zoning-select {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.zoning-select > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.zoning-select select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 11px;
+}
+
+.zoning-select select:disabled {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.zoning-layer-list {
+  display: grid;
+  gap: 8px;
+}
+
+.zoning-layer-card {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.zoning-toggle {
+  display: grid;
+  grid-template-columns: 18px 12px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.zoning-toggle input {
+  margin: 0;
+  accent-color: #0f172a;
+}
+
+.zoning-fixed-swatch {
+  background: #64748b;
+}
+
+.zoning-generated-swatch {
+  background: linear-gradient(135deg, #ea580c 0 25%, #7c3aed 25% 50%, #2563eb 50% 75%, #16a34a 75%);
+}
+
+.zoning-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin-top: 10px;
+}
+
+.zoning-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.zoning-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
