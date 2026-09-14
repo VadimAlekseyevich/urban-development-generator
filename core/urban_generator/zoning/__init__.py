@@ -1,3 +1,10 @@
+from core.urban_generator.zoning.assignment import (
+    SuitabilityTargetShareAssigner,
+    ZoneAssignment,
+    ZoneAssignmentError,
+    ZoneAssignmentResult,
+    ZoneShareDiagnostic,
+)
 from core.urban_generator.zoning.config import (
     ZoneAdjacencyPolicy,
     ZoneAdjacencyRule,
@@ -28,10 +35,15 @@ __all__ = [
     "DeterministicZoningSeedGenerator",
     "FixedExistingZonesAdapter",
     "FixedExistingZonesAdapterError",
+    "SuitabilityTargetShareAssigner",
     "ZoneAdjacencyPolicy",
     "ZoneAdjacencyRule",
+    "ZoneAssignment",
+    "ZoneAssignmentError",
+    "ZoneAssignmentResult",
     "ZoneClass",
     "ZoneClassConfig",
+    "ZoneShareDiagnostic",
     "ZoningConfig",
     "ZoningConfigError",
     "ZoningPartitionCell",
