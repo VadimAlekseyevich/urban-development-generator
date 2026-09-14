@@ -10,6 +10,7 @@ from core.urban_generator.domain.crs import require_working_crs
 from core.urban_generator.domain.network import NetworkPoint
 
 DEFAULT_MAX_SNAP_TARGETS = 500_000
+_EMPTY_TARGET_IDS: frozenset[str] = frozenset()
 
 
 class SpatialSnappingError(ValueError):
@@ -98,7 +99,7 @@ class SpatialSnapIndex:
         point: NetworkPoint,
         *,
         tolerance_m: float,
-        exclude_target_ids: frozenset[str] = frozenset(),
+        exclude_target_ids: frozenset[str] = _EMPTY_TARGET_IDS,
     ) -> tuple[SpatialSnapMatch, ...]:
         """Return all targets within tolerance, ordered by distance then stable id."""
 
@@ -129,7 +130,9 @@ class SpatialSnapIndex:
                 target.point.y_m - point.y_m,
             )
             if not isfinite(distance_m) or distance_m < 0.0:
-                raise SpatialSnappingError("computed snap distance must be finite and non-negative")
+                raise SpatialSnappingError(
+                    "computed snap distance must be finite and non-negative"
+                )
             if distance_m > tolerance:
                 continue
             matches.append(SpatialSnapMatch(target=target, distance_m=distance_m))
@@ -142,7 +145,7 @@ class SpatialSnapIndex:
         point: NetworkPoint,
         *,
         tolerance_m: float,
-        exclude_target_ids: frozenset[str] = frozenset(),
+        exclude_target_ids: frozenset[str] = _EMPTY_TARGET_IDS,
     ) -> SpatialSnapMatch | None:
         """Return the deterministic nearest target within ``tolerance_m``."""
 
