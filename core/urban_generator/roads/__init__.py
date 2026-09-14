@@ -9,8 +9,8 @@ from core.urban_generator.roads.spatial_snapping import (
     DEFAULT_MAX_SNAP_TARGETS,
     SpatialSnapIndex,
     SpatialSnapMatch,
-    SpatialSnapTarget,
     SpatialSnappingError,
+    SpatialSnapTarget,
 )
 
 __all__ = [
