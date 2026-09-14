@@ -159,3 +159,13 @@ def test_backend_rejects_references_outside_its_snapshot() -> None:
 
     with pytest.raises(NetworkXBackendError, match="is not part of snapshot"):
         backend.shortest_path(NetworkNodeRef("missing"), NetworkNodeRef("a"))
+
+
+def test_backend_enforces_configured_snap_target_limit() -> None:
+    with pytest.raises(NetworkXBackendError, match="snap target limit exceeded: 5 > 4"):
+        NetworkXBackend(
+            _graph(),
+            snapshot_id="roads-v1",
+            working_crs=WorkingCRS(srid=3857),
+            max_snap_targets=4,
+        )
