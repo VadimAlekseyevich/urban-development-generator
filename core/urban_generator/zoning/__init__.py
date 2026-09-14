@@ -23,6 +23,12 @@ from core.urban_generator.zoning.partition import (
     ZoningPartitionError,
     ZoningPartitionResult,
 )
+from core.urban_generator.zoning.refinement import (
+    BoundedRegionRefiner,
+    ZoneRefinementError,
+    ZoneRefinementObjective,
+    ZoneRefinementResult,
+)
 from core.urban_generator.zoning.seeds import (
     DeterministicZoningSeedGenerator,
     ZoningSeed,
@@ -32,6 +38,7 @@ from core.urban_generator.zoning.seeds import (
 
 __all__ = [
     "BaseZoningPartitioner",
+    "BoundedRegionRefiner",
     "DeterministicZoningSeedGenerator",
     "FixedExistingZonesAdapter",
     "FixedExistingZonesAdapterError",
@@ -43,6 +50,9 @@ __all__ = [
     "ZoneAssignmentResult",
     "ZoneClass",
     "ZoneClassConfig",
+    "ZoneRefinementError",
+    "ZoneRefinementObjective",
+    "ZoneRefinementResult",
     "ZoneShareDiagnostic",
     "ZoningConfig",
     "ZoningConfigError",
