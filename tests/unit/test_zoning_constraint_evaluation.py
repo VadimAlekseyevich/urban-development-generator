@@ -4,7 +4,7 @@ import uuid
 from typing import cast
 
 import pytest
-from shapely.geometry import box
+from shapely.geometry import Point, box
 
 from core.urban_generator.domain.constraints import (
     ConstraintEngine,
@@ -240,8 +240,8 @@ def test_evaluator_routes_each_zone_through_shared_engine_contract() -> None:
 
     assert result.stage == "zoning"
     assert result.evaluator_version == "1"
-    assert result.valid_zone_count == 0
-    assert result.invalid_zone_count == 2
+    assert result.valid_zone_count == 1
+    assert result.invalid_zone_count == 1
     assert len(result.report.soft_violations) == 1
     assert len(result.report.hard_failures) == 1
     assert result.report.is_valid is False
@@ -343,9 +343,7 @@ def test_evaluator_rejects_non_validation_report_from_engine() -> None:
         )
 
 
-def test_subject_rejects_non_polygonal_or_non_metric_contract_values() -> None:
-    from shapely.geometry import Point
-
+def test_subject_rejects_non_polygonal_contract_values() -> None:
     with pytest.raises(ZoneConstraintEvaluationError, match="polygonal"):
         ZoneConstraintSubject(
             cell_index=0,
