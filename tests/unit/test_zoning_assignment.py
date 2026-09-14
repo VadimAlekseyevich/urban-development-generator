@@ -6,6 +6,7 @@ from shapely.geometry import box
 from core.urban_generator.zoning import (
     SuitabilityTargetShareAssigner,
     ZoneAssignmentError,
+    ZoneAssignmentResult,
     ZoneClass,
     ZoneClassConfig,
     ZoningConfig,
@@ -80,8 +81,8 @@ def make_partition(
     )
 
 
-def assigned_classes(result: object) -> tuple[ZoneClass, ...]:
-    return tuple(assignment.zone_class for assignment in result.assignments)  # type: ignore[attr-defined]
+def assigned_classes(result: ZoneAssignmentResult) -> tuple[ZoneClass, ...]:
+    return tuple(assignment.zone_class for assignment in result.assignments)
 
 
 def test_assignment_uses_suitability_priority_and_target_area_deficit() -> None:
