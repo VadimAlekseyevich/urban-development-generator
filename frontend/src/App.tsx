@@ -14,6 +14,7 @@ import maplibregl, {
 } from 'maplibre-gl'
 
 import { SuitabilityPanel } from './SuitabilityPanel'
+import { ZoningPanel } from './ZoningPanel'
 import {
   EMPTY_FEATURE_COLLECTION,
   SOURCE_LAYER_API_NAMES,
@@ -591,6 +592,13 @@ function App() {
         </section>
 
         <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
+
+        <ZoningPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+          datasetVersionId={context?.datasetVersionId ?? null}
+        />
 
         <section className="panel inspector-panel">
           <div className="section-heading">
