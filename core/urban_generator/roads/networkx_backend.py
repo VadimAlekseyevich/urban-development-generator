@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+from math import hypot, isfinite
+
+import networkx as nx
+
+from core.urban_generator.domain import (
+    NetworkBackend,
+    NetworkContractError,
+    NetworkDistanceResult,
+    NetworkGraphSnapshot,
+    NetworkNodeRef,
+    NetworkPath,
+    NetworkPoint,
+    NetworkSnapResult,
+    WorkingCRS,
+    require_max_distance_m,
+    require_node_refs,
+)
+
+NODE_X_ATTRIBUTE = "x_m"
+NODE_Y_ATTRIBUTE = "y_m"
+EDGE_LENGTH_ATTRIBUTE = "length_m"
+
+
+class NetworkXBackendError(NetworkContractError):
+    """Raised when a NetworkX graph cannot satisfy the network domain contract."""
+
+
+class NetworkXBackend(NetworkBackend):
+    """NetworkX adapter for the backend-independent routing domain port.
+
+    The adapter owns an immutable copy of the supplied graph. Node identifiers stay
+    backend-independent strings; node coordinates and edge costs are expressed in metres
+    in the supplied working CRS.
+    """
+
+    def __init__(
+        self,
+        graph: nx.Graph,
+        *,
+        snapshot_id: str,
+        working_crs: WorkingCRS,
+    ) -> None:
+        if not isinstance(graph, nx.Graph):
+            raise NetworkXBackendError("graph must be a NetworkX graph")
+
+        graph_copy = graph.copy(as_view=False)
+        positions = self._validate_graph(graph_copy)
+
+        self._graph = nx.freeze(graph_copy)
+        self._positions = positions
+        self._snapshot = NetworkGraphSnapshot(
+            snapshot_id=snapshot_id,
+            working_crs=working_crs,
+            node_count=self._graph.number_of_nodes(),
+            edge_count=self._graph.number_of_edges(),
+            directed=self._graph.is_directed(),
+        )
+
+    @property
+    def snapshot(self) -> NetworkGraphSnapshot:
+        return self._snapshot
+
+    def snap(
+        self,
+        point: NetworkPoint,
+        *,
+        max_distance_m: float,
+    ) -> NetworkSnapResult | None:
+        if not isinstance(point, NetworkPoint):
+            raise NetworkXBackendError("point must be a NetworkPoint")
+
+        limit = require_max_distance_m(max_distance_m)
+        assert limit is not None
+
+        best_node: NetworkNodeRef | None = None
+        best_distance_m: float | None = None
+        for node, position in self._positions:
+            distance_m = hypot(position.x_m - point.x_m, position.y_m - point.y_m)
+            if distance_m > limit:
+                continue
+            if best_distance_m is None or (distance_m, node.node_id) < (
+                best_distance_m,
+                best_node.node_id if best_node is not None else "",
+            ):
+                best_node = node
+                best_distance_m = distance_m
+
+        if best_node is None or best_distance_m is None:
+            return None
+        return NetworkSnapResult(node=best_node, distance_m=best_distance_m)
+
+    def shortest_path(
+        self,
+        source: NetworkNodeRef,
+        target: NetworkNodeRef,
+        *,
+        max_distance_m: float | None = None,
+    ) -> NetworkPath | None:
+        source_id = self._require_known_node(source, field_name="source")
+        target_id = self._require_known_node(target, field_name="target")
+        limit = require_max_distance_m(max_distance_m)
+
+        try:
+            distance_m, path = nx.single_source_dijkstra(
+                self._graph,
+                source_id,
+                target_id,
+                cutoff=limit,
+                weight=EDGE_LENGTH_ATTRIBUTE,
+            )
+        except nx.NetworkXNoPath:
+            return None
+
+        return NetworkPath(
+            nodes=tuple(NetworkNodeRef(node_id=node_id) for node_id in path),
+            distance_m=float(distance_m),
+        )
+
+    def multi_source_distances(
+        self,
+        sources: tuple[NetworkNodeRef, ...],
+        targets: tuple[NetworkNodeRef, ...],
+        *,
+        max_distance_m: float | None = None,
+    ) -> tuple[NetworkDistanceResult, ...]:
+        sources = require_node_refs(sources, field_name="sources")
+        targets = require_node_refs(targets, field_name="targets", allow_empty=True)
+        source_ids = tuple(
+            self._require_known_node(source, field_name="source") for source in sources
+        )
+        target_ids = tuple(
+            self._require_known_node(target, field_name="target") for target in targets
+        )
+        limit = require_max_distance_m(max_distance_m)
+
+        distances, paths = nx.multi_source_dijkstra(
+            self._graph,
+            source_ids,
+            cutoff=limit,
+            weight=EDGE_LENGTH_ATTRIBUTE,
+        )
+
+        results: list[NetworkDistanceResult] = []
+        for target, target_id in zip(targets, target_ids, strict=True):
+            if target_id not in distances:
+                continue
+            path = paths[target_id]
+            results.append(
+                NetworkDistanceResult(
+                    source=NetworkNodeRef(node_id=path[0]),
+                    target=target,
+                    distance_m=float(distances[target_id]),
+                )
+            )
+        return tuple(results)
+
+    @staticmethod
+    def _validate_graph(
+        graph: nx.Graph,
+    ) -> tuple[tuple[NetworkNodeRef, NetworkPoint], ...]:
+        positions: list[tuple[NetworkNodeRef, NetworkPoint]] = []
+        for node_id, attributes in graph.nodes(data=True):
+            if not isinstance(node_id, str):
+                raise NetworkXBackendError("graph node identifiers must be strings")
+            try:
+                node = NetworkNodeRef(node_id=node_id)
+            except NetworkContractError as exc:
+                raise NetworkXBackendError(str(exc)) from exc
+
+            x_m = _require_finite_number(
+                attributes.get(NODE_X_ATTRIBUTE),
+                field_name=f"node {node_id!r} {NODE_X_ATTRIBUTE}",
+            )
+            y_m = _require_finite_number(
+                attributes.get(NODE_Y_ATTRIBUTE),
+                field_name=f"node {node_id!r} {NODE_Y_ATTRIBUTE}",
+            )
+            positions.append((node, NetworkPoint(x_m=x_m, y_m=y_m)))
+
+        for source_id, target_id, attributes in graph.edges(data=True):
+            _require_non_negative_finite_number(
+                attributes.get(EDGE_LENGTH_ATTRIBUTE),
+                field_name=(
+                    f"edge {source_id!r}->{target_id!r} {EDGE_LENGTH_ATTRIBUTE}"
+                ),
+            )
+
+        positions.sort(key=lambda item: item[0].node_id)
+        return tuple(positions)
+
+    def _require_known_node(self, node: NetworkNodeRef, *, field_name: str) -> str:
+        if not isinstance(node, NetworkNodeRef):
+            raise NetworkXBackendError(f"{field_name} must be a NetworkNodeRef")
+        if node.node_id not in self._graph:
+            raise NetworkXBackendError(
+                f"{field_name} node {node.node_id!r} is not part of snapshot "
+                f"{self._snapshot.snapshot_id!r}"
+            )
+        return node.node_id
+
+
+def _require_finite_number(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value):
+        raise NetworkXBackendError(f"{field_name} must be a finite number")
+    return float(value)
+
+
+def _require_non_negative_finite_number(value: object, *, field_name: str) -> float:
+    number = _require_finite_number(value, field_name=field_name)
+    if number < 0:
+        raise NetworkXBackendError(f"{field_name} must be non-negative")
+    return number
