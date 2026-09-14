@@ -7,8 +7,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from types import MappingProxyType
 
-from geoalchemy2.shape import from_shape
 import pyogrio
+from geoalchemy2.shape import from_shape
 from pyproj import Transformer
 from shapely import make_valid
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Polygon, box
@@ -27,7 +27,6 @@ from backend.app.services.osm_pbf_reader import (
     OsmFeatureCategory,
 )
 from core.urban_generator.domain import WorkingCRS
-
 
 GEOFABRIK_URL = (
     "https://download.geofabrik.de/russia/"
