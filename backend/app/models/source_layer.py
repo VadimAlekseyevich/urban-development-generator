@@ -76,6 +76,10 @@ class SourceRoad(SourceEntityMixin, Base):
             "max_speed_kph IS NULL OR max_speed_kph > 0",
             name="ck_source_roads_max_speed_positive",
         ),
+        CheckConstraint(
+            "one_way_direction IN ('both', 'forward', 'reverse')",
+            name="ck_source_roads_one_way_direction",
+        ),
         UniqueConstraint(
             "dataset_version_id",
             "source_feature_id",
@@ -89,6 +93,18 @@ class SourceRoad(SourceEntityMixin, Base):
     max_speed_kph: Mapped[float | None] = mapped_column(Float, nullable=True)
     one_way: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    one_way_direction: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="both", server_default=text("'both'")
+    )
+    bridge: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    tunnel: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    layer: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
     )
     geometry: Mapped[WKBElement] = mapped_column(
         Geometry(geometry_type="MULTILINESTRING", srid=-1, spatial_index=False),
