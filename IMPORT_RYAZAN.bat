@@ -4,13 +4,18 @@ title Urban Development Generator - Ryazan Import
 
 cd /d "%~dp0"
 
+set "PBF_URL=https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
+set "PBF_DIR=storage\imports"
+set "PBF_PATH=%PBF_DIR%\central-fed-district-latest.osm.pbf"
+set "PBF_PART=%PBF_PATH%.part"
+
 echo.
 echo ==========================================
 echo Urban Development Generator - Ryazan
 echo ==========================================
 echo.
 
-echo [1/7] Checking Docker...
+echo [1/8] Checking Docker...
 docker info >nul 2>&1
 if not errorlevel 1 goto :docker_ready
 
@@ -33,7 +38,7 @@ if errorlevel 1 goto :waitdocker
 echo Docker is ready.
 
 echo.
-echo [2/7] Checking environment file...
+echo [2/8] Checking environment file...
 if not exist .env (
     copy .env.example .env >nul
     if errorlevel 1 goto :error
@@ -44,13 +49,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='.env'; $c=Get-Conten
 if errorlevel 1 goto :error
 
 echo.
-echo [3/7] Building and starting backend services...
+echo [3/8] Building and starting backend services...
 echo API is started separately so a readiness problem can be diagnosed immediately.
 docker compose up --build -d db redis migrate api worker
 if errorlevel 1 goto :startup_error
 
 echo.
-echo [4/7] Waiting for backend readiness...
+echo [4/8] Waiting for backend readiness...
 set /a READY_TRIES=0
 
 :waitapi
@@ -67,7 +72,7 @@ echo.
 echo Backend is ready.
 
 echo.
-echo [5/7] Starting frontend...
+echo [5/8] Starting frontend...
 docker compose up --build -d frontend
 if errorlevel 1 goto :startup_error
 
@@ -76,13 +81,50 @@ echo Containers:
 docker compose ps
 
 echo.
-echo [6/7] Downloading and importing real Ryazan OSM data...
-echo This downloads the Geofabrik source only once; later runs reuse storage\imports.
+echo [6/8] Preparing real Ryazan OSM source on Windows host...
+if not exist "%PBF_DIR%" mkdir "%PBF_DIR%"
+if errorlevel 1 goto :download_error
+
+if exist "%PBF_PATH%" (
+    for %%I in ("%PBF_PATH%") do set "PBF_SIZE=%%~zI"
+    call :validate_existing_pbf
+    if not errorlevel 1 goto :pbf_ready
+    echo Existing PBF is too small or incomplete. Removing it.
+    del /Q "%PBF_PATH%" >nul 2>&1
+)
+
+where curl.exe >nul 2>&1
+if errorlevel 1 goto :curl_missing
+
+if exist "%PBF_PART%" (
+    echo Resuming previous PBF download...
+) else (
+    echo Downloading Geofabrik Central Federal District PBF...
+    echo %PBF_URL%
+)
+
+curl.exe -L --fail --retry 8 --retry-delay 5 --retry-all-errors -C - --output "%PBF_PART%" "%PBF_URL%"
+if errorlevel 1 goto :download_error
+
+for %%I in ("%PBF_PART%") do set "PBF_SIZE=%%~zI"
+call :validate_downloaded_pbf
+if errorlevel 1 goto :download_error
+
+move /Y "%PBF_PART%" "%PBF_PATH%" >nul
+if errorlevel 1 goto :download_error
+
+:pbf_ready
+echo OSM source is ready:
+echo %PBF_PATH%
+
+echo.
+echo [7/8] Importing real Ryazan OSM data...
+echo The container reads the already-downloaded file from /app/storage/imports.
 docker compose exec -e PYTHONPATH=/app api uv run python /app/scripts/import_ryazan_from_geofabrik.py
 if errorlevel 1 goto :import_error
 
 echo.
-echo [7/7] Done.
+echo [8/8] Done.
 echo ==========================================
 echo Ryazan import finished.
 echo ==========================================
@@ -90,6 +132,31 @@ echo Copy the OPEN=http://localhost:5173/... URL printed above into your browser
 echo.
 pause
 exit /b 0
+
+:validate_existing_pbf
+if %PBF_SIZE% LSS 100000000 exit /b 1
+exit /b 0
+
+:validate_downloaded_pbf
+if %PBF_SIZE% LSS 100000000 (
+    echo Download finished but the file is unexpectedly small: %PBF_SIZE% bytes.
+    exit /b 1
+)
+exit /b 0
+
+:curl_missing
+echo.
+echo curl.exe was not found on Windows.
+echo Install/enable the Windows curl command and run this file again.
+goto :error
+
+:download_error
+echo.
+echo OSM source download failed on the Windows host.
+echo Partial data is kept in:
+echo %PBF_PART%
+echo Run this BAT again to resume the download.
+goto :error
 
 :api_error
 echo.
