@@ -113,11 +113,29 @@ def test_source_layer_has_version_and_spatial_access_indexes(
 
 def test_source_road_has_normalized_transport_fields() -> None:
     table = SourceRoad.__table__
+    check_names = {
+        constraint.name
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
 
-    assert {"road_class", "name", "lanes", "max_speed_kph", "one_way"} <= set(
-        table.c.keys()
-    )
+    assert {
+        "road_class",
+        "name",
+        "lanes",
+        "max_speed_kph",
+        "one_way",
+        "one_way_direction",
+        "bridge",
+        "tunnel",
+        "layer",
+    } <= set(table.c.keys())
     assert table.c.one_way.nullable is False
+    assert table.c.one_way_direction.nullable is False
+    assert table.c.bridge.nullable is False
+    assert table.c.tunnel.nullable is False
+    assert table.c.layer.nullable is False
+    assert "ck_source_roads_one_way_direction" in check_names
 
 
 def test_source_building_has_normalized_form_fields() -> None:
