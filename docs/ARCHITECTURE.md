@@ -62,7 +62,7 @@ S06-T02 нормализует source-specific OSM tags до устойчиво�
 
 Явный OSM `oneway` имеет приоритет. `-1` сохраняется как `reverse`, а при отсутствии тега стандартные implied one-way случаи `motorway`/`motorway_link` и `roundabout`/`circular` нормализуются как `forward`. Динамические значения вроде `reversible` не превращаются в фиксированное направление. `bridge`/`tunnel` трактуют любой непустой value кроме явных `no/false/0` как наличие соответствующей структуры; malformed/out-of-range `layer` безопасно становится `0`. Сырые tags остаются в provenance `attributes_json`.
 
-Эти поля являются входом для будущего S06-T04 semantic noding: решение о создании graph intersection не должно повторно интерпретировать OSM tags. S06-T02 не выполняет noding и не строит graph.
+Эти поля являются входом для S06-T04 semantic noding: решение о создании graph intersection не повторно интерпретирует OSM tags. S06-T02 не выполняет noding и не строит graph.
 
 ## Spatial snapping boundary
 
@@ -70,7 +70,17 @@ S06-T03 вводит `core.urban_generator.roads.SpatialSnapIndex` как reusab
 
 Размер индекса ограничен `max_targets` (по умолчанию 500 000), а tolerance задаётся в метрах на каждый query. Все кандидаты дополнительно проверяются точным Cartesian distance; результат сортируется по `(distance_m, target_id)`, поэтому равные расстояния разрешаются детерминированно и не зависят от traversal order `STRtree`. `snap_target()` исключает сам target и предназначен для endpoint/intersection coalescing.
 
-S06-T03 не решает, является ли геометрическое пересечение реальным road junction: bridge/tunnel/layer semantics не интерпретируются внутри snapping index. Это остаётся ответственностью S06-T04 semantic noding. Построение directed graph и применение `one_way_direction` остаются S06-T05.
+S06-T03 не решает, является ли геометрическое пересечение реальным road junction: bridge/tunnel/layer semantics не интерпретируются внутри snapping index. Это ответственность S06-T04 semantic noding. Построение directed graph и применение `one_way_direction` остаются S06-T05.
+
+## Semantic road noding boundary
+
+S06-T04 вводит `core.urban_generator.roads.SemanticNoder`. Вход `SemanticRoad` уже содержит canonical `layer`, `bridge` и `tunnel`; raw OSM tags внутри noder не читаются. Геометрии должны быть 2D `LineString`/`MultiLineString` в явной metric working CRS.
+
+Кандидатные пересечения находятся через `STRtree`, а не полным N×M сравнением. Размер входа ограничен `max_road_parts` (по умолчанию 500 000), число реально пересекающихся candidate pairs — `max_candidate_pairs` (по умолчанию 2 000 000). Для interior crossing junction создаётся только при совпадении `(layer, bridge, tunnel)`. Exact shared endpoint считается явной топологической связью и сохраняется даже при переходе structure/layer, чтобы bridge/tunnel segment не отрывался от approach geometry. T-junction с несовместимой grade semantics не соединяется.
+
+Допустимые junction points разрезают только те line parts, где точка лежит в интерьере. Порядок и направление resulting parts сохраняются относительно исходной geometry, чтобы downstream `one_way_direction` оставался корректным. Частичные линейные overlaps не создают бесконечное число nodes: noding использует только границы overlap и сообщает `overlap_pair_count`; duplicate/tiny-edge cleanup остаётся S06-T06.
+
+Результат S06-T04 содержит split `NodedRoad` geometries, `SemanticJunction` и bounded-work diagnostics, но не создаёт NetworkX/domain graph nodes и edges. Это строго S06-T05 Graph build; именно там применяются source/fixed flags, length metadata и traversal direction.
 
 ## Обязательный конечный продукт
 
