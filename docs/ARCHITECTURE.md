@@ -56,6 +56,14 @@ FastAPI endpoint
 
 Адаптер преобразует NetworkX routing results обратно в domain-типы. Построение graph из canonical roads, OSM semantics и semantic noding не входят в S06-T01 и реализуются последующими work items. Текущий `snap()` использует детерминированный линейный поиск по snapshot nodes; spatial-indexed snapping относится к S06-T03.
 
+## Canonical OSM road semantics
+
+S06-T02 нормализует source-specific OSM tags до устойчивой canonical road schema до graph construction. Помимо уже существующих `road_class` и boolean `one_way`, `source_roads` хранит `bridge`, `tunnel`, signed `layer` и `one_way_direction` со значениями `both`, `forward` или `reverse` относительно порядка координат geometry.
+
+Явный OSM `oneway` имеет приоритет. `-1` сохраняется как `reverse`, а при отсутствии тега стандартные implied one-way случаи `motorway`/`motorway_link` и `roundabout`/`circular` нормализуются как `forward`. Динамические значения вроде `reversible` не превращаются в фиксированное направление. `bridge`/`tunnel` трактуют любой непустой value кроме явных `no/false/0` как наличие соответствующей структуры; malformed/out-of-range `layer` безопасно становится `0`. Сырые tags остаются в provenance `attributes_json`.
+
+Эти поля являются входом для будущего S06-T04 semantic noding: решение о создании graph intersection не должно повторно интерпретировать OSM tags. S06-T02 не выполняет noding и не строит graph.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
