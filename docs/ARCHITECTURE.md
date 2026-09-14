@@ -54,7 +54,7 @@ FastAPI endpoint
 - `x_m` и `y_m` — конечные координаты в `WorkingCRS`;
 - `length_m` — неотрицательная конечная стоимость каждого edge.
 
-Адаптер преобразует NetworkX routing results обратно в domain-типы. Построение graph из canonical roads, OSM semantics и semantic noding не входят в S06-T01 и реализуются последующими work items. Текущий `snap()` использует детерминированный линейный поиск по snapshot nodes; spatial-indexed snapping относится к S06-T03.
+Адаптер преобразует NetworkX routing results обратно в domain-типы. Построение graph из canonical roads, OSM semantics и semantic noding не входят в S06-T01 и реализуются последующими work items. Начиная с S06-T03 `snap()` делегирует reusable `SpatialSnapIndex` и не выполняет линейный scan всех graph nodes.
 
 ## Canonical OSM road semantics
 
@@ -63,6 +63,14 @@ S06-T02 нормализует source-specific OSM tags до устойчиво�
 Явный OSM `oneway` имеет приоритет. `-1` сохраняется как `reverse`, а при отсутствии тега стандартные implied one-way случаи `motorway`/`motorway_link` и `roundabout`/`circular` нормализуются как `forward`. Динамические значения вроде `reversible` не превращаются в фиксированное направление. `bridge`/`tunnel` трактуют любой непустой value кроме явных `no/false/0` как наличие соответствующей структуры; malformed/out-of-range `layer` безопасно становится `0`. Сырые tags остаются в provenance `attributes_json`.
 
 Эти поля являются входом для будущего S06-T04 semantic noding: решение о создании graph intersection не должно повторно интерпретировать OSM tags. S06-T02 не выполняет noding и не строит graph.
+
+## Spatial snapping boundary
+
+S06-T03 вводит `core.urban_generator.roads.SpatialSnapIndex` как reusable point-index для road endpoints, intersection candidates и уже построенных graph nodes. Индекс принимает только `NetworkPoint` в явно указанной metric `working_srid`, строит Shapely `STRtree` один раз и для каждого запроса использует bounded-by-tolerance `dwithin` candidate search вместо полного point-by-point scan.
+
+Размер индекса ограничен `max_targets` (по умолчанию 500 000), а tolerance задаётся в метрах на каждый query. Все кандидаты дополнительно проверяются точным Cartesian distance; результат сортируется по `(distance_m, target_id)`, поэтому равные расстояния разрешаются детерминированно и не зависят от traversal order `STRtree`. `snap_target()` исключает сам target и предназначен для endpoint/intersection coalescing.
+
+S06-T03 не решает, является ли геометрическое пересечение реальным road junction: bridge/tunnel/layer semantics не интерпретируются внутри snapping index. Это остаётся ответственностью S06-T04 semantic noding. Построение directed graph и применение `one_way_direction` остаются S06-T05.
 
 ## Обязательный конечный продукт
 
