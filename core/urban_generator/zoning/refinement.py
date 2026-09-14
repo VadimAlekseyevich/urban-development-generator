@@ -25,6 +25,8 @@ _MIN_AREA_TOLERANCE_M2 = 1e-6
 _MIN_SHARED_BOUNDARY_M = 1e-9
 _MAX_ITERATION_LIMIT = 10_000
 _ZONE_ORDER = {zone_class: index for index, zone_class in enumerate(ZoneClass)}
+_ObjectiveKey = tuple[int, int, float, float, int, int]
+_OrderingKey = tuple[_ObjectiveKey, float, float, int, int]
 
 
 class ZoneRefinementError(ValueError):
@@ -55,9 +57,17 @@ class ZoneRegionDiagnostic:
         if not isinstance(self.zone_class, ZoneClass):
             raise ZoneRefinementError("region zone_class must be a ZoneClass value")
         if not isinstance(self.cell_indices, tuple) or not self.cell_indices:
-            raise ZoneRefinementError("region cell_indices must be a non-empty immutable tuple")
-        if any(isinstance(index, bool) or not isinstance(index, int) or index < 0 for index in self.cell_indices):
-            raise ZoneRefinementError("region cell_indices must contain non-negative integers")
+            raise ZoneRefinementError(
+                "region cell_indices must be a non-empty immutable tuple"
+            )
+        invalid_index = any(
+            isinstance(index, bool) or not isinstance(index, int) or index < 0
+            for index in self.cell_indices
+        )
+        if invalid_index:
+            raise ZoneRefinementError(
+                "region cell_indices must contain non-negative integers"
+            )
         if tuple(sorted(set(self.cell_indices))) != self.cell_indices:
             raise ZoneRefinementError("region cell_indices must be unique and sorted")
         _require_positive_finite("area_m2", self.area_m2)
@@ -124,7 +134,12 @@ class ZoneRefinementMove:
     to_zone_class: ZoneClass
 
     def __post_init__(self) -> None:
-        if isinstance(self.iteration, bool) or not isinstance(self.iteration, int) or self.iteration <= 0:
+        invalid_iteration = (
+            isinstance(self.iteration, bool)
+            or not isinstance(self.iteration, int)
+            or self.iteration <= 0
+        )
+        if invalid_iteration:
             raise ZoneRefinementError("move iteration must be a positive integer")
         _require_non_negative_int("cell_index", self.cell_index)
         if not isinstance(self.from_zone_class, ZoneClass) or not isinstance(
@@ -154,32 +169,43 @@ class ZoneRefinementDiagnostics:
         if self.iterations > self.max_iterations:
             raise ZoneRefinementError("iterations cannot exceed max_iterations")
         if not isinstance(self.termination, ZoneRefinementTermination):
-            raise ZoneRefinementError("termination must be a ZoneRefinementTermination value")
+            raise ZoneRefinementError(
+                "termination must be a ZoneRefinementTermination value"
+            )
         if not isinstance(self.converged, bool):
             raise ZoneRefinementError("converged must be boolean")
         if not isinstance(self.moves, tuple) or any(
             not isinstance(move, ZoneRefinementMove) for move in self.moves
         ):
-            raise ZoneRefinementError("moves must be an immutable tuple of ZoneRefinementMove")
+            raise ZoneRefinementError(
+                "moves must be an immutable tuple of ZoneRefinementMove"
+            )
         if len(self.moves) != self.iterations:
             raise ZoneRefinementError("moves length must equal iterations")
-        if tuple(move.iteration for move in self.moves) != tuple(
-            range(1, self.iterations + 1)
-        ):
-            raise ZoneRefinementError("move iterations must be contiguous starting at one")
+        expected_iterations = tuple(range(1, self.iterations + 1))
+        if tuple(move.iteration for move in self.moves) != expected_iterations:
+            raise ZoneRefinementError(
+                "move iterations must be contiguous starting at one"
+            )
         if not isinstance(self.initial_metrics, ZoneRefinementMetrics) or not isinstance(
             self.final_metrics,
             ZoneRefinementMetrics,
         ):
-            raise ZoneRefinementError("initial/final metrics must be ZoneRefinementMetrics")
+            raise ZoneRefinementError(
+                "initial/final metrics must be ZoneRefinementMetrics"
+            )
 
         expected_converged = self.final_metrics.hard_violation_count == 0
         if self.converged != expected_converged:
             raise ZoneRefinementError("converged must reflect final hard violations")
         if self.converged and self.termination is not ZoneRefinementTermination.CONVERGED:
-            raise ZoneRefinementError("converged refinement must terminate as CONVERGED")
+            raise ZoneRefinementError(
+                "converged refinement must terminate as CONVERGED"
+            )
         if not self.converged and self.termination is ZoneRefinementTermination.CONVERGED:
-            raise ZoneRefinementError("CONVERGED termination requires no hard violations")
+            raise ZoneRefinementError(
+                "CONVERGED termination requires no hard violations"
+            )
         if (
             self.termination is ZoneRefinementTermination.MAX_ITERATIONS
             and self.iterations != self.max_iterations
@@ -205,43 +231,68 @@ class ZoneRefinementResult:
 
     def __post_init__(self) -> None:
         if not isinstance(self.assignments, tuple) or not self.assignments:
-            raise ZoneRefinementError("assignments must be a non-empty immutable tuple")
+            raise ZoneRefinementError(
+                "assignments must be a non-empty immutable tuple"
+            )
         if any(not isinstance(item, ZoneAssignment) for item in self.assignments):
-            raise ZoneRefinementError("assignments must contain only ZoneAssignment values")
-        if tuple(item.cell_index for item in self.assignments) != tuple(
-            range(len(self.assignments))
+            raise ZoneRefinementError(
+                "assignments must contain only ZoneAssignment values"
+            )
+        expected_cells = tuple(range(len(self.assignments)))
+        if tuple(item.cell_index for item in self.assignments) != expected_cells:
+            raise ZoneRefinementError(
+                "assignments must be in contiguous cell-index order"
+            )
+        if len({item.seed_index for item in self.assignments}) != len(
+            self.assignments
         ):
-            raise ZoneRefinementError("assignments must be in contiguous cell-index order")
-        if len({item.seed_index for item in self.assignments}) != len(self.assignments):
             raise ZoneRefinementError("assignment seed_index values must be unique")
 
-        if not isinstance(self.shares, tuple) or tuple(
-            item.zone_class for item in self.shares
-        ) != tuple(ZoneClass):
-            raise ZoneRefinementError("shares must contain all canonical zone classes in order")
-        if any(not isinstance(item, ZoneShareDiagnostic) for item in self.shares):
-            raise ZoneRefinementError("shares must contain only ZoneShareDiagnostic values")
+        if not isinstance(self.shares, tuple) or any(
+            not isinstance(item, ZoneShareDiagnostic) for item in self.shares
+        ):
+            raise ZoneRefinementError(
+                "shares must be an immutable tuple of ZoneShareDiagnostic"
+            )
+        if tuple(item.zone_class for item in self.shares) != tuple(ZoneClass):
+            raise ZoneRefinementError(
+                "shares must contain all canonical zone classes in order"
+            )
         if not isinstance(self.regions, tuple) or not self.regions:
             raise ZoneRefinementError("regions must be a non-empty immutable tuple")
         if any(not isinstance(item, ZoneRegionDiagnostic) for item in self.regions):
-            raise ZoneRefinementError("regions must contain only ZoneRegionDiagnostic values")
-        if tuple(region.region_index for region in self.regions) != tuple(
-            range(len(self.regions))
-        ):
-            raise ZoneRefinementError("regions must be in contiguous region-index order")
+            raise ZoneRefinementError(
+                "regions must contain only ZoneRegionDiagnostic values"
+            )
+        expected_regions = tuple(range(len(self.regions)))
+        if tuple(region.region_index for region in self.regions) != expected_regions:
+            raise ZoneRefinementError(
+                "regions must be in contiguous region-index order"
+            )
         region_cells = tuple(
             cell_index
             for region in self.regions
             for cell_index in region.cell_indices
         )
         if sorted(region_cells) != list(range(len(self.assignments))):
-            raise ZoneRefinementError("regions must cover every assignment cell exactly once")
+            raise ZoneRefinementError(
+                "regions must cover every assignment cell exactly once"
+            )
 
         if not isinstance(self.diagnostics, ZoneRefinementDiagnostics):
-            raise ZoneRefinementError("diagnostics must be ZoneRefinementDiagnostics")
-        total_area_m2 = _require_positive_finite("total_area_m2", self.total_area_m2)
-        if not isinstance(self.zoning_config_version, str) or not self.zoning_config_version:
-            raise ZoneRefinementError("zoning_config_version must be a non-empty string")
+            raise ZoneRefinementError(
+                "diagnostics must be ZoneRefinementDiagnostics"
+            )
+        total_area_m2 = _require_positive_finite(
+            "total_area_m2",
+            self.total_area_m2,
+        )
+        if not isinstance(self.zoning_config_version, str) or not (
+            self.zoning_config_version
+        ):
+            raise ZoneRefinementError(
+                "zoning_config_version must be a non-empty string"
+            )
         if (
             not isinstance(self.zoning_config_fingerprint, str)
             or _SHA256_RE.fullmatch(self.zoning_config_fingerprint) is None
@@ -257,25 +308,30 @@ class ZoneRefinementResult:
                 "input_assignment_strategy_version must be a non-empty string"
             )
         if not isinstance(self.refinement_version, str) or not self.refinement_version:
-            raise ZoneRefinementError("refinement_version must be a non-empty string")
+            raise ZoneRefinementError(
+                "refinement_version must be a non-empty string"
+            )
 
         tolerance_m2 = _area_tolerance(total_area_m2)
+        assignment_area = math.fsum(item.area_m2 for item in self.assignments)
         if not math.isclose(
-            math.fsum(item.area_m2 for item in self.assignments),
+            assignment_area,
             total_area_m2,
             rel_tol=0.0,
             abs_tol=tolerance_m2,
         ):
             raise ZoneRefinementError("assignment areas must sum to total_area_m2")
+        share_area = math.fsum(item.assigned_area_m2 for item in self.shares)
         if not math.isclose(
-            math.fsum(item.assigned_area_m2 for item in self.shares),
+            share_area,
             total_area_m2,
             rel_tol=0.0,
             abs_tol=tolerance_m2,
         ):
             raise ZoneRefinementError("share assigned areas must sum to total_area_m2")
+        region_area = math.fsum(region.area_m2 for region in self.regions)
         if not math.isclose(
-            math.fsum(region.area_m2 for region in self.regions),
+            region_area,
             total_area_m2,
             rel_tol=0.0,
             abs_tol=tolerance_m2,
@@ -285,12 +341,16 @@ class ZoneRefinementResult:
     def assignment_for_cell(self, cell_index: int) -> ZoneAssignment:
         _require_non_negative_int("cell_index", cell_index)
         if cell_index >= len(self.assignments):
-            raise ZoneRefinementError(f"unknown partition cell index: {cell_index}")
+            raise ZoneRefinementError(
+                f"unknown partition cell index: {cell_index}"
+            )
         return self.assignments[cell_index]
 
     def share(self, zone_class: ZoneClass) -> ZoneShareDiagnostic:
         if not isinstance(zone_class, ZoneClass):
-            raise ZoneRefinementError("share lookup requires a ZoneClass value")
+            raise ZoneRefinementError(
+                "share lookup requires a ZoneClass value"
+            )
         return self.shares[_ZONE_ORDER[zone_class]]
 
 
@@ -428,7 +488,7 @@ class _CandidateMove:
     suitability_score: float
 
     @property
-    def ordering_key(self) -> tuple[tuple[int, int, float, float, int, int], float, float, int, int]:
+    def ordering_key(self) -> _OrderingKey:
         return (
             _objective_key(self.state.metrics),
             self.suitability_score,
@@ -482,14 +542,16 @@ def _best_improving_move(
                     labels=labels,
                     topology=topology,
                 ),
-                suitability_score=partition.cells[cell_index].seed.suitability_score,
+                suitability_score=(
+                    partition.cells[cell_index].seed.suitability_score
+                ),
             )
             if best is None or candidate.ordering_key < best.ordering_key:
                 best = candidate
     return best
 
 
-def _objective_key(metrics: ZoneRefinementMetrics) -> tuple[int, int, float, float, int, int]:
+def _objective_key(metrics: ZoneRefinementMetrics) -> _ObjectiveKey:
     return (
         metrics.forbidden_adjacency_count,
         metrics.under_minimum_region_count,
@@ -518,7 +580,10 @@ def _evaluate_state(
     preferred = 0
     forbidden_cells: set[int] = set()
     for edge in topology.edges:
-        policy = config.adjacency_policy(labels[edge.first], labels[edge.second])
+        policy = config.adjacency_policy(
+            labels[edge.first],
+            labels[edge.second],
+        )
         if policy is ZoneAdjacencyPolicy.FORBIDDEN:
             forbidden += 1
             forbidden_cells.update((edge.first, edge.second))
@@ -527,7 +592,9 @@ def _evaluate_state(
         elif policy is ZoneAdjacencyPolicy.PREFERRED:
             preferred += 1
 
-    under_minimum = tuple(region for region in regions if not region.meets_minimum_area)
+    under_minimum = tuple(
+        region for region in regions if not region.meets_minimum_area
+    )
     problem_cells = set(forbidden_cells)
     for region in under_minimum:
         problem_cells.update(region.cell_indices)
@@ -571,8 +638,7 @@ def _build_regions(
 ) -> tuple[ZoneRegionDiagnostic, ...]:
     seen: set[int] = set()
     regions: list[ZoneRegionDiagnostic] = []
-    total_area_m2 = partition.developable_area_m2
-    tolerance_m2 = _area_tolerance(total_area_m2)
+    tolerance_m2 = _area_tolerance(partition.developable_area_m2)
 
     for start in range(len(labels)):
         if start in seen:
@@ -588,8 +654,11 @@ def _build_regions(
                 if neighbor not in seen and labels[neighbor] is zone_class:
                     seen.add(neighbor)
                     stack.append(neighbor)
+
         cell_indices = tuple(sorted(cells))
-        area_m2 = math.fsum(partition.cells[index].area_m2 for index in cell_indices)
+        area_m2 = math.fsum(
+            partition.cells[index].area_m2 for index in cell_indices
+        )
         minimum_area_m2 = config.zone(zone_class).minimum_area_m2
         regions.append(
             ZoneRegionDiagnostic(
@@ -598,7 +667,9 @@ def _build_regions(
                 cell_indices=cell_indices,
                 area_m2=area_m2,
                 minimum_area_m2=minimum_area_m2,
-                meets_minimum_area=area_m2 + tolerance_m2 >= minimum_area_m2,
+                meets_minimum_area=(
+                    area_m2 + tolerance_m2 >= minimum_area_m2
+                ),
             )
         )
     return tuple(regions)
@@ -616,7 +687,9 @@ def _build_topology(partition: ZoningPartitionResult) -> _Topology:
             if second <= first:
                 continue
             shared_boundary_m = float(
-                geometry.boundary.intersection(geometries[second].boundary).length
+                geometry.boundary.intersection(
+                    geometries[second].boundary
+                ).length
             )
             if shared_boundary_m <= _MIN_SHARED_BOUNDARY_M:
                 continue
@@ -672,7 +745,8 @@ def _build_share_diagnostics(
             assigned_area_m2=assigned_area[zone.zone_class],
             achieved_share=assigned_area[zone.zone_class] / total_area_m2,
             absolute_area_error_m2=abs(
-                assigned_area[zone.zone_class] - total_area_m2 * zone.target_share
+                assigned_area[zone.zone_class]
+                - total_area_m2 * zone.target_share
             ),
             cell_count=counts[zone.zone_class],
         )
@@ -688,61 +762,91 @@ def _validate_inputs(
     max_iterations: int,
 ) -> None:
     if not isinstance(partition, ZoningPartitionResult):
-        raise ZoneRefinementError("partition must be a ZoningPartitionResult")
+        raise ZoneRefinementError(
+            "partition must be a ZoningPartitionResult"
+        )
     if not isinstance(assignment, ZoneAssignmentResult):
-        raise ZoneRefinementError("assignment must be a ZoneAssignmentResult")
+        raise ZoneRefinementError(
+            "assignment must be a ZoneAssignmentResult"
+        )
     if not isinstance(config, ZoningConfig):
         raise ZoneRefinementError("config must be a ZoningConfig")
     _require_max_iterations(max_iterations)
     if assignment.zoning_config_version != config.version:
-        raise ZoneRefinementError("assignment zoning config version does not match config")
+        raise ZoneRefinementError(
+            "assignment zoning config version does not match config"
+        )
     if assignment.zoning_config_fingerprint != config.fingerprint:
-        raise ZoneRefinementError("assignment zoning config fingerprint does not match config")
+        raise ZoneRefinementError(
+            "assignment zoning config fingerprint does not match config"
+        )
     if len(assignment.assignments) != len(partition.cells):
-        raise ZoneRefinementError("assignment must contain exactly one label per partition cell")
+        raise ZoneRefinementError(
+            "assignment must contain exactly one label per partition cell"
+        )
     if not math.isclose(
         assignment.total_area_m2,
         partition.developable_area_m2,
         rel_tol=0.0,
         abs_tol=_area_tolerance(partition.developable_area_m2),
     ):
-        raise ZoneRefinementError("assignment total area does not match partition")
+        raise ZoneRefinementError(
+            "assignment total area does not match partition"
+        )
 
     for cell_index, (label, cell) in enumerate(
         zip(assignment.assignments, partition.cells, strict=True)
     ):
         if label.cell_index != cell_index or label.seed_index != cell.seed_index:
-            raise ZoneRefinementError("assignment cell/seed references do not match partition")
-        if not math.isclose(label.area_m2, cell.area_m2, rel_tol=1e-12, abs_tol=1e-9):
-            raise ZoneRefinementError("assignment cell area does not match partition")
+            raise ZoneRefinementError(
+                "assignment cell/seed references do not match partition"
+            )
+        if not math.isclose(
+            label.area_m2,
+            cell.area_m2,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        ):
+            raise ZoneRefinementError(
+                "assignment cell area does not match partition"
+            )
         if not math.isclose(
             label.suitability_score,
             cell.seed.suitability_score,
             rel_tol=0.0,
             abs_tol=1e-15,
         ):
-            raise ZoneRefinementError("assignment suitability score does not match partition seed")
+            raise ZoneRefinementError(
+                "assignment suitability score does not match partition seed"
+            )
 
 
 def _require_max_iterations(value: int) -> None:
-    if (
+    invalid = (
         isinstance(value, bool)
         or not isinstance(value, int)
         or value <= 0
         or value > _MAX_ITERATION_LIMIT
-    ):
+    )
+    if invalid:
         raise ZoneRefinementError(
-            f"max_iterations must be an integer inside 1..{_MAX_ITERATION_LIMIT}"
+            "max_iterations must be an integer inside "
+            f"1..{_MAX_ITERATION_LIMIT}"
         )
 
 
 def _area_tolerance(total_area_m2: float) -> float:
-    return max(_MIN_AREA_TOLERANCE_M2, total_area_m2 * _AREA_TOLERANCE_RATIO)
+    return max(
+        _MIN_AREA_TOLERANCE_M2,
+        total_area_m2 * _AREA_TOLERANCE_RATIO,
+    )
 
 
 def _require_non_negative_int(field_name: str, value: int) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ZoneRefinementError(f"{field_name} must be a non-negative integer")
+        raise ZoneRefinementError(
+            f"{field_name} must be a non-negative integer"
+        )
 
 
 def _require_finite_number(field_name: str, value: float) -> float:
