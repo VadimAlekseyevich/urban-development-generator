@@ -40,12 +40,7 @@ if not exist .env (
 )
 
 rem Heal old local-only defaults that do not work from inside Docker containers.
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$p='.env'; $c=Get-Content $p;" ^
-  "$c=$c -replace '^DATABASE_URL=postgresql\+psycopg://urban:urban@localhost:5432/urban_generator$','DATABASE_URL=postgresql+psycopg://urban:urban@db:5432/urban_generator';" ^
-  "$c=$c -replace '^REDIS_URL=redis://localhost:6379/0$','REDIS_URL=redis://redis:6379/0';" ^
-  "if(-not($c -match '^REDIS_URL=')){$c += 'REDIS_URL=redis://redis:6379/0'};" ^
-  "Set-Content -Encoding ascii $p $c"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='.env'; $c=Get-Content $p; $c=$c -replace '^DATABASE_URL=postgresql\+psycopg://urban:urban@localhost:5432/urban_generator$','DATABASE_URL=postgresql+psycopg://urban:urban@db:5432/urban_generator'; $c=$c -replace '^REDIS_URL=redis://localhost:6379/0$','REDIS_URL=redis://redis:6379/0'; if(-not($c -match '^REDIS_URL=')){$c += 'REDIS_URL=redis://redis:6379/0'}; Set-Content -Encoding ascii $p $c"
 if errorlevel 1 goto :error
 
 echo.
