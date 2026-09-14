@@ -8,6 +8,7 @@ from backend.app.application.projects import ProjectService
 from backend.app.application.source_layers import SourceLayerQueryService
 from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
+from backend.app.application.zoning_layers import ZoningLayerQueryService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
@@ -17,6 +18,9 @@ from backend.app.db.source_layer_query_repository import (
 )
 from backend.app.db.suitability_artifact_repository import (
     SqlAlchemySuitabilityArtifactRepository,
+)
+from backend.app.db.zoning_layer_query_repository import (
+    SqlAlchemyZoningLayerQueryRepository,
 )
 from core.urban_generator.domain import ArtifactStore
 
@@ -41,6 +45,18 @@ def get_source_layer_query_service(db: DbSession) -> SourceLayerQueryService:
 SourceLayerQueryServiceDep = Annotated[
     SourceLayerQueryService,
     Depends(get_source_layer_query_service),
+]
+
+
+def get_zoning_layer_query_service(db: DbSession) -> ZoningLayerQueryService:
+    """Compose the bounded zoning-layer viewport query service."""
+
+    return ZoningLayerQueryService(SqlAlchemyZoningLayerQueryRepository(db))
+
+
+ZoningLayerQueryServiceDep = Annotated[
+    ZoningLayerQueryService,
+    Depends(get_zoning_layer_query_service),
 ]
 
 
