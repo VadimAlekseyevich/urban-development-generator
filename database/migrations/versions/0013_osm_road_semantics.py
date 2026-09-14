@@ -67,9 +67,14 @@ def upgrade() -> None:
             END,
             layer = CASE
                 WHEN BTRIM(attributes_json #>> '{osm_tags,layer}') ~ '^[+-]?[0-9]{1,10}$'
-                 AND CAST(BTRIM(attributes_json #>> '{osm_tags,layer}') AS bigint)
-                    BETWEEN -2147483648 AND 2147483647
-                    THEN CAST(BTRIM(attributes_json #>> '{osm_tags,layer}') AS integer)
+                    THEN CASE
+                        WHEN CAST(BTRIM(attributes_json #>> '{osm_tags,layer}') AS bigint)
+                            BETWEEN -2147483648 AND 2147483647
+                            THEN CAST(
+                                BTRIM(attributes_json #>> '{osm_tags,layer}') AS integer
+                            )
+                        ELSE 0
+                    END
                 ELSE 0
             END,
             one_way_direction = CASE
