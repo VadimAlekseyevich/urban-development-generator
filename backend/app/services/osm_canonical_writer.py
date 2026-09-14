@@ -17,6 +17,7 @@ from backend.app.db.source_layer_writer import (
     SqlAlchemySourceLayerBatchWriter,
 )
 from backend.app.services.osm_mapping import MappedOsmBatch, OsmMappedLayer
+from backend.app.services.osm_road_semantics import OsmRoadSemanticsNormalizer
 from backend.app.services.vector_normalization import (
     NormalizedVectorBatch,
     VectorBatchDiagnostics,
@@ -64,6 +65,7 @@ class OsmCanonicalWriter:
 
     def __init__(self, *, batch_writer: SourceLayerBatchWriter | None = None) -> None:
         self._batch_writer = batch_writer or SqlAlchemySourceLayerBatchWriter()
+        self._road_semantics = OsmRoadSemanticsNormalizer()
 
     def replace_layer(
         self,
@@ -193,8 +195,8 @@ class OsmCanonicalWriter:
                     f"mapped OSM canonical attributes contain reserved fields: {fields}"
                 )
 
-    @staticmethod
     def _to_normalized_batch(
+        self,
         batch: MappedOsmBatch,
         *,
         working_crs: WorkingCRS,
@@ -202,6 +204,17 @@ class OsmCanonicalWriter:
         records: list[dict[str, object]] = []
         for feature in batch.features:
             row = dict(feature.canonical_attributes)
+            if batch.target_layer is OsmMappedLayer.ROADS:
+                semantics = self._road_semantics.normalize(feature.source_tags)
+                row.update(
+                    {
+                        "one_way": semantics.one_way,
+                        "one_way_direction": semantics.one_way_direction.value,
+                        "bridge": semantics.bridge,
+                        "tunnel": semantics.tunnel,
+                        "layer": semantics.layer,
+                    }
+                )
             row["source_feature_id"] = feature.source_feature_id
             row["geometry"] = feature.geometry
             records.append(row)
