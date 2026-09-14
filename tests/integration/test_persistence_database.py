@@ -121,7 +121,7 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
         )
     }
 
-    assert revision == "0011_spatial_indexes"
+    assert revision == "0012_generated_zone_persistence"
     assert isinstance(postgis_version, str) and postgis_version
     assert {
         "projects",
@@ -203,6 +203,9 @@ def test_completed_generated_and_source_rows_are_immutable(db_session: Session) 
     generated = GeneratedZone(
         run_id=run.id,
         attributes_json={},
+        zone_class="residential",
+        area_m2=100.0,
+        diagnostics_json={},
         geometry=WKTElement(
             "MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))",
             srid=WORKING_SRID,

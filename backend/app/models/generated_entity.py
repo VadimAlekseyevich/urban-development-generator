@@ -4,7 +4,7 @@ from typing import Any
 
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, func, text
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,11 +54,31 @@ class GeneratedZone(GeneratedEntityMixin, Base):
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_zones_attributes_object",
         ),
+        CheckConstraint(
+            "zone_class IN ('residential', 'mixed', 'public', 'recreation')",
+            name="ck_generated_zones_zone_class",
+        ),
+        CheckConstraint(
+            "area_m2 > 0",
+            name="ck_generated_zones_area_positive",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(diagnostics_json) = 'object'",
+            name="ck_generated_zones_diagnostics_object",
+        ),
     )
 
     geometry: Mapped[WKBElement] = mapped_column(
         Geometry(geometry_type="MULTIPOLYGON", srid=-1, spatial_index=False),
         nullable=False,
+    )
+    zone_class: Mapped[str] = mapped_column(String(32), nullable=False)
+    area_m2: Mapped[float] = mapped_column(Float, nullable=False)
+    diagnostics_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
     )
 
 
