@@ -71,7 +71,9 @@ class NodedRoad:
             raise SemanticNodingError("parts must be a non-empty tuple")
         for part in self.parts:
             if not isinstance(part, LineString) or part.is_empty or part.length <= 0.0:
-                raise SemanticNodingError("parts must contain non-empty positive-length LineStrings")
+                raise SemanticNodingError(
+                    "parts must contain non-empty positive-length LineStrings"
+                )
 
 
 @dataclass(frozen=True, slots=True)
