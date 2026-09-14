@@ -1,11 +1,9 @@
-import uuid
-
 import pytest
 from alembic import command
 from alembic.config import Config
 from geoalchemy2.shape import to_shape
 from shapely.geometry import MultiPolygon, box
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.generated_zone_writer import (
@@ -304,7 +302,7 @@ def test_writer_rejects_successful_run_without_touching_rows(db_session: Session
         )
 
     count = db_session.scalar(
-        select(text("count(*)")).select_from(GeneratedZone).where(GeneratedZone.run_id == run.id)
+        select(func.count()).select_from(GeneratedZone).where(GeneratedZone.run_id == run.id)
     )
     assert count == 0
 
