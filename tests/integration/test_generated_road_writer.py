@@ -85,7 +85,7 @@ def _create_source_road(session: Session, *, project_id: uuid.UUID) -> SourceRoa
     version = DatasetVersion(
         dataset_id=dataset.id,
         version=1,
-        status="ready",
+        status="processing",
         source_metadata={},
     )
     session.add(version)
@@ -109,6 +109,8 @@ def _create_source_road(session: Session, *, project_id: uuid.UUID) -> SourceRoa
         ),
     )
     session.add(road)
+    session.flush()
+    version.status = "ready"
     session.commit()
     return road
 
