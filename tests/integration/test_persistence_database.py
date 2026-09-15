@@ -121,7 +121,7 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
         )
     }
 
-    assert revision == "0013_osm_road_semantics"
+    assert revision == "0014_generated_road_persistence"
     assert isinstance(postgis_version, str) and postgis_version
     assert {
         "projects",
