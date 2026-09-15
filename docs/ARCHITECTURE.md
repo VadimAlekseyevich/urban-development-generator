@@ -54,7 +54,7 @@ FastAPI endpoint
 - `x_m` и `y_m` — конечные координаты в `WorkingCRS`;
 - `length_m` — неотрицательная конечная стоимость каждого edge.
 
-Адаптер преобразует NetworkX routing results обратно в domain-типы. Построение graph из canonical roads, OSM semantics и semantic noding не входят в S06-T01 и реализуются последующими work items. Начиная с S06-T03 `snap()` делегирует reusable `SpatialSnapIndex` и не выполняет линейный scan всех graph nodes.
+Адаптер преобразует NetworkX routing results обратно в domain-типы. Начиная с S06-T03 `snap()` делегирует reusable `SpatialSnapIndex` и не выполняет линейный scan всех graph nodes. Начиная с S06-T05 `NetworkXBackend.from_road_graph()` умеет адаптировать backend-independent `RoadGraph` через `MultiGraph`, не схлопывая parallel road edges.
 
 ## Canonical OSM road semantics
 
@@ -70,7 +70,7 @@ S06-T03 вводит `core.urban_generator.roads.SpatialSnapIndex` как reusab
 
 Размер индекса ограничен `max_targets` (по умолчанию 500 000), а tolerance задаётся в метрах на каждый query. Все кандидаты дополнительно проверяются точным Cartesian distance; результат сортируется по `(distance_m, target_id)`, поэтому равные расстояния разрешаются детерминированно и не зависят от traversal order `STRtree`. `snap_target()` исключает сам target и предназначен для endpoint/intersection coalescing.
 
-S06-T03 не решает, является ли геометрическое пересечение реальным road junction: bridge/tunnel/layer semantics не интерпретируются внутри snapping index. Это ответственность S06-T04 semantic noding. Построение directed graph и применение `one_way_direction` остаются S06-T05.
+S06-T03 не решает, является ли геометрическое пересечение реальным road junction: bridge/tunnel/layer semantics не интерпретируются внутри snapping index. Это ответственность S06-T04 semantic noding.
 
 ## Semantic road noding boundary
 
@@ -78,9 +78,19 @@ S06-T04 вводит `core.urban_generator.roads.SemanticNoder`. Вход `Seman
 
 Кандидатные пересечения находятся через `STRtree`, а не полным N×M сравнением. Размер входа ограничен `max_road_parts` (по умолчанию 500 000), число реально пересекающихся candidate pairs — `max_candidate_pairs` (по умолчанию 2 000 000). Для interior crossing junction создаётся только при совпадении `(layer, bridge, tunnel)`. Exact shared endpoint считается явной топологической связью и сохраняется даже при переходе structure/layer, чтобы bridge/tunnel segment не отрывался от approach geometry. T-junction с несовместимой grade semantics не соединяется.
 
-Допустимые junction points разрезают только те line parts, где точка лежит в интерьере. Порядок и направление resulting parts сохраняются относительно исходной geometry, чтобы downstream `one_way_direction` оставался корректным. Частичные линейные overlaps не создают бесконечное число nodes: noding использует только границы overlap и сообщает `overlap_pair_count`; duplicate/tiny-edge cleanup остаётся S06-T06.
+Допустимые junction points разрезают только те line parts, где точка лежит в интерьере. Порядок и направление resulting parts сохраняются относительно исходной geometry, чтобы downstream traversal semantics могли использовать исходную ориентацию. Частичные линейные overlaps не создают бесконечное число nodes: noding использует только границы overlap и сообщает `overlap_pair_count`; duplicate/tiny-edge cleanup остаётся S06-T06.
 
-Результат S06-T04 содержит split `NodedRoad` geometries, `SemanticJunction` и bounded-work diagnostics, но не создаёт NetworkX/domain graph nodes и edges. Это строго S06-T05 Graph build; именно там применяются source/fixed flags, length metadata и traversal direction.
+Результат S06-T04 содержит split `NodedRoad` geometries, `SemanticJunction` и bounded-work diagnostics, но не создаёт graph nodes и edges. Это ответственность S06-T05 Graph build.
+
+## Road graph build boundary
+
+S06-T05 вводит `RoadGraphBuilder` и backend-independent `RoadGraphNode`/`RoadGraphEdge`. На вход builder получает уже snapped+noded `NodedRoad` и существующий `WorldStateContract`; он не повторяет snapping, noding или OSM tag parsing. Все distance/length операции разрешены только в `WorkingCRS` с metre units.
+
+Exact endpoint coordinates после S06-T03/S06-T04 определяют graph node. Node IDs формируются детерминированно по отсортированным coordinates, road inputs — по `road_id`, поэтому результат не зависит от порядка входного tuple. Edge сохраняет `road_id`, `part_index`, исходное направление `LineString`, metric `length_m` и полный `WorldStateContract`; `is_source`/`is_fixed` выводятся из него. Shared node агрегирует source/fixed participation соседних edges, что позволяет generated road безопасно присоединяться к fixed network, не меняя ownership fixed edge.
+
+Graph build ограничен `max_nodes` и `max_edges` (по умолчанию по 1 000 000). Connected components считаются union-find проходом O(V+E), без NetworkX и без повторного N×M scan. Diagnostics содержат node/edge counts, total length, source/fixed edge counts и детерминированный summary каждой connected component.
+
+`RoadGraph` остаётся предметным контрактом и не равен `networkx.Graph`. `NetworkXBackend.from_road_graph()` создаёт adapter-level `MultiGraph`, чтобы parallel edges не терялись; текущая accessibility topology connectivity-neutral/undirected согласно v1 pedestrian semantics. Применение сложных one-way/turn rules не добавляется в S06-T05. Duplicate/tiny-edge cleanup остаётся S06-T06, shortest-path services — S06-T07.
 
 ## Обязательный конечный продукт
 
