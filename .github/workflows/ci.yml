@@ -48,6 +48,8 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy backend core worker
       - run: uv run pytest
+      - name: Road reference benchmark
+        run: uv run python -m benchmarks.road_network_reference
       - name: Migration smoke
         run: |
           uv run alembic upgrade head
