@@ -11,10 +11,12 @@ from core.urban_generator.domain import (
     NetworkNodeRef,
     NetworkPath,
     NetworkPoint,
+    NetworkRoutingAlgorithm,
     NetworkSnapResult,
     WorkingCRS,
     require_max_distance_m,
     require_node_refs,
+    require_routing_algorithm,
 )
 
 
@@ -48,8 +50,10 @@ class FakeNetworkBackend:
         source: NetworkNodeRef,
         target: NetworkNodeRef,
         *,
+        algorithm: NetworkRoutingAlgorithm = NetworkRoutingAlgorithm.DIJKSTRA,
         max_distance_m: float | None = None,
     ) -> NetworkPath | None:
+        require_routing_algorithm(algorithm)
         limit = require_max_distance_m(max_distance_m)
         order = ("a", "b", "c")
         source_index = order.index(source.node_id)
@@ -62,6 +66,31 @@ class FakeNetworkBackend:
         return NetworkPath(
             nodes=tuple(NetworkNodeRef(node_id=node_id) for node_id in path_ids),
             distance_m=distance_m,
+        )
+
+    def multi_source_shortest_path(
+        self,
+        sources: tuple[NetworkNodeRef, ...],
+        target: NetworkNodeRef,
+        *,
+        algorithm: NetworkRoutingAlgorithm = NetworkRoutingAlgorithm.DIJKSTRA,
+        max_distance_m: float | None = None,
+    ) -> NetworkPath | None:
+        sources = require_node_refs(sources, field_name="sources")
+        require_routing_algorithm(algorithm)
+        order = {"a": 0, "b": 1, "c": 2}
+        source = min(
+            sources,
+            key=lambda candidate: (
+                abs(order[candidate.node_id] - order[target.node_id]),
+                candidate.node_id,
+            ),
+        )
+        return self.shortest_path(
+            source,
+            target,
+            algorithm=algorithm,
+            max_distance_m=max_distance_m,
         )
 
     def multi_source_distances(
@@ -79,7 +108,10 @@ class FakeNetworkBackend:
         for target in targets:
             source = min(
                 sources,
-                key=lambda candidate: abs(order[candidate.node_id] - order[target.node_id]),
+                key=lambda candidate: (
+                    abs(order[candidate.node_id] - order[target.node_id]),
+                    candidate.node_id,
+                ),
             )
             distance_m = abs(order[source.node_id] - order[target.node_id]) * 10.0
             if limit is None or distance_m <= limit:
@@ -145,6 +177,21 @@ def test_shortest_path_can_be_bounded_by_network_distance() -> None:
     assert bounded_out is None
 
 
+def test_multi_source_shortest_path_returns_nearest_source_path() -> None:
+    backend = _backend()
+
+    path = backend.multi_source_shortest_path(
+        (NetworkNodeRef("c"), NetworkNodeRef("a")),
+        NetworkNodeRef("b"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+
+    assert path == NetworkPath(
+        nodes=(NetworkNodeRef("a"), NetworkNodeRef("b")),
+        distance_m=10.0,
+    )
+
+
 def test_multi_source_distances_returns_nearest_source_per_target() -> None:
     backend = _backend()
 
@@ -167,9 +214,12 @@ def test_multi_source_distances_returns_nearest_source_per_target() -> None:
     )
 
 
-def test_network_contract_rejects_invalid_bounds_and_references() -> None:
+def test_network_contract_rejects_invalid_bounds_algorithms_and_references() -> None:
     with pytest.raises(NetworkContractError, match="max_distance_m must be non-negative"):
         require_max_distance_m(-1.0)
+
+    with pytest.raises(NetworkContractError, match="algorithm must be a NetworkRoutingAlgorithm"):
+        require_routing_algorithm("astar")  # type: ignore[arg-type]
 
     with pytest.raises(NetworkContractError, match="sources must not be empty"):
         require_node_refs((), field_name="sources")
