@@ -7,7 +7,11 @@ from shapely.geometry import LineString
 
 from core.urban_generator.domain.crs import WorkingCRS, require_working_crs
 from core.urban_generator.domain.network import NetworkNodeRef, NetworkPoint
-from core.urban_generator.domain.semantics import WorldStateContract
+from core.urban_generator.domain.semantics import (
+    DataOrigin,
+    StateOwnership,
+    WorldStateContract,
+)
 from core.urban_generator.roads.semantic_noding import NodedRoad
 
 DEFAULT_MAX_GRAPH_NODES = 1_000_000
@@ -96,11 +100,11 @@ class RoadGraphEdge:
 
     @property
     def is_source(self) -> bool:
-        return self.state.is_fixed_source
+        return self.state.origin is DataOrigin.SOURCE
 
     @property
     def is_fixed(self) -> bool:
-        return self.state.is_fixed_source
+        return self.state.ownership is StateOwnership.FIXED
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,15 +178,16 @@ class RoadGraphBuilder:
     def build(self, roads: tuple[RoadGraphInput, ...]) -> RoadGraph:
         if not isinstance(roads, tuple):
             raise RoadGraphBuildError("roads must be an immutable tuple")
+        for index, item in enumerate(roads):
+            if not isinstance(item, RoadGraphInput):
+                raise RoadGraphBuildError(f"roads[{index}] must be a RoadGraphInput")
 
-        ordered_roads = sorted(roads, key=lambda item: item.road.road_id if isinstance(item, RoadGraphInput) else "")
+        ordered_roads = sorted(roads, key=lambda item: item.road.road_id)
         seen_road_ids: set[str] = set()
         node_flags: dict[tuple[float, float], tuple[bool, bool]] = {}
         drafts: list[_EdgeDraft] = []
 
-        for index, item in enumerate(ordered_roads):
-            if not isinstance(item, RoadGraphInput):
-                raise RoadGraphBuildError(f"roads[{index}] must be a RoadGraphInput")
+        for item in ordered_roads:
             road_id = item.road.road_id
             if road_id in seen_road_ids:
                 raise RoadGraphBuildError(f"duplicate road_id: {road_id!r}")
@@ -212,17 +217,26 @@ class RoadGraphBuilder:
                         f"graph edge limit exceeded: {len(drafts)} > {self.max_edges}"
                     )
 
-                is_source = item.state.is_fixed_source
-                is_fixed = item.state.is_fixed_source
-                _merge_node_flags(node_flags, source_key, is_source=is_source, is_fixed=is_fixed)
-                _merge_node_flags(node_flags, target_key, is_source=is_source, is_fixed=is_fixed)
+                is_source = item.state.origin is DataOrigin.SOURCE
+                is_fixed = item.state.ownership is StateOwnership.FIXED
+                _merge_node_flags(
+                    node_flags,
+                    source_key,
+                    is_source=is_source,
+                    is_fixed=is_fixed,
+                )
+                _merge_node_flags(
+                    node_flags,
+                    target_key,
+                    is_source=is_source,
+                    is_fixed=is_fixed,
+                )
+                if len(node_flags) > self.max_nodes:
+                    raise RoadGraphBuildError(
+                        f"graph node limit exceeded: {len(node_flags)} > {self.max_nodes}"
+                    )
 
         ordered_keys = sorted(node_flags)
-        if len(ordered_keys) > self.max_nodes:
-            raise RoadGraphBuildError(
-                f"graph node limit exceeded: {len(ordered_keys)} > {self.max_nodes}"
-            )
-
         node_refs = {
             key: NetworkNodeRef(node_id=f"node:{index:08d}")
             for index, key in enumerate(ordered_keys)
