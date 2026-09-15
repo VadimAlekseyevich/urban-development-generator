@@ -17,6 +17,7 @@ from core.urban_generator.domain import (
     require_max_distance_m,
     require_node_refs,
 )
+from core.urban_generator.roads.road_graph import RoadGraph
 from core.urban_generator.roads.spatial_snapping import (
     DEFAULT_MAX_SNAP_TARGETS,
     SpatialSnapIndex,
@@ -26,7 +27,12 @@ from core.urban_generator.roads.spatial_snapping import (
 
 NODE_X_ATTRIBUTE = "x_m"
 NODE_Y_ATTRIBUTE = "y_m"
+NODE_SOURCE_ATTRIBUTE = "is_source"
+NODE_FIXED_ATTRIBUTE = "is_fixed"
 EDGE_LENGTH_ATTRIBUTE = "length_m"
+EDGE_ROAD_ID_ATTRIBUTE = "road_id"
+EDGE_SOURCE_ATTRIBUTE = "is_source"
+EDGE_FIXED_ATTRIBUTE = "is_fixed"
 
 
 class NetworkXBackendError(NetworkContractError):
@@ -76,6 +82,50 @@ class NetworkXBackend(NetworkBackend):
             node_count=self._graph.number_of_nodes(),
             edge_count=self._graph.number_of_edges(),
             directed=self._graph.is_directed(),
+        )
+
+    @classmethod
+    def from_road_graph(
+        cls,
+        road_graph: RoadGraph,
+        *,
+        snapshot_id: str,
+        max_snap_targets: int = DEFAULT_MAX_SNAP_TARGETS,
+    ) -> NetworkXBackend:
+        """Adapt a backend-independent S06-T05 graph without collapsing parallel edges."""
+
+        if not isinstance(road_graph, RoadGraph):
+            raise NetworkXBackendError("road_graph must be a RoadGraph")
+
+        adapter_graph = nx.MultiGraph()
+        for node in road_graph.nodes:
+            adapter_graph.add_node(
+                node.node.node_id,
+                **{
+                    NODE_X_ATTRIBUTE: node.point.x_m,
+                    NODE_Y_ATTRIBUTE: node.point.y_m,
+                    NODE_SOURCE_ATTRIBUTE: node.is_source,
+                    NODE_FIXED_ATTRIBUTE: node.is_fixed,
+                },
+            )
+        for edge in road_graph.edges:
+            adapter_graph.add_edge(
+                edge.source.node_id,
+                edge.target.node_id,
+                key=edge.edge_id,
+                **{
+                    EDGE_LENGTH_ATTRIBUTE: edge.length_m,
+                    EDGE_ROAD_ID_ATTRIBUTE: edge.road_id,
+                    EDGE_SOURCE_ATTRIBUTE: edge.is_source,
+                    EDGE_FIXED_ATTRIBUTE: edge.is_fixed,
+                },
+            )
+
+        return cls(
+            adapter_graph,
+            snapshot_id=snapshot_id,
+            working_crs=road_graph.working_crs,
+            max_snap_targets=max_snap_targets,
         )
 
     @property
