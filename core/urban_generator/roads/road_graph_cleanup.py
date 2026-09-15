@@ -10,7 +10,7 @@ from core.urban_generator.roads.road_graph import (
     RoadGraph,
     RoadGraphEdge,
     RoadGraphNode,
-    build_road_graph_diagnostics,
+    _build_diagnostics,
 )
 
 DEFAULT_TINY_EDGE_THRESHOLD_M = 0.0
@@ -132,7 +132,7 @@ class RoadGraphCleaner:
         prune_limit_reached = generated_dangling_edges_remaining > 0
 
         nodes = _rebuild_nodes(node_by_id, edges)
-        graph_diagnostics = build_road_graph_diagnostics(nodes, edges)
+        graph_diagnostics = _build_diagnostics(nodes, edges)
         cleaned_graph = RoadGraph(
             working_crs=graph.working_crs,
             nodes=nodes,
