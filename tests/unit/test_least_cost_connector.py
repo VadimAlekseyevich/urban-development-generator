@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pytest
 
-from core.urban_generator.domain import NetworkPoint
 from core.urban_generator.roads import (
     CandidateRoadAnchor,
     LeastCostConnectionStatus,
@@ -19,7 +18,6 @@ from core.urban_generator.suitability import (
     WeightedSuitabilityResult,
 )
 from core.urban_generator.zoning import ZoneClass
-
 
 _FINGERPRINT = "1" * 64
 
@@ -72,20 +70,22 @@ def make_anchor(
     col: int,
     anchor_id: str | None = None,
     score: float | None = None,
-    point: NetworkPoint | None = None,
+    point_xy: tuple[float, float] | None = None,
 ) -> CandidateRoadAnchor:
+    from core.urban_generator.domain import NetworkPoint
+
     grid = suitability.grid
     min_x, _min_y, _max_x, max_y = grid.bounds
-    if point is None:
-        point = NetworkPoint(
-            x_m=min_x + (col + 0.5) * grid.cell_width_m,
-            y_m=max_y - (row + 0.5) * grid.cell_height_m,
+    if point_xy is None:
+        point_xy = (
+            min_x + (col + 0.5) * grid.cell_width_m,
+            max_y - (row + 0.5) * grid.cell_height_m,
         )
     if score is None:
         score = float(suitability.scores[row, col])
     return CandidateRoadAnchor(
         anchor_id=anchor_id or f"anchor:{row}:{col}",
-        point=point,
+        point=NetworkPoint(x_m=point_xy[0], y_m=point_xy[1]),
         zone_class=ZoneClass.RESIDENTIAL,
         zoning_cell_index=0,
         raster_row=row,
@@ -313,7 +313,7 @@ def test_connector_rejects_stale_anchor_point_and_score() -> None:
                 suitability,
                 row=0,
                 col=0,
-                point=NetworkPoint(x_m=6.0, y_m=5.0),
+                point_xy=(6.0, 5.0),
             ),
             target=target,
             suitability=suitability,
