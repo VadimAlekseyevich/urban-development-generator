@@ -3,16 +3,16 @@ import uuid
 import pytest
 from shapely.geometry import LineString
 
+from core.urban_generator.domain import WorldStateContract
 from core.urban_generator.roads import (
     NodedRoad,
     RoadGraph,
     RoadGraphBuilder,
+    RoadGraphCleaner,
     RoadGraphCleanupError,
     RoadGraphCleanupPolicy,
-    RoadGraphCleaner,
     RoadGraphInput,
 )
-from core.urban_generator.domain import WorldStateContract
 
 WORKING_SRID = 3857
 RUN_ID = uuid.UUID("12345678-1234-5678-1234-567812345678")
@@ -103,9 +103,7 @@ def test_tiny_cleanup_removes_generated_edges_but_preserves_fixed_source() -> No
         _generated(_road("generated-tiny", ((10.0, 0.0), (10.1, 0.0)))),
         _generated(_road("generated-long", ((20.0, 0.0), (21.0, 0.0)))),
     )
-    cleaner = RoadGraphCleaner(
-        RoadGraphCleanupPolicy(tiny_edge_threshold_m=0.2)
-    )
+    cleaner = RoadGraphCleaner(RoadGraphCleanupPolicy(tiny_edge_threshold_m=0.2))
 
     result = cleaner.cleanup(graph)
 
