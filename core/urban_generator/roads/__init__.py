@@ -22,6 +22,16 @@ from core.urban_generator.roads.road_graph import (
     RoadGraphInput,
     RoadGraphNode,
 )
+from core.urban_generator.roads.road_graph_cleanup import (
+    DEFAULT_DANGLING_EDGE_THRESHOLD_M,
+    DEFAULT_MAX_DANGLING_PRUNE_PASSES,
+    DEFAULT_TINY_EDGE_THRESHOLD_M,
+    RoadGraphCleaner,
+    RoadGraphCleanupDiagnostics,
+    RoadGraphCleanupError,
+    RoadGraphCleanupPolicy,
+    RoadGraphCleanupResult,
+)
 from core.urban_generator.roads.semantic_noding import (
     DEFAULT_MAX_CANDIDATE_PAIRS,
     DEFAULT_MAX_ROAD_PARTS,
@@ -42,11 +52,14 @@ from core.urban_generator.roads.spatial_snapping import (
 )
 
 __all__ = [
+    "DEFAULT_DANGLING_EDGE_THRESHOLD_M",
     "DEFAULT_MAX_CANDIDATE_PAIRS",
+    "DEFAULT_MAX_DANGLING_PRUNE_PASSES",
     "DEFAULT_MAX_GRAPH_EDGES",
     "DEFAULT_MAX_GRAPH_NODES",
     "DEFAULT_MAX_ROAD_PARTS",
     "DEFAULT_MAX_SNAP_TARGETS",
+    "DEFAULT_TINY_EDGE_THRESHOLD_M",
     "EDGE_FIXED_ATTRIBUTE",
     "EDGE_LENGTH_ATTRIBUTE",
     "EDGE_ROAD_ID_ATTRIBUTE",
@@ -61,6 +74,11 @@ __all__ = [
     "RoadGraph",
     "RoadGraphBuildError",
     "RoadGraphBuilder",
+    "RoadGraphCleaner",
+    "RoadGraphCleanupDiagnostics",
+    "RoadGraphCleanupError",
+    "RoadGraphCleanupPolicy",
+    "RoadGraphCleanupResult",
     "RoadGraphComponentDiagnostics",
     "RoadGraphDiagnostics",
     "RoadGraphEdge",
