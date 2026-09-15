@@ -77,6 +77,9 @@ def test_forbidden_crossings_apply_only_to_generated_edges() -> None:
             _road("generated", ((10, 0), (20, 0)), generated=True),
         )
     )
+    generated_edge_id = next(
+        edge.edge_id for edge in graph.edges if edge.road_id == "generated"
+    )
     forbidden = Polygon(((4, -1), (6, -1), (6, 1), (4, 1)))
 
     result = RoadNetworkValidator(
@@ -100,7 +103,7 @@ def test_forbidden_crossings_apply_only_to_generated_edges() -> None:
         if issue.code is RoadValidationIssueCode.FORBIDDEN_CROSSING
     )
     assert len(crossing) == 1
-    assert crossing[0].edge_id == "edge:00000001"
+    assert crossing[0].edge_id == generated_edge_id
 
 
 def test_policy_can_allow_bounded_forbidden_crossings() -> None:
@@ -136,7 +139,10 @@ def test_validation_enforces_explicit_work_bounds_and_input_shape() -> None:
         )
 
     with pytest.raises(RoadValidationError, match="immutable tuple"):
-        RoadNetworkValidator().validate(graph=graph, forbidden_geometries=[] )  # type: ignore[arg-type]
+        RoadNetworkValidator().validate(
+            graph=graph,
+            forbidden_geometries=[],  # type: ignore[arg-type]
+        )
 
     with pytest.raises(RoadValidationError, match="max_dead_end_ratio"):
         RoadValidationPolicy(max_dead_end_ratio=1.1)
