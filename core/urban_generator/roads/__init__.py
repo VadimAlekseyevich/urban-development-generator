@@ -79,6 +79,14 @@ from core.urban_generator.roads.road_graph_cleanup import (
     RoadGraphCleanupPolicy,
     RoadGraphCleanupResult,
 )
+from core.urban_generator.roads.road_metrics import (
+    DEFAULT_MAX_METRIC_EDGES,
+    DEFAULT_MAX_METRIC_NODES,
+    RoadMetrics,
+    RoadMetricsCalculator,
+    RoadMetricsError,
+    RoadMetricsPolicy,
+)
 from core.urban_generator.roads.road_validation import (
     DEFAULT_MAX_DEAD_END_RATIO,
     DEFAULT_MAX_FORBIDDEN_GEOMETRIES,
@@ -141,6 +149,8 @@ __all__ = [
     "DEFAULT_MAX_GROWTH_ITERATIONS",
     "DEFAULT_MAX_GROWTH_LENGTH_M",
     "DEFAULT_MAX_LEAST_COST_VISITED_CELLS",
+    "DEFAULT_MAX_METRIC_EDGES",
+    "DEFAULT_MAX_METRIC_NODES",
     "DEFAULT_MAX_MST_ANCHORS",
     "DEFAULT_MAX_ROAD_ANCHORS",
     "DEFAULT_MAX_ROAD_PARTS",
@@ -206,6 +216,10 @@ __all__ = [
     "RoadGrowthAttemptStatus",
     "RoadGrowthIntent",
     "RoadGrowthStopReason",
+    "RoadMetrics",
+    "RoadMetricsCalculator",
+    "RoadMetricsError",
+    "RoadMetricsPolicy",
     "RoadNetworkValidator",
     "RoadValidationDiagnostics",
     "RoadValidationError",
