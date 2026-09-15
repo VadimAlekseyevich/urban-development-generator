@@ -3,6 +3,7 @@ import pytest
 
 from core.urban_generator.domain import (
     NetworkBackend,
+    NetworkContractError,
     NetworkDistanceResult,
     NetworkNodeRef,
     NetworkPath,
@@ -332,7 +333,7 @@ def test_backend_rejects_references_outside_its_snapshot() -> None:
 def test_backend_rejects_untyped_algorithm_and_invalid_routing_limit() -> None:
     backend = _backend()
 
-    with pytest.raises(NetworkXBackendError, match="NetworkRoutingAlgorithm"):
+    with pytest.raises(NetworkContractError, match="NetworkRoutingAlgorithm"):
         backend.shortest_path(
             NetworkNodeRef("a"),
             NetworkNodeRef("b"),
