@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.adapters import LocalArtifactStore
 from backend.app.application.projects import ProjectService
+from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
 from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
@@ -12,6 +13,7 @@ from backend.app.application.zoning_layers import ZoningLayerQueryService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
+from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
 from backend.app.db.session import get_db
 from backend.app.db.source_layer_query_repository import (
     SqlAlchemySourceLayerQueryRepository,
@@ -45,6 +47,18 @@ def get_source_layer_query_service(db: DbSession) -> SourceLayerQueryService:
 SourceLayerQueryServiceDep = Annotated[
     SourceLayerQueryService,
     Depends(get_source_layer_query_service),
+]
+
+
+def get_road_layer_query_service(db: DbSession) -> RoadLayerQueryService:
+    """Compose the generated-road viewport and diagnostics query service."""
+
+    return RoadLayerQueryService(SqlAlchemyRoadLayerQueryRepository(db))
+
+
+RoadLayerQueryServiceDep = Annotated[
+    RoadLayerQueryService,
+    Depends(get_road_layer_query_service),
 ]
 
 

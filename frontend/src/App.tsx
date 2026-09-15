@@ -13,6 +13,7 @@ import maplibregl, {
   type MapGeoJSONFeature,
 } from 'maplibre-gl'
 
+import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ZoningPanel } from './ZoningPanel'
 import {
@@ -594,6 +595,13 @@ function App() {
         <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
 
         <ZoningPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+          datasetVersionId={context?.datasetVersionId ?? null}
+        />
+
+        <RoadsPanel
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
