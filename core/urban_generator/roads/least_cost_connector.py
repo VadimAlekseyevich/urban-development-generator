@@ -8,7 +8,7 @@ from enum import StrEnum
 import numpy as np
 from shapely.geometry import LineString
 
-from core.urban_generator.domain import NetworkPoint, require_working_crs
+from core.urban_generator.domain import require_working_crs
 from core.urban_generator.roads.candidate_anchors import CandidateRoadAnchor
 from core.urban_generator.suitability import HardExclusionMask, WeightedSuitabilityResult
 
@@ -44,11 +44,14 @@ class LeastCostConnectorPolicy:
 
     def __post_init__(self) -> None:
         _require_positive_int("max_visited_cells", self.max_visited_cells)
-        weight = _require_non_negative_finite(
+        object.__setattr__(
+            self,
             "suitability_penalty_weight",
-            self.suitability_penalty_weight,
+            _require_non_negative_finite(
+                "suitability_penalty_weight",
+                self.suitability_penalty_weight,
+            ),
         )
-        object.__setattr__(self, "suitability_penalty_weight", weight)
         if not isinstance(self.allow_diagonal, bool):
             raise LeastCostConnectorError("allow_diagonal must be boolean")
         if not isinstance(self.prevent_corner_cutting, bool):
@@ -99,49 +102,65 @@ class LeastCostConnectionResult:
             raise LeastCostConnectorError("hard exclusion source codes must be unique")
         if not isinstance(self.raster_path, tuple):
             raise LeastCostConnectorError("raster_path must be an immutable tuple")
-        for row, col in self.raster_path:
-            _require_non_negative_int("raster path row", row)
-            _require_non_negative_int("raster path col", col)
+        for cell in self.raster_path:
+            if not isinstance(cell, tuple) or len(cell) != 2:
+                raise LeastCostConnectorError("raster_path cells must be (row, col) tuples")
+            _require_non_negative_int("raster path row", cell[0])
+            _require_non_negative_int("raster path col", cell[1])
 
         if self.status is LeastCostConnectionStatus.CONNECTED:
-            if not isinstance(self.geometry, LineString):
-                raise LeastCostConnectorError("connected result must contain LineString geometry")
-            if len(self.raster_path) < 2:
-                raise LeastCostConnectorError(
-                    "connected result must contain at least two raster path cells"
-                )
-            length_m = _require_non_negative_finite("length_m", self.length_m)
-            total_cost = _require_non_negative_finite("total_cost", self.total_cost)
-            if length_m <= 0.0:
-                raise LeastCostConnectorError("connected result length_m must be positive")
-            if total_cost <= 0.0:
-                raise LeastCostConnectorError("connected result total_cost must be positive")
-            if not math.isclose(
-                length_m,
-                float(self.geometry.length),
-                rel_tol=1e-12,
-                abs_tol=1e-9,
-            ):
-                raise LeastCostConnectorError(
-                    "connected result length_m must match geometry length"
-                )
-            if self.visited_cell_count <= 0:
-                raise LeastCostConnectorError(
-                    "connected result must visit at least one raster cell"
-                )
+            self._validate_connected()
         else:
-            if self.geometry is not None or self.raster_path:
-                raise LeastCostConnectorError(
-                    "non-connected result must not contain geometry or raster path"
-                )
-            if self.length_m is not None or self.total_cost is not None:
-                raise LeastCostConnectorError(
-                    "non-connected result must not contain length or cost"
-                )
+            self._validate_not_connected()
+
+    def _validate_connected(self) -> None:
+        if not isinstance(self.geometry, LineString):
+            raise LeastCostConnectorError("connected result must contain LineString geometry")
+        if len(self.raster_path) < 2:
+            raise LeastCostConnectorError(
+                "connected result must contain at least two raster path cells"
+            )
+        length_m = _require_non_negative_finite("length_m", self.length_m)
+        total_cost = _require_non_negative_finite("total_cost", self.total_cost)
+        if length_m <= 0.0:
+            raise LeastCostConnectorError("connected result length_m must be positive")
+        if total_cost <= 0.0:
+            raise LeastCostConnectorError("connected result total_cost must be positive")
+        if not math.isclose(
+            length_m,
+            float(self.geometry.length),
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        ):
+            raise LeastCostConnectorError(
+                "connected result length_m must match geometry length"
+            )
+        if self.visited_cell_count <= 0:
+            raise LeastCostConnectorError(
+                "connected result must visit at least one raster cell"
+            )
+
+    def _validate_not_connected(self) -> None:
+        if self.geometry is not None or self.raster_path:
+            raise LeastCostConnectorError(
+                "non-connected result must not contain geometry or raster path"
+            )
+        if self.length_m is not None or self.total_cost is not None:
+            raise LeastCostConnectorError(
+                "non-connected result must not contain length or cost"
+            )
 
     @property
     def connected(self) -> bool:
         return self.status is LeastCostConnectionStatus.CONNECTED
+
+
+@dataclass(frozen=True, slots=True)
+class _SearchOutcome:
+    status: LeastCostConnectionStatus
+    raster_path: tuple[tuple[int, int], ...]
+    total_cost: float | None
+    visited_cell_count: int
 
 
 class LeastCostConnector:
@@ -203,17 +222,12 @@ class LeastCostConnector:
             policy=policy,
         )
         if outcome.status is not LeastCostConnectionStatus.CONNECTED:
-            return LeastCostConnectionResult(
-                working_srid=grid.working_srid,
-                start_anchor_id=start.anchor_id,
-                target_anchor_id=target.anchor_id,
-                status=outcome.status,
-                geometry=None,
-                raster_path=(),
-                length_m=None,
-                total_cost=None,
-                visited_cell_count=outcome.visited_cell_count,
-                hard_exclusion_source_codes=hard_mask.source_codes,
+            return _non_connected_result(
+                start=start,
+                target=target,
+                suitability=suitability,
+                hard_mask=hard_mask,
+                outcome=outcome,
                 connector_version=self.version,
             )
 
@@ -245,16 +259,14 @@ class LeastCostConnector:
         hard_mask: HardExclusionMask,
         policy: LeastCostConnectorPolicy,
     ) -> _SearchOutcome:
-        frontier: list[tuple[float, float, int, int]] = []
-        start_heuristic = _heuristic_m(
-            start_cell,
-            target_cell,
-            suitability=suitability,
-        )
-        heapq.heappush(
-            frontier,
-            (start_heuristic, 0.0, start_cell[0], start_cell[1]),
-        )
+        frontier = [
+            (
+                _heuristic_m(start_cell, target_cell, suitability=suitability),
+                0.0,
+                start_cell[0],
+                start_cell[1],
+            )
+        ]
         best_cost: dict[tuple[int, int], float] = {start_cell: 0.0}
         parent: dict[tuple[int, int], tuple[int, int]] = {}
         closed: set[tuple[int, int]] = set()
@@ -298,42 +310,31 @@ class LeastCostConnector:
             ):
                 if neighbor in closed:
                     continue
-                step_cost = _step_cost(
+                candidate_cost = current_cost + _step_cost(
                     current=current,
                     neighbor=neighbor,
                     suitability=suitability,
                     suitability_penalty_weight=policy.suitability_penalty_weight,
                 )
-                candidate_cost = current_cost + step_cost
-                previous_cost = best_cost.get(neighbor)
-                previous_parent = parent.get(neighbor)
-                is_better = previous_cost is None or candidate_cost < (
-                    previous_cost - _COST_TOLERANCE
-                )
-                is_equal_with_better_parent = (
-                    previous_cost is not None
-                    and math.isclose(
-                        candidate_cost,
-                        previous_cost,
-                        rel_tol=0.0,
-                        abs_tol=_COST_TOLERANCE,
-                    )
-                    and (previous_parent is None or current < previous_parent)
-                )
-                if not is_better and not is_equal_with_better_parent:
+                if not _should_update_neighbor(
+                    neighbor=neighbor,
+                    candidate_cost=candidate_cost,
+                    current=current,
+                    best_cost=best_cost,
+                    parent=parent,
+                ):
                     continue
-
                 best_cost[neighbor] = candidate_cost
                 parent[neighbor] = current
-                heuristic = _heuristic_m(
-                    neighbor,
-                    target_cell,
-                    suitability=suitability,
-                )
                 heapq.heappush(
                     frontier,
                     (
-                        candidate_cost + heuristic,
+                        candidate_cost
+                        + _heuristic_m(
+                            neighbor,
+                            target_cell,
+                            suitability=suitability,
+                        ),
                         candidate_cost,
                         neighbor[0],
                         neighbor[1],
@@ -348,12 +349,28 @@ class LeastCostConnector:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class _SearchOutcome:
-    status: LeastCostConnectionStatus
-    raster_path: tuple[tuple[int, int], ...]
-    total_cost: float | None
-    visited_cell_count: int
+def _non_connected_result(
+    *,
+    start: CandidateRoadAnchor,
+    target: CandidateRoadAnchor,
+    suitability: WeightedSuitabilityResult,
+    hard_mask: HardExclusionMask,
+    outcome: _SearchOutcome,
+    connector_version: str,
+) -> LeastCostConnectionResult:
+    return LeastCostConnectionResult(
+        working_srid=suitability.grid.working_srid,
+        start_anchor_id=start.anchor_id,
+        target_anchor_id=target.anchor_id,
+        status=outcome.status,
+        geometry=None,
+        raster_path=(),
+        length_m=None,
+        total_cost=None,
+        visited_cell_count=outcome.visited_cell_count,
+        hard_exclusion_source_codes=hard_mask.source_codes,
+        connector_version=connector_version,
+    )
 
 
 def _validate_anchor(
@@ -422,26 +439,40 @@ def _neighbors(
             hard_mask=hard_mask,
         ):
             continue
-        if (
-            row_offset != 0
-            and col_offset != 0
-            and policy.prevent_corner_cutting
-            and (
-                not _is_traversable(
-                    (row + row_offset, col),
-                    suitability=suitability,
-                    hard_mask=hard_mask,
-                )
-                or not _is_traversable(
-                    (row, col + col_offset),
-                    suitability=suitability,
-                    hard_mask=hard_mask,
-                )
-            )
+        if _cuts_blocked_corner(
+            current=current,
+            row_offset=row_offset,
+            col_offset=col_offset,
+            suitability=suitability,
+            hard_mask=hard_mask,
+            policy=policy,
         ):
             continue
         neighbors.append(candidate)
     return tuple(sorted(neighbors))
+
+
+def _cuts_blocked_corner(
+    *,
+    current: tuple[int, int],
+    row_offset: int,
+    col_offset: int,
+    suitability: WeightedSuitabilityResult,
+    hard_mask: HardExclusionMask,
+    policy: LeastCostConnectorPolicy,
+) -> bool:
+    if row_offset == 0 or col_offset == 0 or not policy.prevent_corner_cutting:
+        return False
+    row, col = current
+    return not _is_traversable(
+        (row + row_offset, col),
+        suitability=suitability,
+        hard_mask=hard_mask,
+    ) or not _is_traversable(
+        (row, col + col_offset),
+        suitability=suitability,
+        hard_mask=hard_mask,
+    )
 
 
 def _is_traversable(
@@ -457,6 +488,25 @@ def _is_traversable(
     return bool(suitability.valid_mask[row, col]) and not bool(hard_mask.excluded[row, col])
 
 
+def _should_update_neighbor(
+    *,
+    neighbor: tuple[int, int],
+    candidate_cost: float,
+    current: tuple[int, int],
+    best_cost: dict[tuple[int, int], float],
+    parent: dict[tuple[int, int], tuple[int, int]],
+) -> bool:
+    previous_cost = best_cost.get(neighbor)
+    if previous_cost is None or candidate_cost < previous_cost - _COST_TOLERANCE:
+        return True
+    return math.isclose(
+        candidate_cost,
+        previous_cost,
+        rel_tol=0.0,
+        abs_tol=_COST_TOLERANCE,
+    ) and (parent.get(neighbor) is None or current < parent[neighbor])
+
+
 def _step_cost(
     *,
     current: tuple[int, int],
@@ -465,10 +515,12 @@ def _step_cost(
     suitability_penalty_weight: float,
 ) -> float:
     distance_m = _cell_distance_m(current, neighbor, suitability=suitability)
-    current_score = float(suitability.scores[current[0], current[1]])
-    neighbor_score = float(suitability.scores[neighbor[0], neighbor[1]])
-    current_factor = 1.0 + suitability_penalty_weight * (1.0 - current_score)
-    neighbor_factor = 1.0 + suitability_penalty_weight * (1.0 - neighbor_score)
+    current_factor = 1.0 + suitability_penalty_weight * (
+        1.0 - float(suitability.scores[current[0], current[1]])
+    )
+    neighbor_factor = 1.0 + suitability_penalty_weight * (
+        1.0 - float(suitability.scores[neighbor[0], neighbor[1]])
+    )
     return distance_m * ((current_factor + neighbor_factor) / 2.0)
 
 
