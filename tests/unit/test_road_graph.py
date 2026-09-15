@@ -8,8 +8,8 @@ from core.urban_generator.domain.crs import CRSContractError
 from core.urban_generator.roads import (
     NetworkXBackend,
     NodedRoad,
-    RoadGraphBuildError,
     RoadGraphBuilder,
+    RoadGraphBuildError,
     RoadGraphInput,
     SemanticNoder,
     SemanticRoad,
