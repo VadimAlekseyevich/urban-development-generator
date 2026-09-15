@@ -53,9 +53,11 @@ from core.urban_generator.domain.network import (
     NetworkNodeRef,
     NetworkPath,
     NetworkPoint,
+    NetworkRoutingAlgorithm,
     NetworkSnapResult,
     require_max_distance_m,
     require_node_refs,
+    require_routing_algorithm,
 )
 from core.urban_generator.domain.project import ProjectRef, ProjectSettings
 from core.urban_generator.domain.run_context import (
@@ -133,6 +135,7 @@ __all__ = [
     "NetworkNodeRef",
     "NetworkPath",
     "NetworkPoint",
+    "NetworkRoutingAlgorithm",
     "NetworkSnapResult",
     "PermanentError",
     "ProjectRef",
@@ -164,6 +167,7 @@ __all__ = [
     "build_stage_fingerprint",
     "require_max_distance_m",
     "require_node_refs",
+    "require_routing_algorithm",
     "require_stage_input",
     "require_temporary_artifact_ref",
     "require_working_crs",
