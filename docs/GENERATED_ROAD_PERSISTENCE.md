@@ -8,6 +8,6 @@ Each `generated_roads` row stores its `LineString` geometry and a stable semanti
 
 Source references are explicit UUIDs of canonical `source_roads`. The writer verifies that every referenced UUID exists before deleting or inserting any run rows. Missing refs fail the transaction.
 
-The existing generic generated-entity schema already provides the `run_id` foreign key, `(run_id, id)` access index, and GiST geometry index. Migration `0013_generated_road_persistence` adds run-scoped expression indexes for `road_id` and `road_class`, a run-scoped unique expression index for stable `edge_id`, plus a GIN index for `source_road_ids` JSON containment queries.
+The existing generic generated-entity schema already provides the `run_id` foreign key, `(run_id, id)` access index, and GiST geometry index. Migration `0014_generated_road_persistence` adds run-scoped expression indexes for `road_id` and `road_class`, a run-scoped unique expression index for stable `edge_id`, plus a GIN index for `source_road_ids` JSON containment queries.
 
 Road API/UI presentation remains S06-T16. This item does not persist source roads or change source-state ownership semantics.
