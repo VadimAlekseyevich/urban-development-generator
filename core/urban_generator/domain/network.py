@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from math import isfinite
 from typing import Protocol, runtime_checkable
 
@@ -7,6 +8,13 @@ from core.urban_generator.domain.crs import WorkingCRS
 
 class NetworkContractError(ValueError):
     """Raised when a network-domain contract is invalid."""
+
+
+class NetworkRoutingAlgorithm(StrEnum):
+    """Shortest-path algorithms supported by the backend-independent routing port."""
+
+    DIJKSTRA = "dijkstra"
+    ASTAR = "astar"
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,9 +128,22 @@ class NetworkBackend(Protocol):
         source: NetworkNodeRef,
         target: NetworkNodeRef,
         *,
+        algorithm: NetworkRoutingAlgorithm = NetworkRoutingAlgorithm.DIJKSTRA,
         max_distance_m: float | None = None,
     ) -> NetworkPath | None:
-        """Return a shortest path, optionally bounded by maximum network distance."""
+        """Return a shortest path with an explicit algorithm and optional distance bound."""
+
+        ...
+
+    def multi_source_shortest_path(
+        self,
+        sources: tuple[NetworkNodeRef, ...],
+        target: NetworkNodeRef,
+        *,
+        algorithm: NetworkRoutingAlgorithm = NetworkRoutingAlgorithm.DIJKSTRA,
+        max_distance_m: float | None = None,
+    ) -> NetworkPath | None:
+        """Return the shortest path from the nearest source to one target."""
 
         ...
 
@@ -162,6 +183,14 @@ def require_node_refs(
     if any(not isinstance(value, NetworkNodeRef) for value in values):
         raise NetworkContractError(f"{field_name} must contain only NetworkNodeRef values")
     return values
+
+
+def require_routing_algorithm(value: NetworkRoutingAlgorithm) -> NetworkRoutingAlgorithm:
+    """Validate the typed shortest-path algorithm selection at the port boundary."""
+
+    if not isinstance(value, NetworkRoutingAlgorithm):
+        raise NetworkContractError("algorithm must be a NetworkRoutingAlgorithm")
+    return value
 
 
 def _require_non_empty_string(value: str, field_name: str) -> None:
