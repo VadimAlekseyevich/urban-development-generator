@@ -90,7 +90,17 @@ Exact endpoint coordinates после S06-T03/S06-T04 определяют graph
 
 Graph build ограничен `max_nodes` и `max_edges` (по умолчанию по 1 000 000). Connected components считаются union-find проходом O(V+E), без NetworkX и без повторного N×M scan. Diagnostics содержат node/edge counts, total length, source/fixed edge counts и детерминированный summary каждой connected component.
 
-`RoadGraph` остаётся предметным контрактом и не равен `networkx.Graph`. `NetworkXBackend.from_road_graph()` создаёт adapter-level `MultiGraph`, чтобы parallel edges не терялись; текущая accessibility topology connectivity-neutral/undirected согласно v1 pedestrian semantics. Применение сложных one-way/turn rules не добавляется в S06-T05. Duplicate/tiny-edge cleanup остаётся S06-T06, shortest-path services — S06-T07.
+`RoadGraph` остаётся предметным контрактом и не равен `networkx.Graph`. `NetworkXBackend.from_road_graph()` создаёт adapter-level `MultiGraph`, чтобы parallel edges не терялись; текущая accessibility topology connectivity-neutral/undirected согласно v1 pedestrian semantics. Применение сложных one-way/turn rules не добавляется в S06-T05.
+
+## Road graph cleanup boundary
+
+S06-T06 вводит `RoadGraphCleaner` как отдельный шаг после graph build и до routing services. Cleanup не повторяет snapping/noding и не использует NetworkX. Он работает только с metric `RoadGraph` и возвращает новый graph с пересчитанными node ownership flags и connected-component diagnostics.
+
+Exact duplicate определяется консервативно: совпадает полный 2D coordinate chain, при этом обратное направление считается тем же geometry. Простого совпадения пары endpoint nodes недостаточно, поэтому настоящие parallel edges с другой геометрией сохраняются. Если duplicate group содержит fixed source edge, именно он является deterministic representative; в остальных случаях tie-break идёт по stable `edge_id`.
+
+Tiny/dangling cleanup управляется `RoadGraphCleanupPolicy`. Значения `tiny_edge_threshold_m` и `dangling_edge_threshold_m` по умолчанию равны `0.0`: destructive metric cleanup не делает скрытых предположений о допустимых метрах и должен быть явно согласован с snapping/precision policy проекта. Fixed source edges никогда не удаляются как tiny или dangling. Generated dangling edges prunятся leaf-by-leaf не более `max_prune_passes` (по умолчанию 16); если bound исчерпан, diagnostics оставляют `prune_limit_reached` и число remaining generated dangling edges вместо неограниченного цикла.
+
+Cleanup ограничен `max_nodes`/`max_edges` и использует O(E) duplicate/tiny passes плюс O(`max_prune_passes × E`) dangling pruning. После удаления edges orphan nodes удаляются, shared-node `is_source/is_fixed` агрегируются заново по retained edges, а обычные `RoadGraphDiagnostics` пересчитываются. S06-T06 не добавляет Dijkstra/A* API — shortest-path services остаются S06-T07.
 
 ## Обязательный конечный продукт
 
