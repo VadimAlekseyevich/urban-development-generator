@@ -3,14 +3,20 @@ import pytest
 
 from core.urban_generator.domain import (
     NetworkBackend,
+    NetworkContractError,
     NetworkDistanceResult,
     NetworkNodeRef,
     NetworkPath,
     NetworkPoint,
+    NetworkRoutingAlgorithm,
     NetworkSnapResult,
     WorkingCRS,
 )
-from core.urban_generator.roads import NetworkXBackend, NetworkXBackendError
+from core.urban_generator.roads import (
+    DEFAULT_MAX_ROUTING_VISITED_NODES,
+    NetworkXBackend,
+    NetworkXBackendError,
+)
 
 
 def _graph() -> nx.Graph:
@@ -27,11 +33,16 @@ def _graph() -> nx.Graph:
     return graph
 
 
-def _backend(graph: nx.Graph | None = None) -> NetworkXBackend:
+def _backend(
+    graph: nx.Graph | None = None,
+    *,
+    max_routing_visited_nodes: int = DEFAULT_MAX_ROUTING_VISITED_NODES,
+) -> NetworkXBackend:
     return NetworkXBackend(
         graph or _graph(),
         snapshot_id="roads-v1",
         working_crs=WorkingCRS(srid=3857),
+        max_routing_visited_nodes=max_routing_visited_nodes,
     )
 
 
@@ -85,6 +96,128 @@ def test_shortest_path_uses_length_m_and_honours_cutoff() -> None:
     assert bounded_out is None
 
 
+def test_astar_matches_dijkstra_and_honours_metric_cutoff() -> None:
+    backend = _backend()
+
+    dijkstra = backend.shortest_path(
+        NetworkNodeRef("a"),
+        NetworkNodeRef("d"),
+        algorithm=NetworkRoutingAlgorithm.DIJKSTRA,
+    )
+    astar = backend.shortest_path(
+        NetworkNodeRef("a"),
+        NetworkNodeRef("d"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+    bounded_out = backend.shortest_path(
+        NetworkNodeRef("a"),
+        NetworkNodeRef("d"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+        max_distance_m=13.0,
+    )
+
+    expected = NetworkPath(
+        nodes=(
+            NetworkNodeRef("a"),
+            NetworkNodeRef("b"),
+            NetworkNodeRef("c"),
+            NetworkNodeRef("d"),
+        ),
+        distance_m=14.0,
+    )
+    assert dijkstra == expected
+    assert astar == expected
+    assert bounded_out is None
+
+
+def test_astar_scales_heuristic_for_edges_shorter_than_straight_line_distance() -> None:
+    graph = nx.Graph()
+    graph.add_node("a", x_m=0.0, y_m=0.0)
+    graph.add_node("b", x_m=100.0, y_m=0.0)
+    graph.add_node("c", x_m=200.0, y_m=0.0)
+    graph.add_edge("a", "b", length_m=1.0)
+    graph.add_edge("b", "c", length_m=1.0)
+    graph.add_edge("a", "c", length_m=3.0)
+    backend = _backend(graph)
+
+    path = backend.shortest_path(
+        NetworkNodeRef("a"),
+        NetworkNodeRef("c"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+
+    assert path == NetworkPath(
+        nodes=(NetworkNodeRef("a"), NetworkNodeRef("b"), NetworkNodeRef("c")),
+        distance_m=2.0,
+    )
+
+
+def test_multi_source_shortest_path_selects_nearest_source() -> None:
+    backend = _backend()
+
+    path = backend.multi_source_shortest_path(
+        (NetworkNodeRef("a"), NetworkNodeRef("d")),
+        NetworkNodeRef("b"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+
+    assert path == NetworkPath(
+        nodes=(NetworkNodeRef("a"), NetworkNodeRef("b")),
+        distance_m=5.0,
+    )
+
+
+def test_multi_source_shortest_path_breaks_equal_distance_source_ties_stably() -> None:
+    graph = nx.Graph()
+    graph.add_node("a", x_m=-1.0, y_m=0.0)
+    graph.add_node("z", x_m=1.0, y_m=0.0)
+    graph.add_node("target", x_m=0.0, y_m=0.0)
+    graph.add_edge("a", "target", length_m=1.0)
+    graph.add_edge("z", "target", length_m=1.0)
+    backend = _backend(graph)
+
+    first = backend.multi_source_shortest_path(
+        (NetworkNodeRef("z"), NetworkNodeRef("a")),
+        NetworkNodeRef("target"),
+    )
+    second = backend.multi_source_shortest_path(
+        (NetworkNodeRef("a"), NetworkNodeRef("z")),
+        NetworkNodeRef("target"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+
+    expected = NetworkPath(
+        nodes=(NetworkNodeRef("a"), NetworkNodeRef("target")),
+        distance_m=1.0,
+    )
+    assert first == expected
+    assert second == expected
+
+
+def test_shortest_path_respects_directed_topology() -> None:
+    graph = nx.DiGraph()
+    graph.add_node("a", x_m=0.0, y_m=0.0)
+    graph.add_node("b", x_m=1.0, y_m=0.0)
+    graph.add_node("c", x_m=2.0, y_m=0.0)
+    graph.add_edge("a", "b", length_m=1.0)
+    graph.add_edge("b", "c", length_m=1.0)
+    backend = _backend(graph)
+
+    forward = backend.shortest_path(
+        NetworkNodeRef("a"),
+        NetworkNodeRef("c"),
+        algorithm=NetworkRoutingAlgorithm.ASTAR,
+    )
+    reverse = backend.shortest_path(NetworkNodeRef("c"), NetworkNodeRef("a"))
+
+    assert forward == NetworkPath(
+        nodes=(NetworkNodeRef("a"), NetworkNodeRef("b"), NetworkNodeRef("c")),
+        distance_m=2.0,
+    )
+    assert reverse is None
+    assert backend.snapshot.directed is True
+
+
 def test_multi_source_distances_returns_nearest_source_for_reachable_targets() -> None:
     backend = _backend()
 
@@ -130,6 +263,42 @@ def test_multi_source_distances_honours_network_distance_cutoff() -> None:
     )
 
 
+def test_multi_source_distances_breaks_source_ties_independent_of_input_order() -> None:
+    graph = nx.Graph()
+    graph.add_node("a", x_m=-1.0, y_m=0.0)
+    graph.add_node("z", x_m=1.0, y_m=0.0)
+    graph.add_node("target", x_m=0.0, y_m=0.0)
+    graph.add_edge("a", "target", length_m=1.0)
+    graph.add_edge("z", "target", length_m=1.0)
+    backend = _backend(graph)
+
+    results = backend.multi_source_distances(
+        (NetworkNodeRef("z"), NetworkNodeRef("a")),
+        (NetworkNodeRef("target"),),
+    )
+
+    assert results == (
+        NetworkDistanceResult(
+            source=NetworkNodeRef("a"),
+            target=NetworkNodeRef("target"),
+            distance_m=1.0,
+        ),
+    )
+
+
+def test_routing_search_is_bounded_by_visited_node_limit() -> None:
+    graph = nx.path_graph(("a", "b", "c"))
+    for index, node_id in enumerate(("a", "b", "c")):
+        graph.nodes[node_id]["x_m"] = float(index)
+        graph.nodes[node_id]["y_m"] = 0.0
+    for source_id, target_id in graph.edges:
+        graph.edges[source_id, target_id]["length_m"] = 1.0
+    backend = _backend(graph, max_routing_visited_nodes=1)
+
+    with pytest.raises(NetworkXBackendError, match="routing visit limit exceeded"):
+        backend.shortest_path(NetworkNodeRef("a"), NetworkNodeRef("c"))
+
+
 def test_backend_rejects_graphs_without_metric_node_coordinates() -> None:
     graph = nx.Graph()
     graph.add_node("a", x_m=0.0)
@@ -159,6 +328,20 @@ def test_backend_rejects_references_outside_its_snapshot() -> None:
 
     with pytest.raises(NetworkXBackendError, match="is not part of snapshot"):
         backend.shortest_path(NetworkNodeRef("missing"), NetworkNodeRef("a"))
+
+
+def test_backend_rejects_untyped_algorithm_and_invalid_routing_limit() -> None:
+    backend = _backend()
+
+    with pytest.raises(NetworkContractError, match="NetworkRoutingAlgorithm"):
+        backend.shortest_path(
+            NetworkNodeRef("a"),
+            NetworkNodeRef("b"),
+            algorithm="astar",  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(NetworkXBackendError, match="max_routing_visited_nodes"):
+        _backend(max_routing_visited_nodes=0)
 
 
 def test_backend_enforces_configured_snap_target_limit() -> None:
