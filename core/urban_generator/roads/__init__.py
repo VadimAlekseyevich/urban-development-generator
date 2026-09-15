@@ -1,3 +1,14 @@
+from core.urban_generator.roads.candidate_anchors import (
+    DEFAULT_MAX_ANCHOR_SAMPLE_CELLS,
+    DEFAULT_MAX_ROAD_ANCHORS,
+    CandidateRoadAnchor,
+    CandidateRoadAnchorDiagnostics,
+    CandidateRoadAnchorError,
+    CandidateRoadAnchorPolicy,
+    CandidateRoadAnchorResult,
+    CandidateRoadAnchorSampler,
+    CandidateRoadAnchorZoneDiagnostics,
+)
 from core.urban_generator.roads.networkx_backend import (
     DEFAULT_MAX_ROUTING_VISITED_NODES,
     EDGE_FIXED_ATTRIBUTE,
@@ -54,14 +65,23 @@ from core.urban_generator.roads.spatial_snapping import (
 
 __all__ = [
     "DEFAULT_DANGLING_EDGE_THRESHOLD_M",
+    "DEFAULT_MAX_ANCHOR_SAMPLE_CELLS",
     "DEFAULT_MAX_CANDIDATE_PAIRS",
     "DEFAULT_MAX_DANGLING_PRUNE_PASSES",
     "DEFAULT_MAX_GRAPH_EDGES",
     "DEFAULT_MAX_GRAPH_NODES",
+    "DEFAULT_MAX_ROAD_ANCHORS",
     "DEFAULT_MAX_ROAD_PARTS",
     "DEFAULT_MAX_ROUTING_VISITED_NODES",
     "DEFAULT_MAX_SNAP_TARGETS",
     "DEFAULT_TINY_EDGE_THRESHOLD_M",
+    "CandidateRoadAnchor",
+    "CandidateRoadAnchorDiagnostics",
+    "CandidateRoadAnchorError",
+    "CandidateRoadAnchorPolicy",
+    "CandidateRoadAnchorResult",
+    "CandidateRoadAnchorSampler",
+    "CandidateRoadAnchorZoneDiagnostics",
     "EDGE_FIXED_ATTRIBUTE",
     "EDGE_LENGTH_ATTRIBUTE",
     "EDGE_ROAD_ID_ATTRIBUTE",
