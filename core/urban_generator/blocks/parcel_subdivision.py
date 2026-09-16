@@ -6,14 +6,13 @@ from enum import StrEnum
 
 from shapely.geometry import GeometryCollection, LineString, MultiLineString, Polygon
 from shapely.geometry.base import BaseGeometry
-from shapely.ops import split, unary_union
+from shapely.ops import linemerge, split, unary_union
 from shapely.strtree import STRtree
 
 from core.urban_generator.blocks.parcel import ParcelFrontageSegment, PlanningParcel
 from core.urban_generator.blocks.zone_association import (
     BlockZoneAssociationResult,
     BlockZoneAssociationStatus,
-    ZoneAssociatedBlock,
 )
 from core.urban_generator.domain.crs import WorkingCRS, require_working_crs
 from core.urban_generator.roads.road_graph import RoadGraph, RoadGraphEdge
@@ -104,17 +103,16 @@ class ParcelSubdivisionDecision:
                 raise ParcelSubdivisionError(
                     "successful decision requires positive selected frontage"
                 )
-        else:
-            if not isinstance(self.skip_reason, ParcelSubdivisionSkipReason):
-                raise ParcelSubdivisionError(
-                    "skip_reason must be a ParcelSubdivisionSkipReason"
-                )
-            if self.parcel_ids:
-                raise ParcelSubdivisionError(
-                    "skipped decision must not contain parcel_ids"
-                )
-            if self.selected_frontage_road_id is not None:
-                _require_id("selected_frontage_road_id", self.selected_frontage_road_id)
+            return
+
+        if not isinstance(self.skip_reason, ParcelSubdivisionSkipReason):
+            raise ParcelSubdivisionError(
+                "skip_reason must be a ParcelSubdivisionSkipReason"
+            )
+        if self.parcel_ids:
+            raise ParcelSubdivisionError("skipped decision must not contain parcel_ids")
+        if self.selected_frontage_road_id is not None:
+            _require_id("selected_frontage_road_id", self.selected_frontage_road_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,10 +205,14 @@ class ParcelSubdivisionResult:
             raise ParcelSubdivisionError(
                 "diagnostics input_block_count must match decisions"
             )
-        parcel_ids = tuple(parcel.parcel_id for parcel in self.parcels)
-        _require_sorted_unique_ids("parcel IDs", parcel_ids)
-        decision_block_ids = tuple(decision.block_id for decision in self.decisions)
-        _require_sorted_unique_ids("decision block IDs", decision_block_ids)
+        _require_sorted_unique_ids(
+            "parcel IDs",
+            tuple(parcel.parcel_id for parcel in self.parcels),
+        )
+        _require_sorted_unique_ids(
+            "decision block IDs",
+            tuple(decision.block_id for decision in self.decisions),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +227,20 @@ class _FrontagePiece:
     @property
     def sort_key(self) -> tuple[float, str, str]:
         return (-self.length_m, self.road_id, self.geometry.wkb_hex)
+
+
+@dataclass(frozen=True, slots=True)
+class _ParcelDraft:
+    block_id: str
+    fragment_index: int
+    geometry: Polygon
+    frontages: tuple[ParcelFrontageSegment, ...]
+    zone_id: str
+    zone_class: ZoneClass
+
+    @property
+    def sort_key(self) -> tuple[str, int, str]:
+        return (self.block_id, self.fragment_index, self.geometry.wkb_hex)
 
 
 class SimplifiedParcelSubdivider:
@@ -269,6 +285,204 @@ class SimplifiedParcelSubdivider:
         *,
         road_graph: RoadGraph,
     ) -> ParcelSubdivisionResult:
+        self._validate_inputs(zoned_blocks, road_graph)
+        ordered_edges = tuple(sorted(road_graph.edges, key=lambda edge: edge.edge_id))
+        if len({edge.edge_id for edge in ordered_edges}) != len(ordered_edges):
+            raise ParcelSubdivisionError("road graph edge_id values must be unique")
+        edge_geometries = tuple(edge.geometry for edge in ordered_edges)
+        tree = STRtree(edge_geometries) if edge_geometries else None
+
+        ordered_blocks = tuple(
+            sorted(
+                zoned_blocks.blocks,
+                key=lambda item: item.cleaned_block.block_id,
+            )
+        )
+        if len({item.cleaned_block.block_id for item in ordered_blocks}) != len(
+            ordered_blocks
+        ):
+            raise ParcelSubdivisionError("zoned block IDs must be unique")
+
+        drafts: list[_ParcelDraft] = []
+        decision_drafts: list[
+            tuple[str, ParcelSubdivisionSkipReason | None, str | None, float]
+        ] = []
+        road_candidate_pair_count = 0
+        frontage_overlap_pair_count = 0
+        residential_associated_block_count = 0
+        parceled_area_m2 = 0.0
+
+        for item in ordered_blocks:
+            block = item.cleaned_block
+            association = item.association
+            block_id = block.block_id
+
+            if association.status is not BlockZoneAssociationStatus.ASSOCIATED:
+                decision_drafts.append(
+                    (block_id, ParcelSubdivisionSkipReason.UNASSOCIATED_ZONE, None, 0.0)
+                )
+                continue
+            if association.zone_class is not ZoneClass.RESIDENTIAL:
+                decision_drafts.append(
+                    (block_id, ParcelSubdivisionSkipReason.NON_RESIDENTIAL, None, 0.0)
+                )
+                continue
+            if association.zone_id is None:
+                raise ParcelSubdivisionError(
+                    "ASSOCIATED residential block must carry zone_id"
+                )
+            residential_associated_block_count += 1
+
+            geometry = block.geometry
+            if geometry.interiors:
+                decision_drafts.append(
+                    (block_id, ParcelSubdivisionSkipReason.HOLED_BLOCK, None, 0.0)
+                )
+                continue
+            block_area_m2 = float(geometry.area)
+            if block_area_m2 + _AREA_ABS_TOLERANCE_M2 < self.policy.minimum_parcel_area_m2:
+                decision_drafts.append(
+                    (block_id, ParcelSubdivisionSkipReason.BLOCK_TOO_SMALL, None, 0.0)
+                )
+                continue
+
+            candidate_edges, candidate_count = self._road_candidates(
+                block_id=block_id,
+                geometry=geometry,
+                tree=tree,
+                ordered_edges=ordered_edges,
+            )
+            road_candidate_pair_count += candidate_count
+            frontage_pieces, positive_pair_count = _unique_frontage_pieces(
+                geometry,
+                candidate_edges,
+            )
+            frontage_overlap_pair_count += positive_pair_count
+            if not frontage_pieces:
+                decision_drafts.append(
+                    (block_id, ParcelSubdivisionSkipReason.NO_FRONTAGE, None, 0.0)
+                )
+                continue
+
+            dominant = min(frontage_pieces, key=lambda piece: piece.sort_key)
+            if dominant.length_m + _LENGTH_ABS_TOLERANCE_M < self.policy.minimum_frontage_m:
+                decision_drafts.append(
+                    (
+                        block_id,
+                        ParcelSubdivisionSkipReason.INSUFFICIENT_FRONTAGE,
+                        dominant.road_id,
+                        dominant.length_m,
+                    )
+                )
+                continue
+            if _linearity_ratio(dominant.geometry) < self.policy.minimum_frontage_linearity_ratio:
+                decision_drafts.append(
+                    (
+                        block_id,
+                        ParcelSubdivisionSkipReason.NONLINEAR_FRONTAGE,
+                        dominant.road_id,
+                        dominant.length_m,
+                    )
+                )
+                continue
+
+            parcel_count = self._parcel_count(
+                block_area_m2=block_area_m2,
+                frontage_length_m=dominant.length_m,
+            )
+            fragments = _frontage_split_fragments(
+                geometry,
+                dominant.geometry,
+                parcel_count=parcel_count,
+            )
+            if fragments is None:
+                decision_drafts.append(
+                    (
+                        block_id,
+                        ParcelSubdivisionSkipReason.SUBDIVISION_FAILED,
+                        dominant.road_id,
+                        dominant.length_m,
+                    )
+                )
+                continue
+
+            fragment_area_m2 = math.fsum(float(fragment.area) for fragment in fragments)
+            _require_area_accounting(block_area_m2, fragment_area_m2)
+            if any(
+                float(fragment.area) + _AREA_ABS_TOLERANCE_M2
+                < self.policy.minimum_parcel_area_m2
+                for fragment in fragments
+            ):
+                decision_drafts.append(
+                    (
+                        block_id,
+                        ParcelSubdivisionSkipReason.FRAGMENT_TOO_SMALL,
+                        dominant.road_id,
+                        dominant.length_m,
+                    )
+                )
+                continue
+
+            block_drafts: list[_ParcelDraft] = []
+            failed_frontage = False
+            for fragment_index, fragment in enumerate(fragments):
+                frontages = _parcel_frontages(fragment, candidate_edges)
+                unique_frontage_length_m = _unique_frontage_length(frontages)
+                if (
+                    unique_frontage_length_m + _LENGTH_ABS_TOLERANCE_M
+                    < self.policy.minimum_frontage_m
+                ):
+                    failed_frontage = True
+                    break
+                block_drafts.append(
+                    _ParcelDraft(
+                        block_id=block_id,
+                        fragment_index=fragment_index,
+                        geometry=fragment,
+                        frontages=frontages,
+                        zone_id=association.zone_id,
+                        zone_class=ZoneClass.RESIDENTIAL,
+                    )
+                )
+
+            if failed_frontage:
+                decision_drafts.append(
+                    (
+                        block_id,
+                        ParcelSubdivisionSkipReason.FRAGMENT_WITHOUT_FRONTAGE,
+                        dominant.road_id,
+                        dominant.length_m,
+                    )
+                )
+                continue
+            if len(drafts) + len(block_drafts) > self.max_output_parcels:
+                raise ParcelSubdivisionError(
+                    "subdivision output parcel limit exceeded: "
+                    f"{len(drafts) + len(block_drafts)} > {self.max_output_parcels}"
+                )
+
+            drafts.extend(block_drafts)
+            parceled_area_m2 += block_area_m2
+            decision_drafts.append(
+                (block_id, None, dominant.road_id, dominant.length_m)
+            )
+
+        return self._build_result(
+            ordered_blocks_count=len(ordered_blocks),
+            ordered_edges_count=len(ordered_edges),
+            drafts=drafts,
+            decision_drafts=decision_drafts,
+            residential_associated_block_count=residential_associated_block_count,
+            road_candidate_pair_count=road_candidate_pair_count,
+            frontage_overlap_pair_count=frontage_overlap_pair_count,
+            parceled_area_m2=parceled_area_m2,
+        )
+
+    def _validate_inputs(
+        self,
+        zoned_blocks: BlockZoneAssociationResult,
+        road_graph: RoadGraph,
+    ) -> None:
         if not isinstance(zoned_blocks, BlockZoneAssociationResult):
             raise ParcelSubdivisionError(
                 "zoned_blocks must be a BlockZoneAssociationResult"
@@ -294,239 +508,74 @@ class SimplifiedParcelSubdivider:
                 f"{self.max_road_edges}"
             )
 
-        ordered_edges = tuple(sorted(road_graph.edges, key=lambda edge: edge.edge_id))
-        if len({edge.edge_id for edge in ordered_edges}) != len(ordered_edges):
-            raise ParcelSubdivisionError("road graph edge_id values must be unique")
-        edge_geometries = tuple(edge.geometry for edge in ordered_edges)
-        tree = STRtree(edge_geometries) if edge_geometries else None
-
-        ordered_blocks = tuple(
-            sorted(
-                zoned_blocks.blocks,
-                key=lambda item: item.cleaned_block.block_id,
+    def _road_candidates(
+        self,
+        *,
+        block_id: str,
+        geometry: Polygon,
+        tree: STRtree | None,
+        ordered_edges: tuple[RoadGraphEdge, ...],
+    ) -> tuple[tuple[RoadGraphEdge, ...], int]:
+        if tree is None:
+            return (), 0
+        indexes = tuple(sorted(int(index) for index in tree.query(geometry.boundary)))
+        if len(indexes) > self.max_road_candidates_per_block:
+            raise ParcelSubdivisionError(
+                f"road candidate limit exceeded for block {block_id!r}: "
+                f"{len(indexes)} > {self.max_road_candidates_per_block}"
             )
+        return tuple(ordered_edges[index] for index in indexes), len(indexes)
+
+    def _parcel_count(self, *, block_area_m2: float, frontage_length_m: float) -> int:
+        by_target = max(1, int(frontage_length_m // self.policy.target_frontage_m))
+        by_minimum_frontage = max(
+            1,
+            int(frontage_length_m // self.policy.minimum_frontage_m),
         )
-        if len({item.cleaned_block.block_id for item in ordered_blocks}) != len(
-            ordered_blocks
-        ):
-            raise ParcelSubdivisionError("zoned block IDs must be unique")
-
-        draft_parcels: list[
-            tuple[str, Polygon, tuple[ParcelFrontageSegment, ...], str, ZoneClass]
-        ] = []
-        draft_decisions: list[
-            tuple[str, ParcelSubdivisionSkipReason | None, str | None, float, int]
-        ] = []
-        road_candidate_pair_count = 0
-        frontage_overlap_pair_count = 0
-        residential_associated_block_count = 0
-        parceled_area_m2 = 0.0
-
-        for item in ordered_blocks:
-            block = item.cleaned_block
-            association = item.association
-            block_id = block.block_id
-
-            if association.status is not BlockZoneAssociationStatus.ASSOCIATED:
-                draft_decisions.append(
-                    (block_id, ParcelSubdivisionSkipReason.UNASSOCIATED_ZONE, None, 0.0, 0)
-                )
-                continue
-            if association.zone_class is not ZoneClass.RESIDENTIAL:
-                draft_decisions.append(
-                    (block_id, ParcelSubdivisionSkipReason.NON_RESIDENTIAL, None, 0.0, 0)
-                )
-                continue
-            if association.zone_id is None:
-                raise ParcelSubdivisionError(
-                    "ASSOCIATED residential block must carry zone_id"
-                )
-            residential_associated_block_count += 1
-
-            geometry = block.geometry
-            if geometry.interiors:
-                draft_decisions.append(
-                    (block_id, ParcelSubdivisionSkipReason.HOLED_BLOCK, None, 0.0, 0)
-                )
-                continue
-            block_area_m2 = float(geometry.area)
-            if block_area_m2 + _AREA_ABS_TOLERANCE_M2 < self.policy.minimum_parcel_area_m2:
-                draft_decisions.append(
-                    (block_id, ParcelSubdivisionSkipReason.BLOCK_TOO_SMALL, None, 0.0, 0)
-                )
-                continue
-
-            candidate_edges: tuple[RoadGraphEdge, ...]
-            if tree is None:
-                candidate_edges = ()
-            else:
-                indexes = tuple(
-                    sorted(int(index) for index in tree.query(geometry.boundary))
-                )
-                road_candidate_pair_count += len(indexes)
-                if len(indexes) > self.max_road_candidates_per_block:
-                    raise ParcelSubdivisionError(
-                        f"road candidate limit exceeded for block {block_id!r}: "
-                        f"{len(indexes)} > {self.max_road_candidates_per_block}"
-                    )
-                candidate_edges = tuple(ordered_edges[index] for index in indexes)
-
-            frontage_pieces = _unique_frontage_pieces(geometry, candidate_edges)
-            frontage_overlap_pair_count += len(frontage_pieces)
-            if not frontage_pieces:
-                draft_decisions.append(
-                    (block_id, ParcelSubdivisionSkipReason.NO_FRONTAGE, None, 0.0, 0)
-                )
-                continue
-
-            dominant = min(frontage_pieces, key=lambda piece: piece.sort_key)
-            if dominant.length_m + _LENGTH_ABS_TOLERANCE_M < self.policy.minimum_frontage_m:
-                draft_decisions.append(
-                    (
-                        block_id,
-                        ParcelSubdivisionSkipReason.INSUFFICIENT_FRONTAGE,
-                        dominant.road_id,
-                        dominant.length_m,
-                        0,
-                    )
-                )
-                continue
-            if _linearity_ratio(dominant.geometry) < self.policy.minimum_frontage_linearity_ratio:
-                draft_decisions.append(
-                    (
-                        block_id,
-                        ParcelSubdivisionSkipReason.NONLINEAR_FRONTAGE,
-                        dominant.road_id,
-                        dominant.length_m,
-                        0,
-                    )
-                )
-                continue
-
-            by_frontage = max(1, int(dominant.length_m // self.policy.target_frontage_m))
-            by_frontage_minimum = max(
-                1,
-                int(dominant.length_m // self.policy.minimum_frontage_m),
-            )
-            by_area = max(1, int(block_area_m2 // self.policy.minimum_parcel_area_m2))
-            parcel_count = min(
-                by_frontage,
-                by_frontage_minimum,
-                by_area,
-                self.policy.max_parcels_per_block,
-            )
-
-            fragments = _frontage_split_fragments(
-                geometry,
-                dominant.geometry,
-                parcel_count=parcel_count,
-            )
-            if fragments is None:
-                draft_decisions.append(
-                    (
-                        block_id,
-                        ParcelSubdivisionSkipReason.SUBDIVISION_FAILED,
-                        dominant.road_id,
-                        dominant.length_m,
-                        0,
-                    )
-                )
-                continue
-
-            fragment_area_m2 = math.fsum(float(fragment.area) for fragment in fragments)
-            _require_area_accounting(block_area_m2, fragment_area_m2)
-            if any(
-                float(fragment.area) + _AREA_ABS_TOLERANCE_M2
-                < self.policy.minimum_parcel_area_m2
-                for fragment in fragments
-            ):
-                draft_decisions.append(
-                    (
-                        block_id,
-                        ParcelSubdivisionSkipReason.FRAGMENT_TOO_SMALL,
-                        dominant.road_id,
-                        dominant.length_m,
-                        0,
-                    )
-                )
-                continue
-
-            block_parcels: list[
-                tuple[str, Polygon, tuple[ParcelFrontageSegment, ...], str, ZoneClass]
-            ] = []
-            fragment_failure: ParcelSubdivisionSkipReason | None = None
-            for fragment_index, fragment in enumerate(fragments):
-                frontages = _parcel_frontages(fragment, candidate_edges)
-                unique_frontage_length_m = _unique_frontage_length(frontages)
-                if unique_frontage_length_m + _LENGTH_ABS_TOLERANCE_M < self.policy.minimum_frontage_m:
-                    fragment_failure = ParcelSubdivisionSkipReason.FRAGMENT_WITHOUT_FRONTAGE
-                    break
-                block_parcels.append(
-                    (
-                        f"{block_id}:{fragment_index:04d}",
-                        fragment,
-                        frontages,
-                        association.zone_id,
-                        ZoneClass.RESIDENTIAL,
-                    )
-                )
-
-            if fragment_failure is not None:
-                draft_decisions.append(
-                    (
-                        block_id,
-                        fragment_failure,
-                        dominant.road_id,
-                        dominant.length_m,
-                        0,
-                    )
-                )
-                continue
-
-            if len(draft_parcels) + len(block_parcels) > self.max_output_parcels:
-                raise ParcelSubdivisionError(
-                    "subdivision output parcel limit exceeded: "
-                    f"{len(draft_parcels) + len(block_parcels)} > {self.max_output_parcels}"
-                )
-            draft_parcels.extend(block_parcels)
-            parceled_area_m2 += block_area_m2
-            draft_decisions.append(
-                (
-                    block_id,
-                    None,
-                    dominant.road_id,
-                    dominant.length_m,
-                    len(block_parcels),
-                )
-            )
-
-        ordered_drafts = tuple(
-            sorted(draft_parcels, key=lambda draft: (draft[0], draft[1].wkb_hex))
+        by_area = max(1, int(block_area_m2 // self.policy.minimum_parcel_area_m2))
+        return min(
+            by_target,
+            by_minimum_frontage,
+            by_area,
+            self.policy.max_parcels_per_block,
         )
-        parcel_id_by_draft_id = {
-            draft_id: f"parcel:{index:08d}"
-            for index, (draft_id, _geometry, _frontages, _zone_id, _zone_class) in enumerate(
-                ordered_drafts
-            )
+
+    def _build_result(
+        self,
+        *,
+        ordered_blocks_count: int,
+        ordered_edges_count: int,
+        drafts: list[_ParcelDraft],
+        decision_drafts: list[
+            tuple[str, ParcelSubdivisionSkipReason | None, str | None, float]
+        ],
+        residential_associated_block_count: int,
+        road_candidate_pair_count: int,
+        frontage_overlap_pair_count: int,
+        parceled_area_m2: float,
+    ) -> ParcelSubdivisionResult:
+        ordered_drafts = tuple(sorted(drafts, key=lambda draft: draft.sort_key))
+        parcel_id_by_key = {
+            (draft.block_id, draft.fragment_index): f"parcel:{index:08d}"
+            for index, draft in enumerate(ordered_drafts)
         }
         parcels = tuple(
             PlanningParcel(
-                parcel_id=parcel_id_by_draft_id[draft_id],
-                block_id=draft_id.rsplit(":", 1)[0],
+                parcel_id=parcel_id_by_key[(draft.block_id, draft.fragment_index)],
+                block_id=draft.block_id,
                 working_srid=self.working_crs.srid,
-                geometry=geometry,
-                buildable_envelope=geometry,
-                frontages=frontages,
-                zone_id=zone_id,
-                zone_class=zone_class,
+                geometry=draft.geometry,
+                buildable_envelope=draft.geometry,
+                frontages=draft.frontages,
+                zone_id=draft.zone_id,
+                zone_class=draft.zone_class,
             )
-            for draft_id, geometry, frontages, zone_id, zone_class in ordered_drafts
+            for draft in ordered_drafts
         )
-
         ids_by_block: dict[str, list[str]] = {}
-        for draft_id, _geometry, _frontages, _zone_id, _zone_class in ordered_drafts:
-            block_id = draft_id.rsplit(":", 1)[0]
-            ids_by_block.setdefault(block_id, []).append(parcel_id_by_draft_id[draft_id])
+        for draft in ordered_drafts:
+            parcel_id = parcel_id_by_key[(draft.block_id, draft.fragment_index)]
+            ids_by_block.setdefault(draft.block_id, []).append(parcel_id)
 
         decisions = tuple(
             ParcelSubdivisionDecision(
@@ -536,8 +585,8 @@ class SimplifiedParcelSubdivider:
                 selected_frontage_road_id=road_id,
                 selected_frontage_length_m=frontage_length_m,
             )
-            for block_id, skip_reason, road_id, frontage_length_m, _parcel_count in sorted(
-                draft_decisions,
+            for block_id, skip_reason, road_id, frontage_length_m in sorted(
+                decision_drafts,
                 key=lambda draft: draft[0],
             )
         )
@@ -547,14 +596,14 @@ class SimplifiedParcelSubdivider:
             len(decision.parcel_ids) == 1 for decision in decisions
         )
         diagnostics = ParcelSubdivisionDiagnostics(
-            input_block_count=len(ordered_blocks),
+            input_block_count=ordered_blocks_count,
             residential_associated_block_count=residential_associated_block_count,
             parceled_block_count=parceled_block_count,
             subdivided_block_count=subdivided_block_count,
             single_parcel_block_count=single_parcel_block_count,
-            skipped_block_count=len(ordered_blocks) - parceled_block_count,
+            skipped_block_count=ordered_blocks_count - parceled_block_count,
             parcel_count=len(parcels),
-            road_edge_count=len(ordered_edges),
+            road_edge_count=ordered_edges_count,
             road_candidate_pair_count=road_candidate_pair_count,
             frontage_overlap_pair_count=frontage_overlap_pair_count,
             parceled_area_m2=parceled_area_m2,
@@ -571,19 +620,22 @@ class SimplifiedParcelSubdivider:
 def _unique_frontage_pieces(
     block: Polygon,
     candidate_edges: tuple[RoadGraphEdge, ...],
-) -> tuple[_FrontagePiece, ...]:
+) -> tuple[tuple[_FrontagePiece, ...], int]:
     accepted: list[_FrontagePiece] = []
     covered: BaseGeometry | None = None
+    positive_pair_count = 0
     for edge in sorted(candidate_edges, key=lambda item: (item.road_id, item.edge_id)):
         overlap = block.boundary.intersection(edge.geometry)
-        for line in _linear_parts(overlap):
-            unique: BaseGeometry = line if covered is None else line.difference(covered)
-            for part in _linear_parts(unique):
-                if part.length <= _LENGTH_ABS_TOLERANCE_M:
-                    continue
-                accepted.append(_FrontagePiece(road_id=edge.road_id, geometry=part))
-                covered = part if covered is None else unary_union((covered, part))
-    return tuple(sorted(accepted, key=lambda piece: piece.sort_key))
+        raw_parts = _merged_linear_parts(overlap)
+        if any(part.length > _LENGTH_ABS_TOLERANCE_M for part in raw_parts):
+            positive_pair_count += 1
+        unique: BaseGeometry = overlap if covered is None else overlap.difference(covered)
+        for part in _merged_linear_parts(unique):
+            if part.length <= _LENGTH_ABS_TOLERANCE_M:
+                continue
+            accepted.append(_FrontagePiece(road_id=edge.road_id, geometry=part))
+            covered = part if covered is None else unary_union((covered, part))
+    return tuple(sorted(accepted, key=lambda piece: piece.sort_key)), positive_pair_count
 
 
 def _parcel_frontages(
@@ -594,13 +646,12 @@ def _parcel_frontages(
     covered: BaseGeometry | None = None
     for edge in sorted(candidate_edges, key=lambda item: (item.road_id, item.edge_id)):
         overlap = parcel.boundary.intersection(edge.geometry)
-        for line in _linear_parts(overlap):
-            unique: BaseGeometry = line if covered is None else line.difference(covered)
-            for part in _linear_parts(unique):
-                if part.length <= _LENGTH_ABS_TOLERANCE_M:
-                    continue
-                segments.append(ParcelFrontageSegment(road_id=edge.road_id, geometry=part))
-                covered = part if covered is None else unary_union((covered, part))
+        unique: BaseGeometry = overlap if covered is None else overlap.difference(covered)
+        for part in _merged_linear_parts(unique):
+            if part.length <= _LENGTH_ABS_TOLERANCE_M:
+                continue
+            segments.append(ParcelFrontageSegment(road_id=edge.road_id, geometry=part))
+            covered = part if covered is None else unary_union((covered, part))
     return tuple(sorted(segments, key=lambda item: item.sort_key))
 
 
@@ -634,30 +685,40 @@ def _frontage_split_fragments(
 
     min_x, min_y, max_x, max_y = block.bounds
     span = max(math.hypot(max_x - min_x, max_y - min_y) * 4.0, 1.0)
-    cutters: list[LineString] = []
+    fragments: tuple[Polygon, ...] = (block,)
     for index in range(1, parcel_count):
         point = frontage.interpolate(frontage.length * index / parcel_count)
-        cutters.append(
-            LineString(
-                [
-                    (point.x - normal_x * span, point.y - normal_y * span),
-                    (point.x + normal_x * span, point.y + normal_y * span),
-                ]
-            )
+        cutter = LineString(
+            [
+                (point.x - normal_x * span, point.y - normal_y * span),
+                (point.x + normal_x * span, point.y + normal_y * span),
+            ]
         )
+        next_fragments: list[Polygon] = []
+        try:
+            for fragment in fragments:
+                pieces = split(fragment, cutter)
+                next_fragments.extend(
+                    geometry
+                    for geometry in pieces.geoms
+                    if isinstance(geometry, Polygon)
+                    and geometry.area > _AREA_ABS_TOLERANCE_M2
+                )
+        except (TypeError, ValueError):
+            return None
+        fragments = tuple(next_fragments)
 
-    try:
-        pieces = split(block, MultiLineString(cutters))
-    except (TypeError, ValueError):
+    if len(fragments) != parcel_count:
         return None
-    polygons = tuple(
-        geometry
-        for geometry in pieces.geoms
-        if isinstance(geometry, Polygon) and geometry.area > _AREA_ABS_TOLERANCE_M2
+    return tuple(
+        sorted(
+            fragments,
+            key=lambda polygon: (
+                polygon.centroid.x * tangent_x + polygon.centroid.y * tangent_y,
+                polygon.wkb_hex,
+            ),
+        )
     )
-    if len(polygons) != parcel_count:
-        return None
-    return tuple(sorted(polygons, key=lambda polygon: (polygon.centroid.x, polygon.centroid.y, polygon.wkb_hex)))
 
 
 def _linearity_ratio(line: LineString) -> float:
@@ -666,6 +727,14 @@ def _linearity_ratio(line: LineString) -> float:
     end = coordinates[-1]
     chord = math.hypot(end[0] - start[0], end[1] - start[1])
     return min(1.0, chord / float(line.length))
+
+
+def _merged_linear_parts(geometry: BaseGeometry) -> tuple[LineString, ...]:
+    parts = _linear_parts(geometry)
+    if len(parts) <= 1:
+        return parts
+    merged = linemerge(MultiLineString(parts))
+    return _linear_parts(merged)
 
 
 def _linear_parts(geometry: BaseGeometry) -> tuple[LineString, ...]:
