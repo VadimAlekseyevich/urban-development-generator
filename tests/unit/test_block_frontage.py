@@ -8,6 +8,7 @@ from core.urban_generator.blocks import (
     BlockFrontageValidationError,
     BlockFrontageValidator,
     BlockMetricsCalculator,
+    BlockMetricsResult,
     DevelopableBlockCandidate,
 )
 from core.urban_generator.domain import WorkingCRS, WorldStateContract
@@ -17,7 +18,10 @@ from core.urban_generator.roads import NodedRoad, RoadGraph, RoadGraphBuilder, R
 WORKING_SRID = 3857
 
 
-def _metrics(*blocks: DevelopableBlockCandidate, working_srid: int = WORKING_SRID):
+def _metrics(
+    *blocks: DevelopableBlockCandidate,
+    working_srid: int = WORKING_SRID,
+) -> BlockMetricsResult:
     clipping = BlockDevelopableClippingResult(
         working_crs=WorkingCRS(srid=working_srid),
         blocks=tuple(blocks),
