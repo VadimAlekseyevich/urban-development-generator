@@ -212,10 +212,10 @@ def test_output_order_and_overlap_ids_are_deterministic() -> None:
     )
     first = result.blocks[0].association
     second = result.blocks[1].association
-    assert first.status is BlockZoneAssociationStatus.PARTIAL_OVERLAP
-    assert first.positive_overlap_zone_ids == ("zone:a", "zone:z")
-    assert second.status is BlockZoneAssociationStatus.ASSOCIATED
-    assert second.zone_id == "zone:far"
+    assert first.status is BlockZoneAssociationStatus.ASSOCIATED
+    assert first.zone_id == "zone:far"
+    assert second.status is BlockZoneAssociationStatus.PARTIAL_OVERLAP
+    assert second.positive_overlap_zone_ids == ("zone:a", "zone:z")
 
 
 def test_duplicate_zone_ids_are_rejected() -> None:
