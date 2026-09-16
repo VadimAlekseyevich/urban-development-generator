@@ -47,6 +47,13 @@ from core.urban_generator.blocks.oversized_split import (
     OversizedBlockSplitter,
     SplitBlockCandidate,
 )
+from core.urban_generator.blocks.parcel import (
+    MAX_PLANNING_PARCEL_FRONTAGES,
+    PLANNING_PARCEL_SEMANTICS,
+    ParcelDomainError,
+    ParcelFrontageSegment,
+    PlanningParcel,
+)
 from core.urban_generator.blocks.polygonize import (
     DEFAULT_MAX_CANDIDATE_BLOCKS,
     DEFAULT_MAX_POLYGONIZE_EDGES,
@@ -109,6 +116,8 @@ __all__ = [
     "DEFAULT_MAX_ZONE_ASSOCIATION_BLOCKS",
     "DEFAULT_MAX_ZONE_ASSOCIATION_ZONES",
     "DEFAULT_MAX_ZONE_CANDIDATES_PER_BLOCK",
+    "MAX_PLANNING_PARCEL_FRONTAGES",
+    "PLANNING_PARCEL_SEMANTICS",
     "BlockDevelopableArea",
     "BlockDevelopableClippingDiagnostics",
     "BlockDevelopableClippingError",
@@ -148,6 +157,9 @@ __all__ = [
     "OversizedBlockSplitPolicy",
     "OversizedBlockSplitResult",
     "OversizedBlockSplitter",
+    "ParcelDomainError",
+    "ParcelFrontageSegment",
+    "PlanningParcel",
     "RoadNetworkBlockPolygonizer",
     "SliverCleanupAction",
     "SliverCleanupDiagnostics",
