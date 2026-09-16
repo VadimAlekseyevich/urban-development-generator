@@ -308,20 +308,24 @@ class BlockSliverCleaner:
         versions = {block.block_id: 0 for block in ordered_blocks}
         unresolved: set[str] = set()
         queue: list[tuple[float, tuple[str, ...], int, str]] = []
-        for group in groups.values():
-            self._push_if_sliver(queue, group, versions[group.group_id])
+        for initial_group in groups.values():
+            self._push_if_sliver(
+                queue,
+                initial_group,
+                versions[initial_group.group_id],
+            )
 
         events: list[SliverCleanupEvent] = []
         dropped_area_m2 = 0.0
 
         while queue:
             _queued_area, _queued_members, queued_version, group_id = heappop(queue)
-            group = groups.get(group_id)
-            if group is None or versions.get(group_id) != queued_version:
+            current_group: _Group | None = groups.get(group_id)
+            if current_group is None or versions.get(group_id) != queued_version:
                 continue
             if group_id in unresolved:
                 continue
-            if group.area_m2 >= self.policy.min_area_m2:
+            if current_group.area_m2 >= self.policy.min_area_m2:
                 continue
 
             if len(events) >= self.max_operations:
@@ -338,12 +342,15 @@ class BlockSliverCleaner:
             if merge_choice is not None:
                 target_id, shared_boundary_m, merged_geometry = merge_choice
                 target = groups[target_id]
-                source_members = group.member_block_ids
+                source_members = current_group.member_block_ids
                 target_members = target.member_block_ids
-                source_area_m2 = group.area_m2
+                source_area_m2 = current_group.area_m2
 
                 merged_members = tuple(
-                    sorted((*group.members, *target.members), key=lambda member: member.block_id)
+                    sorted(
+                        (*current_group.members, *target.members),
+                        key=lambda member: member.block_id,
+                    )
                 )
                 groups[target_id] = _Group(
                     group_id=target_id,
@@ -374,8 +381,8 @@ class BlockSliverCleaner:
                 continue
 
             if self.policy.unmergeable_action is UnmergeableSliverAction.DROP:
-                source_members = group.member_block_ids
-                source_area_m2 = group.area_m2
+                source_members = current_group.member_block_ids
+                source_area_m2 = current_group.area_m2
                 dropped_area_m2 += source_area_m2
                 self._remove_group(group_id, groups=groups, adjacency=adjacency)
                 versions.pop(group_id)
@@ -395,9 +402,9 @@ class BlockSliverCleaner:
             events.append(
                 SliverCleanupEvent(
                     action=SliverCleanupAction.KEPT_UNRESOLVED,
-                    source_member_block_ids=group.member_block_ids,
+                    source_member_block_ids=current_group.member_block_ids,
                     target_member_block_ids=(),
-                    source_area_m2=group.area_m2,
+                    source_area_m2=current_group.area_m2,
                     shared_boundary_m=0.0,
                 )
             )
@@ -457,7 +464,9 @@ class BlockSliverCleaner:
         self,
         blocks: tuple[SplitBlockCandidate, ...],
     ) -> tuple[dict[str, dict[str, float]], int, int]:
-        adjacency = {block.block_id: {} for block in blocks}
+        adjacency: dict[str, dict[str, float]] = {
+            block.block_id: {} for block in blocks
+        }
         if not blocks:
             return adjacency, 0, 0
 
