@@ -142,8 +142,14 @@ def test_polygonizer_requires_matching_metric_crs_and_bounded_input() -> None:
     with pytest.raises(BlockPolygonizationError, match="graph working CRS must match"):
         RoadNetworkBlockPolygonizer(working_srid=3395).polygonize(graph)
 
-    with pytest.raises(BlockPolygonizationError, match="polygonize edge limit exceeded: 4 > 3"):
-        RoadNetworkBlockPolygonizer(working_srid=WORKING_SRID, max_edges=3).polygonize(graph)
+    with pytest.raises(
+        BlockPolygonizationError,
+        match="polygonize edge limit exceeded: 4 > 3",
+    ):
+        RoadNetworkBlockPolygonizer(
+            working_srid=WORKING_SRID,
+            max_edges=3,
+        ).polygonize(graph)
 
 
 def test_polygonizer_enforces_candidate_block_limit() -> None:
@@ -159,7 +165,10 @@ def test_polygonizer_enforces_candidate_block_limit() -> None:
         )
     )
 
-    with pytest.raises(BlockPolygonizationError, match="candidate block limit exceeded: 2 > 1"):
+    with pytest.raises(
+        BlockPolygonizationError,
+        match="candidate block limit exceeded: 2 > 1",
+    ):
         RoadNetworkBlockPolygonizer(
             working_srid=WORKING_SRID,
             max_candidate_blocks=1,
