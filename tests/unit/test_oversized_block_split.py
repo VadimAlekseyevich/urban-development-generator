@@ -147,8 +147,14 @@ def test_positive_road_frontage_informs_split_direction() -> None:
     assert result.diagnostics.principal_axis_split_count == 0
     assert all(block.geometry.area == pytest.approx(150.0) for block in result.blocks)
     # A vertical frontage supplies a vertical reference axis, so the splitter cuts horizontally.
-    assert all((block.geometry.bounds[2] - block.geometry.bounds[0]) == pytest.approx(30.0) for block in result.blocks)
-    assert all((block.geometry.bounds[3] - block.geometry.bounds[1]) == pytest.approx(5.0) for block in result.blocks)
+    assert all(
+        (block.geometry.bounds[2] - block.geometry.bounds[0]) == pytest.approx(30.0)
+        for block in result.blocks
+    )
+    assert all(
+        (block.geometry.bounds[3] - block.geometry.bounds[1]) == pytest.approx(5.0)
+        for block in result.blocks
+    )
 
 
 def test_transverse_crossing_does_not_become_road_informed_frontage() -> None:
