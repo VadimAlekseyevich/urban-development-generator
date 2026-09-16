@@ -1,5 +1,6 @@
 import pytest
 from shapely.geometry import box
+from shapely.geometry.base import BaseGeometry
 
 from core.urban_generator.blocks import (
     BlockDevelopableArea,
@@ -16,9 +17,9 @@ from core.urban_generator.domain.crs import CRSContractError
 WORKING_SRID = 3857
 
 
-def _polygonization(*geometries: object) -> BlockPolygonizationResult:
+def _polygonization(*geometries: BaseGeometry) -> BlockPolygonizationResult:
     blocks = tuple(
-        CandidateBlock(block_id=f"source:{index:03d}", geometry=geometry)  # type: ignore[arg-type]
+        CandidateBlock(block_id=f"source:{index:03d}", geometry=geometry)
         for index, geometry in enumerate(geometries)
     )
     return BlockPolygonizationResult(
@@ -38,25 +39,25 @@ def _polygonization(*geometries: object) -> BlockPolygonizationResult:
 
 def _area(
     *,
-    project=box(0, 0, 10, 10),
-    developable=box(0, 0, 10, 10),
+    project: BaseGeometry | None = None,
+    developable: BaseGeometry | None = None,
     working_srid: int = WORKING_SRID,
 ) -> BlockDevelopableArea:
     return BlockDevelopableArea(
-        project_boundary=project,
-        developable_mask=developable,
+        project_boundary=project if project is not None else box(0, 0, 10, 10),
+        developable_mask=developable if developable is not None else box(0, 0, 10, 10),
         working_srid=working_srid,
     )
 
 
 def _hard(
     code: str,
-    *geometries: object,
+    *geometries: BaseGeometry,
     working_srid: int = WORKING_SRID,
 ) -> BlockHardConstraintLayer:
     return BlockHardConstraintLayer(
         code=code,
-        geometries=tuple(geometries),  # type: ignore[arg-type]
+        geometries=tuple(geometries),
         working_srid=working_srid,
     )
 
@@ -141,7 +142,7 @@ def test_disjoint_mask_and_full_hard_exclusion_remove_blocks_with_diagnostics() 
     assert result.diagnostics.hard_constraint_hit_block_count == 1
 
 
-def test_disjoint_project_and_developable_masks_remove_all_without_constraint_scan() -> None:
+def test_disjoint_project_and_developable_masks_skip_constraint_scan() -> None:
     polygonization = _polygonization(box(0, 0, 2, 2), box(3, 0, 5, 2))
     constraint = _hard("unused", box(0, 0, 5, 5))
 
@@ -221,7 +222,9 @@ def test_requires_matching_metric_crs_for_masks_and_constraints() -> None:
         clipper.clip(
             polygonization,
             area=_area(),
-            hard_constraints=(_hard("wrong-crs", box(1, 1, 2, 2), working_srid=3395),),
+            hard_constraints=(
+                _hard("wrong-crs", box(1, 1, 2, 2), working_srid=3395),
+            ),
         )
 
     with pytest.raises(CRSContractError, match="not projected"):
@@ -273,7 +276,10 @@ def test_enforces_block_constraint_candidate_and_output_bounds() -> None:
 def test_rejects_duplicate_constraint_codes() -> None:
     polygonization = _polygonization(box(0, 0, 10, 10))
 
-    with pytest.raises(BlockDevelopableClippingError, match="duplicate hard constraint layer code"):
+    with pytest.raises(
+        BlockDevelopableClippingError,
+        match="duplicate hard constraint layer code",
+    ):
         DevelopableBlockClipper(working_srid=WORKING_SRID).clip(
             polygonization,
             area=_area(),
