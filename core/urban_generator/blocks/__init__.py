@@ -71,6 +71,19 @@ from core.urban_generator.blocks.sliver_cleanup import (
     SliverCleanupResult,
     UnmergeableSliverAction,
 )
+from core.urban_generator.blocks.zone_association import (
+    DEFAULT_MAX_ZONE_ASSOCIATION_BLOCKS,
+    DEFAULT_MAX_ZONE_ASSOCIATION_ZONES,
+    DEFAULT_MAX_ZONE_CANDIDATES_PER_BLOCK,
+    BlockZoneAssociation,
+    BlockZoneAssociationDiagnostics,
+    BlockZoneAssociationError,
+    BlockZoneAssociationResult,
+    BlockZoneAssociationStatus,
+    BlockZoneAssociator,
+    BlockZoneReference,
+    ZoneAssociatedBlock,
+)
 
 __all__ = [
     "DEFAULT_MAX_CANDIDATE_BLOCKS",
@@ -93,6 +106,9 @@ __all__ = [
     "DEFAULT_MAX_SPLIT_OUTPUT_BLOCKS",
     "DEFAULT_MAX_SPLIT_ROAD_CANDIDATES",
     "DEFAULT_MAX_SPLIT_ROAD_EDGES",
+    "DEFAULT_MAX_ZONE_ASSOCIATION_BLOCKS",
+    "DEFAULT_MAX_ZONE_ASSOCIATION_ZONES",
+    "DEFAULT_MAX_ZONE_CANDIDATES_PER_BLOCK",
     "BlockDevelopableArea",
     "BlockDevelopableClippingDiagnostics",
     "BlockDevelopableClippingError",
@@ -114,6 +130,13 @@ __all__ = [
     "BlockPolygonizationResult",
     "BlockSliverCleaner",
     "BlockSplitStrategy",
+    "BlockZoneAssociation",
+    "BlockZoneAssociationDiagnostics",
+    "BlockZoneAssociationError",
+    "BlockZoneAssociationResult",
+    "BlockZoneAssociationStatus",
+    "BlockZoneAssociator",
+    "BlockZoneReference",
     "CandidateBlock",
     "CleanedBlockCandidate",
     "DevelopableBlockCandidate",
@@ -134,4 +157,5 @@ __all__ = [
     "SliverCleanupResult",
     "SplitBlockCandidate",
     "UnmergeableSliverAction",
+    "ZoneAssociatedBlock",
 ]
