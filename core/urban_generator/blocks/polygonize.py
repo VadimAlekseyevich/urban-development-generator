@@ -41,7 +41,9 @@ class CandidateBlock:
             raise BlockPolygonizationError("candidate block geometry must be 2D")
         area = float(self.geometry.area)
         if not isfinite(area) or area <= 0.0:
-            raise BlockPolygonizationError("candidate block geometry must have positive finite area")
+            raise BlockPolygonizationError(
+                "candidate block geometry must have positive finite area"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,10 +127,14 @@ class RoadNetworkBlockPolygonizer:
         normalized_polygons: list[Polygon] = []
         for geometry in polygons.geoms:
             if not isinstance(geometry, Polygon):
-                raise BlockPolygonizationError("polygonize_full returned a non-Polygon candidate")
+                raise BlockPolygonizationError(
+                    "polygonize_full returned a non-Polygon candidate"
+                )
             normalized_geometry = normalize(geometry)
             if not isinstance(normalized_geometry, Polygon):
-                raise BlockPolygonizationError("normalized candidate block must remain a Polygon")
+                raise BlockPolygonizationError(
+                    "normalized candidate block must remain a Polygon"
+                )
             if (
                 normalized_geometry.is_empty
                 or not normalized_geometry.is_valid
@@ -136,7 +142,9 @@ class RoadNetworkBlockPolygonizer:
                 or not isfinite(float(normalized_geometry.area))
                 or normalized_geometry.area <= 0.0
             ):
-                raise BlockPolygonizationError("polygonize_full returned an invalid candidate block")
+                raise BlockPolygonizationError(
+                    "polygonize_full returned an invalid candidate block"
+                )
             normalized_polygons.append(normalized_geometry)
 
         if len(normalized_polygons) > self.max_candidate_blocks:
@@ -170,9 +178,14 @@ def _canonical_line_key(geometry: LineString) -> tuple[tuple[float, float], ...]
     if not isinstance(geometry, LineString):
         raise BlockPolygonizationError("road graph edges must contain LineString geometry")
     if geometry.is_empty or not geometry.is_valid or geometry.has_z or geometry.length <= 0.0:
-        raise BlockPolygonizationError("road graph edge geometry must be valid positive-length 2D")
+        raise BlockPolygonizationError(
+            "road graph edge geometry must be valid positive-length 2D"
+        )
 
-    coordinates = tuple((float(coordinate[0]), float(coordinate[1])) for coordinate in geometry.coords)
+    coordinates = tuple(
+        (float(coordinate[0]), float(coordinate[1]))
+        for coordinate in geometry.coords
+    )
     if len(coordinates) < 2:
         raise BlockPolygonizationError("road graph edge must contain at least two coordinates")
     if any(not all(isfinite(value) for value in coordinate) for coordinate in coordinates):
