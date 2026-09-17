@@ -254,7 +254,10 @@ def test_writer_persists_typed_block_parcel_refs_and_geometry(db_session: Sessio
     assert [parcel.area_m2 for parcel in parcels] == pytest.approx([50.0, 50.0])
     assert [parcel.buildable_area_m2 for parcel in parcels] == pytest.approx([36.0, 36.0])
     assert [parcel.frontage_m for parcel in parcels] == pytest.approx([5.0, 5.0])
-    assert all(to_shape(parcel.buildable_geometry).area == pytest.approx(36.0) for parcel in parcels)
+    assert all(
+        to_shape(parcel.buildable_geometry).area == pytest.approx(36.0)
+        for parcel in parcels
+    )
     assert parcels[0].attributes_json["semantics"] == "planning_lot_non_cadastral"
     assert parcels[0].attributes_json["frontage_road_ids"] == ["road:front"]
 
