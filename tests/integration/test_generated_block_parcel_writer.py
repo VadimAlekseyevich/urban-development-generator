@@ -352,8 +352,11 @@ def test_invalid_zone_ref_fails_before_replacing_existing_rows(db_session: Sessi
 
 
 def test_writer_rejects_successful_run_without_touching_rows(db_session: Session) -> None:
-    run = _create_run(db_session, status="succeeded")
+    run = _create_run(db_session)
     zone = _create_zone(db_session, run_id=run.id)
+    run.commit_sha = "a" * 40
+    run.status = "succeeded"
+    db_session.commit()
     zoned, subdivision = _results(zone_id=zone.id)
 
     with pytest.raises(GeneratedBlockParcelImmutableError, match="successful"):
