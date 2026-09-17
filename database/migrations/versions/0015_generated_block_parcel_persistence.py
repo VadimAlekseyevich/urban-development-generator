@@ -5,7 +5,7 @@ from alembic import op
 from geoalchemy2 import Geometry
 from sqlalchemy.dialects import postgresql
 
-revision = "0015_generated_block_parcel_persistence"
+revision = "0015_block_parcel_persistence"
 down_revision = "0014_generated_road_persistence"
 branch_labels = None
 depends_on = None
