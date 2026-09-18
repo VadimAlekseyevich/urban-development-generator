@@ -14,7 +14,6 @@ from core.urban_generator.buildings import (
     BuildingPlacementFrontage,
 )
 
-
 WORKING_SRID = 3857
 
 
