@@ -36,6 +36,15 @@ from core.urban_generator.buildings.footprint import (
     RectangularPointFootprintSpec,
     RectangularPointFootprintStrategy,
 )
+from core.urban_generator.buildings.perimeter_courtyard import (
+    PerimeterCourtyardFootprintError,
+    PerimeterCourtyardFootprintResult,
+    PerimeterCourtyardFootprintSpec,
+    PerimeterCourtyardFootprintStatus,
+    PerimeterCourtyardFootprintStrategy,
+    PerimeterCourtyardKind,
+    PerimeterOpeningSide,
+)
 from core.urban_generator.buildings.placement import (
     DEFAULT_MAX_FRONTAGE_SAMPLES,
     DEFAULT_MAX_GRID_SCAN_CELLS,
@@ -89,6 +98,13 @@ __all__ = [
     "BuildingPlacementFrontage",
     "BuildingPlacementScope",
     "EngineBuildingEnvelopeConstraintEvaluator",
+    "PerimeterCourtyardFootprintError",
+    "PerimeterCourtyardFootprintResult",
+    "PerimeterCourtyardFootprintSpec",
+    "PerimeterCourtyardFootprintStatus",
+    "PerimeterCourtyardFootprintStrategy",
+    "PerimeterCourtyardKind",
+    "PerimeterOpeningSide",
     "RectangularPointFootprintKind",
     "RectangularPointFootprintSpec",
     "RectangularPointFootprintStrategy",
