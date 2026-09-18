@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -13,6 +14,8 @@ from core.urban_generator.buildings.envelope import (
 )
 from core.urban_generator.buildings.placement import BuildingPlacementCandidate
 from core.urban_generator.domain.crs import require_working_crs
+
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,255}$")
 
 
 class BuildingFootprintError(ValueError):
@@ -107,6 +110,8 @@ class BuildingFootprintResult:
     proposed_geometry: Polygon
 
     def __post_init__(self) -> None:
+        _require_id("source_id", self.source_id)
+        _require_id("placement_candidate_id", self.placement_candidate_id)
         if not isinstance(self.strategy, BuildingFootprintStrategy):
             raise BuildingFootprintError(
                 "strategy must be a BuildingFootprintStrategy value"
@@ -237,6 +242,13 @@ class RectangularPointFootprintStrategy:
             raise BuildingFootprintError(
                 "spec must be a RectangularPointFootprintSpec"
             )
+
+
+def _require_id(field_name: str, value: str) -> None:
+    if not isinstance(value, str) or _ID_RE.fullmatch(value) is None:
+        raise BuildingFootprintError(
+            f"invalid {field_name}: {value!r}"
+        )
 
 
 def _require_positive_finite(field_name: str, value: float) -> float:
