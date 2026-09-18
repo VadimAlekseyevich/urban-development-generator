@@ -1,0 +1,151 @@
+.block-parcel-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.block-parcel-select {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.block-parcel-select select {
+  width: 100%;
+}
+
+.block-parcel-layer-list {
+  display: grid;
+  gap: 8px;
+}
+
+.block-parcel-layer-row {
+  display: grid;
+  grid-template-columns: auto 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.block-swatch {
+  background: #2563eb;
+}
+
+.parcel-swatch {
+  background: #16a34a;
+}
+
+.block-parcel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.block-parcel-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.block-parcel-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.legend-ok {
+  background: #16a34a;
+}
+
+.legend-warn {
+  background: #f59e0b;
+}
+
+.legend-error {
+  background: #dc2626;
+}
+
+.block-parcel-inspector {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.block-parcel-inspector h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.block-parcel-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.block-parcel-metrics div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+}
+
+.block-parcel-metrics dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.block-parcel-metrics dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.block-parcel-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.76rem;
+}
+
+.block-parcel-flags strong {
+  width: 100%;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.flag-ok {
+  background: color-mix(in srgb, #22c55e 12%, var(--panel));
+}
+
+.flag-warning {
+  background: color-mix(in srgb, #f59e0b 14%, var(--panel));
+}
+
+.block-parcel-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.block-parcel-details .property-grid {
+  margin-top: 10px;
+}
