@@ -20,10 +20,26 @@ from core.urban_generator.buildings.envelope import (
     BuildingEnvelopeStatus,
     EngineBuildingEnvelopeConstraintEvaluator,
 )
+from core.urban_generator.buildings.placement import (
+    DEFAULT_MAX_FRONTAGE_SAMPLES,
+    DEFAULT_MAX_GRID_SCAN_CELLS,
+    DEFAULT_MAX_PLACEMENT_CANDIDATES,
+    BuildingPlacementCandidate,
+    BuildingPlacementCandidateDiagnostics,
+    BuildingPlacementCandidateError,
+    BuildingPlacementCandidateGenerator,
+    BuildingPlacementCandidateKind,
+    BuildingPlacementCandidatePolicy,
+    BuildingPlacementCandidateResult,
+    BuildingPlacementFrontage,
+)
 
 __all__ = [
     "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
     "DEFAULT_MAX_ENVELOPE_PARTS",
+    "DEFAULT_MAX_FRONTAGE_SAMPLES",
+    "DEFAULT_MAX_GRID_SCAN_CELLS",
+    "DEFAULT_MAX_PLACEMENT_CANDIDATES",
     "BuildableEnvelopeBuilder",
     "BuildingArchetype",
     "BuildingArchetypeConfig",
@@ -38,6 +54,14 @@ __all__ = [
     "BuildingEnvelopeSourceKind",
     "BuildingEnvelopeStatus",
     "BuildingFootprintStrategy",
+    "BuildingPlacementCandidate",
+    "BuildingPlacementCandidateDiagnostics",
+    "BuildingPlacementCandidateError",
+    "BuildingPlacementCandidateGenerator",
+    "BuildingPlacementCandidateKind",
+    "BuildingPlacementCandidatePolicy",
+    "BuildingPlacementCandidateResult",
+    "BuildingPlacementFrontage",
     "BuildingPlacementScope",
     "EngineBuildingEnvelopeConstraintEvaluator",
 ]
