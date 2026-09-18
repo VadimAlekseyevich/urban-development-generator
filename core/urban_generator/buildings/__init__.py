@@ -45,6 +45,15 @@ from core.urban_generator.buildings.perimeter_courtyard import (
     PerimeterCourtyardKind,
     PerimeterOpeningSide,
 )
+from core.urban_generator.buildings.orientation import (
+    DEFAULT_MAX_ORIENTATION_AXES,
+    BuildingOrientationAxis,
+    BuildingOrientationError,
+    BuildingOrientationPolicy,
+    BuildingOrientationResult,
+    BuildingOrientationSource,
+    BuildingOrientationStrategy,
+)
 from core.urban_generator.buildings.placement import (
     DEFAULT_MAX_FRONTAGE_SAMPLES,
     DEFAULT_MAX_GRID_SCAN_CELLS,
@@ -64,6 +73,7 @@ __all__ = [
     "DEFAULT_MAX_ENVELOPE_PARTS",
     "DEFAULT_MAX_FRONTAGE_SAMPLES",
     "DEFAULT_MAX_GRID_SCAN_CELLS",
+    "DEFAULT_MAX_ORIENTATION_AXES",
     "DEFAULT_MAX_PLACEMENT_CANDIDATES",
     "BarFootprintAxis",
     "BarFootprintAxisSource",
@@ -88,6 +98,12 @@ __all__ = [
     "BuildingFootprintResult",
     "BuildingFootprintStatus",
     "BuildingFootprintStrategy",
+    "BuildingOrientationAxis",
+    "BuildingOrientationError",
+    "BuildingOrientationPolicy",
+    "BuildingOrientationResult",
+    "BuildingOrientationSource",
+    "BuildingOrientationStrategy",
     "BuildingPlacementCandidate",
     "BuildingPlacementCandidateDiagnostics",
     "BuildingPlacementCandidateError",
