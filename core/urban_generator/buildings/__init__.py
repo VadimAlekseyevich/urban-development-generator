@@ -20,6 +20,14 @@ from core.urban_generator.buildings.envelope import (
     BuildingEnvelopeStatus,
     EngineBuildingEnvelopeConstraintEvaluator,
 )
+from core.urban_generator.buildings.footprint import (
+    BuildingFootprintError,
+    BuildingFootprintResult,
+    BuildingFootprintStatus,
+    RectangularPointFootprintKind,
+    RectangularPointFootprintSpec,
+    RectangularPointFootprintStrategy,
+)
 from core.urban_generator.buildings.placement import (
     DEFAULT_MAX_FRONTAGE_SAMPLES,
     DEFAULT_MAX_GRID_SCAN_CELLS,
@@ -53,6 +61,9 @@ __all__ = [
     "BuildingEnvelopeSource",
     "BuildingEnvelopeSourceKind",
     "BuildingEnvelopeStatus",
+    "BuildingFootprintError",
+    "BuildingFootprintResult",
+    "BuildingFootprintStatus",
     "BuildingFootprintStrategy",
     "BuildingPlacementCandidate",
     "BuildingPlacementCandidateDiagnostics",
@@ -64,4 +75,7 @@ __all__ = [
     "BuildingPlacementFrontage",
     "BuildingPlacementScope",
     "EngineBuildingEnvelopeConstraintEvaluator",
+    "RectangularPointFootprintKind",
+    "RectangularPointFootprintSpec",
+    "RectangularPointFootprintStrategy",
 ]
