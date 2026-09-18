@@ -5,7 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
-from backend.app.application.source_layers import GEOJSON_CRS, SourceLayerBbox, SourceLayerQueryError
+from backend.app.application.source_layers import (
+    GEOJSON_CRS,
+    SourceLayerBbox,
+    SourceLayerQueryError,
+)
 
 DEFAULT_BLOCK_PARCEL_LAYER_LIMIT = 1000
 MAX_BLOCK_PARCEL_LAYER_LIMIT = 5000
@@ -16,16 +20,22 @@ class BlockParcelLayerQueryError(ValueError):
 
 
 class BlockParcelLayerProjectNotFoundError(LookupError):
+    """Raised when block/parcel runs are requested for an unknown project."""
+
     def __init__(self, project_id: uuid.UUID) -> None:
         self.project_id = project_id
         super().__init__(f"project {project_id} was not found")
 
 
 class BlockParcelLayerRunNotFoundError(LookupError):
+    """Raised when a generation run does not belong to the requested project."""
+
     def __init__(self, project_id: uuid.UUID, run_id: uuid.UUID) -> None:
         self.project_id = project_id
         self.run_id = run_id
-        super().__init__(f"block/parcel run {run_id} was not found in project {project_id}")
+        super().__init__(
+            f"block/parcel run {run_id} was not found in project {project_id}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,13 +82,21 @@ class BlockParcelQueryResult:
 
 
 class BlockParcelLayerQueryRepository(Protocol):
-    def project_exists(self, *, project_id: uuid.UUID) -> bool: ...
+    """Read-only persistence port for generated block/parcel map reads."""
 
-    def list_runs(self, *, project_id: uuid.UUID) -> list[BlockParcelRunSummary]: ...
+    def project_exists(self, *, project_id: uuid.UUID) -> bool:
+        ...
+
+    def list_runs(self, *, project_id: uuid.UUID) -> list[BlockParcelRunSummary]:
+        ...
 
     def get_run_context(
-        self, *, project_id: uuid.UUID, run_id: uuid.UUID
-    ) -> BlockParcelRunContext | None: ...
+        self,
+        *,
+        project_id: uuid.UUID,
+        run_id: uuid.UUID,
+    ) -> BlockParcelRunContext | None:
+        ...
 
     def list_blocks(
         self,
@@ -87,7 +105,8 @@ class BlockParcelLayerQueryRepository(Protocol):
         working_srid: int,
         bbox: SourceLayerBbox,
         limit: int,
-    ) -> list[BlockParcelFeature]: ...
+    ) -> list[BlockParcelFeature]:
+        ...
 
     def list_parcels(
         self,
@@ -96,7 +115,8 @@ class BlockParcelLayerQueryRepository(Protocol):
         working_srid: int,
         bbox: SourceLayerBbox,
         limit: int,
-    ) -> list[BlockParcelFeature]: ...
+    ) -> list[BlockParcelFeature]:
+        ...
 
 
 class BlockParcelLayerQueryService:
@@ -105,7 +125,11 @@ class BlockParcelLayerQueryService:
     def __init__(self, repository: BlockParcelLayerQueryRepository) -> None:
         self._repository = repository
 
-    def list_runs(self, *, project_id: uuid.UUID) -> tuple[BlockParcelRunSummary, ...]:
+    def list_runs(
+        self,
+        *,
+        project_id: uuid.UUID,
+    ) -> tuple[BlockParcelRunSummary, ...]:
         if not self._repository.project_exists(project_id=project_id):
             raise BlockParcelLayerProjectNotFoundError(project_id)
         return tuple(self._repository.list_runs(project_id=project_id))
@@ -162,7 +186,10 @@ class BlockParcelLayerQueryService:
         except SourceLayerQueryError as exc:
             raise BlockParcelLayerQueryError(str(exc)) from exc
 
-        context = self._repository.get_run_context(project_id=project_id, run_id=run_id)
+        context = self._repository.get_run_context(
+            project_id=project_id,
+            run_id=run_id,
+        )
         if context is None:
             raise BlockParcelLayerRunNotFoundError(project_id, run_id)
 
@@ -180,6 +207,7 @@ class BlockParcelLayerQueryService:
                 bbox=bbox,
                 limit=limit + 1,
             )
+
         truncated = len(features) > limit
         return BlockParcelQueryResult(
             project_id=project_id,
