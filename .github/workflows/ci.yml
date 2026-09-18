@@ -50,6 +50,8 @@ jobs:
       - run: uv run pytest
       - name: Road reference benchmark
         run: uv run python -m benchmarks.road_network_reference
+      - name: Block parcel reference benchmark
+        run: uv run python -m benchmarks.block_parcel_reference
       - name: Migration smoke
         run: |
           uv run alembic upgrade head
