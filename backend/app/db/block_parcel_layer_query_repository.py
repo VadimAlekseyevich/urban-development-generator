@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Sequence
 from typing import cast
 
-from sqlalchemy import ColumnElement, Table, func, select
+from sqlalchemy import Table, func, select
 from sqlalchemy.orm import Session
 
 from backend.app.application.block_parcel_layers import (
@@ -125,18 +124,17 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
         bbox: SourceLayerBbox,
         limit: int,
     ) -> list[BlockParcelFeature]:
-        table = cast(Table, GeneratedBlock.__table__)
         return self._list_features(
-            table=table,
+            table=cast(Table, GeneratedBlock.__table__),
             run_id=run_id,
             working_srid=working_srid,
             bbox=bbox,
             limit=limit,
-            property_columns=(
-                table.c.block_key,
-                table.c.zone_id,
-                table.c.area_m2,
-                table.c.association_status,
+            property_names=(
+                "block_key",
+                "zone_id",
+                "area_m2",
+                "association_status",
             ),
         )
 
@@ -148,20 +146,19 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
         bbox: SourceLayerBbox,
         limit: int,
     ) -> list[BlockParcelFeature]:
-        table = cast(Table, GeneratedParcel.__table__)
         return self._list_features(
-            table=table,
+            table=cast(Table, GeneratedParcel.__table__),
             run_id=run_id,
             working_srid=working_srid,
             bbox=bbox,
             limit=limit,
-            property_columns=(
-                table.c.parcel_key,
-                table.c.block_id,
-                table.c.zone_id,
-                table.c.area_m2,
-                table.c.buildable_area_m2,
-                table.c.frontage_m,
+            property_names=(
+                "parcel_key",
+                "block_id",
+                "zone_id",
+                "area_m2",
+                "buildable_area_m2",
+                "frontage_m",
             ),
         )
 
@@ -173,7 +170,7 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
         working_srid: int,
         bbox: SourceLayerBbox,
         limit: int,
-        property_columns: Sequence[ColumnElement[object]],
+        property_names: tuple[str, ...],
     ) -> list[BlockParcelFeature]:
         wgs84_envelope = func.ST_MakeEnvelope(
             bbox.west,
@@ -191,7 +188,7 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
             table.c.id,
             table.c.attributes_json,
             geometry_geojson,
-            *property_columns,
+            *(table.c[name] for name in property_names),
         ]
         statement = (
             select(*columns)
@@ -208,10 +205,11 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
         features: list[BlockParcelFeature] = []
         for row in rows:
             properties = _attributes(row["attributes_json"])
-            for column in property_columns:
-                name = column.key
+            for name in property_names:
                 value = row[name]
-                properties[name] = str(value) if isinstance(value, uuid.UUID) else value
+                properties[name] = (
+                    str(value) if isinstance(value, uuid.UUID) else value
+                )
             features.append(
                 BlockParcelFeature(
                     id=row["id"],
