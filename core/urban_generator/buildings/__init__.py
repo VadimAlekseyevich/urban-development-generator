@@ -1,3 +1,11 @@
+from core.urban_generator.buildings.bar_footprint import (
+    BarFootprintAxis,
+    BarFootprintAxisSource,
+    BarFootprintError,
+    BarFootprintResult,
+    BarFootprintSpec,
+    BarFrontageFootprintStrategy,
+)
 from core.urban_generator.buildings.config import (
     BuildingArchetype,
     BuildingArchetypeConfig,
@@ -48,6 +56,12 @@ __all__ = [
     "DEFAULT_MAX_FRONTAGE_SAMPLES",
     "DEFAULT_MAX_GRID_SCAN_CELLS",
     "DEFAULT_MAX_PLACEMENT_CANDIDATES",
+    "BarFootprintAxis",
+    "BarFootprintAxisSource",
+    "BarFootprintError",
+    "BarFootprintResult",
+    "BarFootprintSpec",
+    "BarFrontageFootprintStrategy",
     "BuildableEnvelopeBuilder",
     "BuildingArchetype",
     "BuildingArchetypeConfig",
