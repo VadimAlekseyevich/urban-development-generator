@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from typing import cast
 
-from sqlalchemy import Table, func, select
+from sqlalchemy import ColumnElement, Table, func, select
 from sqlalchemy.orm import Session
 
-from backend.app.application.block_parcel_layers import BlockParcelFeature, BlockParcelRunContext, BlockParcelRunSummary
+from backend.app.application.block_parcel_layers import (
+    BlockParcelFeature,
+    BlockParcelRunContext,
+    BlockParcelRunSummary,
+)
 from backend.app.application.source_layers import GEOJSON_SRID, SourceLayerBbox
 from backend.app.models.generated_entity import GeneratedBlock, GeneratedParcel
 from backend.app.models.generation_run import GenerationRun
@@ -30,16 +35,31 @@ def _attributes(value: object) -> dict[str, object]:
 
 
 class SqlAlchemyBlockParcelLayerQueryRepository:
+    """PostGIS adapter for bounded generated block/parcel viewport reads."""
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
     def project_exists(self, *, project_id: uuid.UUID) -> bool:
-        return self._session.scalar(select(Project.id).where(Project.id == project_id)) is not None
+        statement = select(Project.id).where(Project.id == project_id)
+        return self._session.scalar(statement) is not None
 
     def list_runs(self, *, project_id: uuid.UUID) -> list[BlockParcelRunSummary]:
-        block_count = select(func.count()).select_from(GeneratedBlock).where(GeneratedBlock.run_id == GenerationRun.id).correlate(GenerationRun).scalar_subquery()
-        parcel_count = select(func.count()).select_from(GeneratedParcel).where(GeneratedParcel.run_id == GenerationRun.id).correlate(GenerationRun).scalar_subquery()
-        rows = self._session.execute(
+        block_count = (
+            select(func.count())
+            .select_from(GeneratedBlock)
+            .where(GeneratedBlock.run_id == GenerationRun.id)
+            .correlate(GenerationRun)
+            .scalar_subquery()
+        )
+        parcel_count = (
+            select(func.count())
+            .select_from(GeneratedParcel)
+            .where(GeneratedParcel.run_id == GenerationRun.id)
+            .correlate(GenerationRun)
+            .scalar_subquery()
+        )
+        statement = (
             select(
                 GenerationRun.id,
                 GenerationRun.project_id,
@@ -54,49 +74,149 @@ class SqlAlchemyBlockParcelLayerQueryRepository:
             )
             .where(GenerationRun.project_id == project_id)
             .order_by(GenerationRun.created_at.desc(), GenerationRun.id.desc())
-        ).mappings().all()
+        )
+        rows = self._session.execute(statement).mappings().all()
         return [
             BlockParcelRunSummary(
-                id=row["id"], project_id=row["project_id"], status=row["status"], mode=row["mode"],
-                seed=row["seed"], working_srid=row["working_srid"],
+                id=row["id"],
+                project_id=row["project_id"],
+                status=row["status"],
+                mode=row["mode"],
+                seed=row["seed"],
+                working_srid=row["working_srid"],
                 generated_block_count=int(row["generated_block_count"] or 0),
                 generated_parcel_count=int(row["generated_parcel_count"] or 0),
-                created_at=row["created_at"], finished_at=row["finished_at"],
-            ) for row in rows
+                created_at=row["created_at"],
+                finished_at=row["finished_at"],
+            )
+            for row in rows
         ]
 
-    def get_run_context(self, *, project_id: uuid.UUID, run_id: uuid.UUID) -> BlockParcelRunContext | None:
-        row = self._session.execute(
-            select(GenerationRun.project_id, GenerationRun.id, GenerationRun.working_srid, GenerationRun.status)
-            .where(GenerationRun.id == run_id, GenerationRun.project_id == project_id)
-        ).mappings().one_or_none()
+    def get_run_context(
+        self,
+        *,
+        project_id: uuid.UUID,
+        run_id: uuid.UUID,
+    ) -> BlockParcelRunContext | None:
+        statement = select(
+            GenerationRun.project_id,
+            GenerationRun.id,
+            GenerationRun.working_srid,
+            GenerationRun.status,
+        ).where(
+            GenerationRun.id == run_id,
+            GenerationRun.project_id == project_id,
+        )
+        row = self._session.execute(statement).mappings().one_or_none()
         if row is None:
             return None
-        return BlockParcelRunContext(project_id=row["project_id"], run_id=row["id"], working_srid=row["working_srid"], status=row["status"])
+        return BlockParcelRunContext(
+            project_id=row["project_id"],
+            run_id=row["id"],
+            working_srid=row["working_srid"],
+            status=row["status"],
+        )
 
-    def list_blocks(self, *, run_id: uuid.UUID, working_srid: int, bbox: SourceLayerBbox, limit: int) -> list[BlockParcelFeature]:
-        return self._list_features(cast(Table, GeneratedBlock.__table__), run_id, working_srid, bbox, limit, ("block_key", "zone_id", "area_m2", "association_status"))
+    def list_blocks(
+        self,
+        *,
+        run_id: uuid.UUID,
+        working_srid: int,
+        bbox: SourceLayerBbox,
+        limit: int,
+    ) -> list[BlockParcelFeature]:
+        table = cast(Table, GeneratedBlock.__table__)
+        return self._list_features(
+            table=table,
+            run_id=run_id,
+            working_srid=working_srid,
+            bbox=bbox,
+            limit=limit,
+            property_columns=(
+                table.c.block_key,
+                table.c.zone_id,
+                table.c.area_m2,
+                table.c.association_status,
+            ),
+        )
 
-    def list_parcels(self, *, run_id: uuid.UUID, working_srid: int, bbox: SourceLayerBbox, limit: int) -> list[BlockParcelFeature]:
-        return self._list_features(cast(Table, GeneratedParcel.__table__), run_id, working_srid, bbox, limit, ("parcel_key", "block_id", "zone_id", "area_m2", "buildable_area_m2", "frontage_m"))
+    def list_parcels(
+        self,
+        *,
+        run_id: uuid.UUID,
+        working_srid: int,
+        bbox: SourceLayerBbox,
+        limit: int,
+    ) -> list[BlockParcelFeature]:
+        table = cast(Table, GeneratedParcel.__table__)
+        return self._list_features(
+            table=table,
+            run_id=run_id,
+            working_srid=working_srid,
+            bbox=bbox,
+            limit=limit,
+            property_columns=(
+                table.c.parcel_key,
+                table.c.block_id,
+                table.c.zone_id,
+                table.c.area_m2,
+                table.c.buildable_area_m2,
+                table.c.frontage_m,
+            ),
+        )
 
-    def _list_features(self, table: Table, run_id: uuid.UUID, working_srid: int, bbox: SourceLayerBbox, limit: int, property_columns: tuple[str, ...]) -> list[BlockParcelFeature]:
-        wgs84_envelope = func.ST_MakeEnvelope(bbox.west, bbox.south, bbox.east, bbox.north, GEOJSON_SRID)
+    def _list_features(
+        self,
+        *,
+        table: Table,
+        run_id: uuid.UUID,
+        working_srid: int,
+        bbox: SourceLayerBbox,
+        limit: int,
+        property_columns: Sequence[ColumnElement[object]],
+    ) -> list[BlockParcelFeature]:
+        wgs84_envelope = func.ST_MakeEnvelope(
+            bbox.west,
+            bbox.south,
+            bbox.east,
+            bbox.north,
+            GEOJSON_SRID,
+        )
         working_envelope = func.ST_Transform(wgs84_envelope, working_srid)
-        geometry_geojson = func.ST_AsGeoJSON(func.ST_Transform(table.c.geometry, GEOJSON_SRID), 9).label("geometry_geojson")
-        columns = [table.c.id, table.c.attributes_json, geometry_geojson, *(table.c[name] for name in property_columns)]
-        rows = self._session.execute(
-            select(*columns).where(
+        geometry_geojson = func.ST_AsGeoJSON(
+            func.ST_Transform(table.c.geometry, GEOJSON_SRID),
+            9,
+        ).label("geometry_geojson")
+        columns = [
+            table.c.id,
+            table.c.attributes_json,
+            geometry_geojson,
+            *property_columns,
+        ]
+        statement = (
+            select(*columns)
+            .where(
                 table.c.run_id == run_id,
                 table.c.geometry.op("&&")(working_envelope),
                 func.ST_Intersects(table.c.geometry, working_envelope),
-            ).order_by(table.c.id).limit(limit)
-        ).mappings().all()
-        result: list[BlockParcelFeature] = []
+            )
+            .order_by(table.c.id)
+            .limit(limit)
+        )
+        rows = self._session.execute(statement).mappings().all()
+
+        features: list[BlockParcelFeature] = []
         for row in rows:
             properties = _attributes(row["attributes_json"])
-            for name in property_columns:
+            for column in property_columns:
+                name = column.key
                 value = row[name]
                 properties[name] = str(value) if isinstance(value, uuid.UUID) else value
-            result.append(BlockParcelFeature(id=row["id"], geometry=_parse_geojson_geometry(row["geometry_geojson"]), properties=properties))
-        return result
+            features.append(
+                BlockParcelFeature(
+                    id=row["id"],
+                    geometry=_parse_geojson_geometry(row["geometry_geojson"]),
+                    properties=properties,
+                )
+            )
+        return features
