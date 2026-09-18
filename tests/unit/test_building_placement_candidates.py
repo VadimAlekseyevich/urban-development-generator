@@ -13,18 +13,17 @@ from core.urban_generator.buildings import (
     BuildingPlacementCandidatePolicy,
     BuildingPlacementFrontage,
 )
-from core.urban_generator.domain import ValidationReport
-
 WORKING_SRID = 3857
 
 
-def _ready_envelope(geometry=box(0, 0, 40, 20)) -> BuildingEnvelopeResult:
+def _ready_envelope(geometry=None) -> BuildingEnvelopeResult:
+    resolved_geometry = geometry if geometry is not None else box(0, 0, 40, 20)
     return BuildingEnvelopeResult(
         source_id="parcel:test",
         source_kind=BuildingEnvelopeSourceKind.PARCEL,
         working_srid=WORKING_SRID,
         status=BuildingEnvelopeStatus.READY,
-        candidate_geometry=geometry,
+        candidate_geometry=resolved_geometry,
         constraint_reports=(),
     )
 
@@ -150,7 +149,7 @@ def test_non_ready_envelope_and_off_boundary_frontage_are_rejected() -> None:
         source_id="parcel:test",
         source_kind=BuildingEnvelopeSourceKind.PARCEL,
         working_srid=WORKING_SRID,
-        status=BuildingEnvelopeStatus.HARD_CONSTRAINT_FAILED,
+        status=BuildingEnvelopeStatus.BELOW_MINIMUM_AREA,
         candidate_geometry=box(0, 0, 20, 20),
         constraint_reports=(),
     )
