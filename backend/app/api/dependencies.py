@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from backend.app.adapters import LocalArtifactStore
+from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
@@ -12,6 +13,9 @@ from backend.app.application.uploads import UploadService
 from backend.app.application.zoning_layers import ZoningLayerQueryService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
+from backend.app.db.block_parcel_layer_query_repository import (
+    SqlAlchemyBlockParcelLayerQueryRepository,
+)
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
 from backend.app.db.session import get_db
@@ -59,6 +63,22 @@ def get_road_layer_query_service(db: DbSession) -> RoadLayerQueryService:
 RoadLayerQueryServiceDep = Annotated[
     RoadLayerQueryService,
     Depends(get_road_layer_query_service),
+]
+
+
+def get_block_parcel_layer_query_service(
+    db: DbSession,
+) -> BlockParcelLayerQueryService:
+    """Compose the generated block/parcel viewport query service."""
+
+    return BlockParcelLayerQueryService(
+        SqlAlchemyBlockParcelLayerQueryRepository(db)
+    )
+
+
+BlockParcelLayerQueryServiceDep = Annotated[
+    BlockParcelLayerQueryService,
+    Depends(get_block_parcel_layer_query_service),
 ]
 
 
