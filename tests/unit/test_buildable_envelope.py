@@ -94,25 +94,27 @@ def _context(*, working_srid: int = WORKING_SRID) -> RunContext:
 
 
 def _source(
-    geometry=box(0, 0, 20, 20),
+    geometry=None,
     *,
     working_srid: int = WORKING_SRID,
 ) -> BuildingEnvelopeSource:
+    resolved_geometry = geometry if geometry is not None else box(0, 0, 20, 20)
     return BuildingEnvelopeSource(
         source_id="parcel:test",
         source_kind=BuildingEnvelopeSourceKind.PARCEL,
-        geometry=geometry,
+        geometry=resolved_geometry,
         working_srid=working_srid,
     )
 
 
 def _mask(
-    geometry=box(0, 0, 20, 20),
+    geometry=None,
     *,
     working_srid: int = WORKING_SRID,
 ) -> BuildingDevelopableMask:
+    resolved_geometry = geometry if geometry is not None else box(0, 0, 20, 20)
     return BuildingDevelopableMask(
-        geometry=geometry,
+        geometry=resolved_geometry,
         working_srid=working_srid,
     )
 
