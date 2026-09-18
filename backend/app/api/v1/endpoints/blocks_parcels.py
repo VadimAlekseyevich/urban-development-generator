@@ -9,7 +9,7 @@ from backend.app.application.block_parcel_layers import (
     MAX_BLOCK_PARCEL_LAYER_LIMIT,
     BlockParcelLayerProjectNotFoundError,
     BlockParcelLayerQueryError,
-    BlockParcelLayerQueryResult,
+    BlockParcelQueryResult,
     BlockParcelLayerRunNotFoundError,
 )
 from backend.app.schemas.block_parcel_layer import (
@@ -89,7 +89,7 @@ def get_parcels_geojson(
 
 
 def _geojson_response(
-    loader: Callable[[], BlockParcelLayerQueryResult],
+    loader: Callable[[], BlockParcelQueryResult],
 ) -> BlockParcelGeoJSONResponse:
     try:
         result = loader()
