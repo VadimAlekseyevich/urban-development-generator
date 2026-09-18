@@ -6,12 +6,38 @@ from core.urban_generator.buildings.config import (
     BuildingFootprintStrategy,
     BuildingPlacementScope,
 )
+from core.urban_generator.buildings.envelope import (
+    DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS,
+    DEFAULT_MAX_ENVELOPE_PARTS,
+    BuildableEnvelopeBuilder,
+    BuildingDevelopableMask,
+    BuildingEnvelopeConstraintReport,
+    BuildingEnvelopeError,
+    BuildingEnvelopePolicy,
+    BuildingEnvelopeResult,
+    BuildingEnvelopeSource,
+    BuildingEnvelopeSourceKind,
+    BuildingEnvelopeStatus,
+    EngineBuildingEnvelopeConstraintEvaluator,
+)
 
 __all__ = [
+    "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
+    "DEFAULT_MAX_ENVELOPE_PARTS",
+    "BuildableEnvelopeBuilder",
     "BuildingArchetype",
     "BuildingArchetypeConfig",
     "BuildingConfig",
     "BuildingConfigError",
+    "BuildingDevelopableMask",
+    "BuildingEnvelopeConstraintReport",
+    "BuildingEnvelopeError",
+    "BuildingEnvelopePolicy",
+    "BuildingEnvelopeResult",
+    "BuildingEnvelopeSource",
+    "BuildingEnvelopeSourceKind",
+    "BuildingEnvelopeStatus",
     "BuildingFootprintStrategy",
     "BuildingPlacementScope",
+    "EngineBuildingEnvelopeConstraintEvaluator",
 ]
