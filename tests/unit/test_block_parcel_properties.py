@@ -18,6 +18,7 @@ from core.urban_generator.blocks import (
     BlockZoneReference,
     CandidateBlock,
     CleanedBlockCandidate,
+    DevelopableBlockCandidate,
     DevelopableBlockClipper,
     OversizedBlockSplitPolicy,
     OversizedBlockSplitter,
@@ -250,10 +251,7 @@ def test_oversized_split_respects_area_and_depth_bounds_across_sizes(width_m: fl
         blocks=(
             # T05 consumes T02 geometry through metrics/frontage; this fixture keeps the
             # source fragment identity stable while varying only its metric size.
-            __import__(
-                "core.urban_generator.blocks",
-                fromlist=["DevelopableBlockCandidate"],
-            ).DevelopableBlockCandidate(
+            DevelopableBlockCandidate(
                 block_id="block:input",
                 source_block_id="source:input",
                 source_fragment_index=0,
