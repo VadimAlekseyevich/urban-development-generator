@@ -36,15 +36,6 @@ from core.urban_generator.buildings.footprint import (
     RectangularPointFootprintSpec,
     RectangularPointFootprintStrategy,
 )
-from core.urban_generator.buildings.perimeter_courtyard import (
-    PerimeterCourtyardFootprintError,
-    PerimeterCourtyardFootprintResult,
-    PerimeterCourtyardFootprintSpec,
-    PerimeterCourtyardFootprintStatus,
-    PerimeterCourtyardFootprintStrategy,
-    PerimeterCourtyardKind,
-    PerimeterOpeningSide,
-)
 from core.urban_generator.buildings.orientation import (
     DEFAULT_MAX_ORIENTATION_AXES,
     BuildingOrientationAxis,
@@ -53,6 +44,15 @@ from core.urban_generator.buildings.orientation import (
     BuildingOrientationResult,
     BuildingOrientationSource,
     BuildingOrientationStrategy,
+)
+from core.urban_generator.buildings.perimeter_courtyard import (
+    PerimeterCourtyardFootprintError,
+    PerimeterCourtyardFootprintResult,
+    PerimeterCourtyardFootprintSpec,
+    PerimeterCourtyardFootprintStatus,
+    PerimeterCourtyardFootprintStrategy,
+    PerimeterCourtyardKind,
+    PerimeterOpeningSide,
 )
 from core.urban_generator.buildings.placement import (
     DEFAULT_MAX_FRONTAGE_SAMPLES,
