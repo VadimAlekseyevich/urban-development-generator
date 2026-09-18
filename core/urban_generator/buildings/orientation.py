@@ -286,7 +286,7 @@ def _principal_axis(geometry: BaseGeometry) -> LineString:
         )
     coordinates = tuple(rectangle.exterior.coords)
     edges: list[tuple[float, float, tuple[float, float], tuple[float, float]]] = []
-    for start, end in zip(coordinates, coordinates[1:]):
+    for start, end in zip(coordinates, coordinates[1:], strict=False):
         line = LineString((start, end))
         length = float(line.length)
         if length <= 0.0:
