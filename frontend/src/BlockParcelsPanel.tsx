@@ -10,6 +10,7 @@ import type {
   GeoJSONSource,
   Map as MapLibreMap,
   MapGeoJSONFeature,
+  MapMouseEvent,
 } from 'maplibre-gl'
 
 import {
@@ -314,7 +315,7 @@ export function BlockParcelsPanel({
   useEffect(() => {
     if (!map) return
 
-    const handleClick = (event: maplibregl.MapMouseEvent): void => {
+    const handleClick = (event: MapMouseEvent): void => {
       const layerIds = [
         ...(parcelsVisible ? [PARCEL_FILL_ID, PARCEL_LINE_ID] : []),
         ...(blocksVisible ? [BLOCK_FILL_ID, BLOCK_LINE_ID] : []),
