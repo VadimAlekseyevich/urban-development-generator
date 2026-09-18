@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -8,6 +9,7 @@ from backend.app.application.block_parcel_layers import (
     MAX_BLOCK_PARCEL_LAYER_LIMIT,
     BlockParcelLayerProjectNotFoundError,
     BlockParcelLayerQueryError,
+    BlockParcelLayerQueryResult,
     BlockParcelLayerRunNotFoundError,
 )
 from backend.app.schemas.block_parcel_layer import (
@@ -29,7 +31,10 @@ def list_block_runs(
     try:
         runs = service.list_runs(project_id=project_id)
     except BlockParcelLayerProjectNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     return [BlockParcelRunSummaryResponse.model_validate(run) for run in runs]
 
 
@@ -42,7 +47,11 @@ def get_blocks_geojson(
     run_id: uuid.UUID,
     service: BlockParcelLayerQueryServiceDep,
     bbox: str = Query(..., description="west,south,east,north in EPSG:4326"),
-    limit: int = Query(DEFAULT_BLOCK_PARCEL_LAYER_LIMIT, ge=1, le=MAX_BLOCK_PARCEL_LAYER_LIMIT),
+    limit: int = Query(
+        DEFAULT_BLOCK_PARCEL_LAYER_LIMIT,
+        ge=1,
+        le=MAX_BLOCK_PARCEL_LAYER_LIMIT,
+    ),
 ) -> BlockParcelGeoJSONResponse:
     return _geojson_response(
         lambda: service.get_blocks(
@@ -63,7 +72,11 @@ def get_parcels_geojson(
     run_id: uuid.UUID,
     service: BlockParcelLayerQueryServiceDep,
     bbox: str = Query(..., description="west,south,east,north in EPSG:4326"),
-    limit: int = Query(DEFAULT_BLOCK_PARCEL_LAYER_LIMIT, ge=1, le=MAX_BLOCK_PARCEL_LAYER_LIMIT),
+    limit: int = Query(
+        DEFAULT_BLOCK_PARCEL_LAYER_LIMIT,
+        ge=1,
+        le=MAX_BLOCK_PARCEL_LAYER_LIMIT,
+    ),
 ) -> BlockParcelGeoJSONResponse:
     return _geojson_response(
         lambda: service.get_parcels(
@@ -75,11 +88,16 @@ def get_parcels_geojson(
     )
 
 
-def _geojson_response(loader) -> BlockParcelGeoJSONResponse:
+def _geojson_response(
+    loader: Callable[[], BlockParcelLayerQueryResult],
+) -> BlockParcelGeoJSONResponse:
     try:
         result = loader()
     except BlockParcelLayerRunNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except BlockParcelLayerQueryError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
