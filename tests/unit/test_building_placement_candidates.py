@@ -13,6 +13,8 @@ from core.urban_generator.buildings import (
     BuildingPlacementCandidatePolicy,
     BuildingPlacementFrontage,
 )
+
+
 WORKING_SRID = 3857
 
 
