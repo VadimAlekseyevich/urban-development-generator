@@ -7,6 +7,7 @@ from enum import StrEnum
 
 from shapely.affinity import rotate
 from shapely.geometry import LineString, Point, Polygon, box
+from shapely.geometry.base import BaseGeometry
 
 from core.urban_generator.buildings.config import BuildingFootprintStrategy
 from core.urban_generator.buildings.envelope import (
@@ -156,6 +157,11 @@ class BarFootprintResult:
             raise BarFootprintError(
                 "proposed_geometry must be non-empty, valid and 2D"
             )
+        area = float(self.proposed_geometry.area)
+        if not math.isfinite(area) or area <= 0.0:
+            raise BarFootprintError(
+                "proposed_geometry must have positive finite area"
+            )
 
     @property
     def is_ready(self) -> bool:
@@ -232,7 +238,7 @@ class BarFrontageFootprintStrategy:
         envelope: BuildingEnvelopeResult,
         axis: BarFootprintAxis,
         spec: BarFootprintSpec,
-    ):
+    ) -> BaseGeometry:
         if not isinstance(candidate, BuildingPlacementCandidate):
             raise BarFootprintError(
                 "candidate must be a BuildingPlacementCandidate"
@@ -286,7 +292,7 @@ class BarFrontageFootprintStrategy:
         self,
         *,
         candidate: BuildingPlacementCandidate,
-        envelope_geometry,
+        envelope_geometry: BaseGeometry,
         angle_degrees: float,
         spec: BarFootprintSpec,
     ) -> tuple[Point, Polygon, BuildingFootprintStatus]:
