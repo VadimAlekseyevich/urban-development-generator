@@ -13,6 +13,7 @@ import maplibregl, {
   type MapGeoJSONFeature,
 } from 'maplibre-gl'
 
+import { BlockParcelsPanel } from './BlockParcelsPanel'
 import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ZoningPanel } from './ZoningPanel'
@@ -606,6 +607,12 @@ function App() {
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
           datasetVersionId={context?.datasetVersionId ?? null}
+        />
+
+        <BlockParcelsPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
         />
 
         <section className="panel inspector-panel">
