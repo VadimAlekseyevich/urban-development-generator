@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Callable
 
 from shapely import normalize
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon
