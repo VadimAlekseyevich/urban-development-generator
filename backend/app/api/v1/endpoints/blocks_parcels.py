@@ -9,8 +9,8 @@ from backend.app.application.block_parcel_layers import (
     MAX_BLOCK_PARCEL_LAYER_LIMIT,
     BlockParcelLayerProjectNotFoundError,
     BlockParcelLayerQueryError,
-    BlockParcelQueryResult,
     BlockParcelLayerRunNotFoundError,
+    BlockParcelQueryResult,
 )
 from backend.app.schemas.block_parcel_layer import (
     BlockParcelGeoJSONResponse,
