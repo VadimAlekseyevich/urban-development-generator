@@ -1,4 +1,4 @@
-    "DEFAULT_MAX_DEMOGRAPHIC_AGGREGATION_BUILDINGS",\n    "BlockDemographicAggregate",\n    "BuildingAggregationRef",\n    "DemographicAggregationError",\n    "DemographicAggregationResult",\n    "DemographicAggregationTotals",\n    "DemographicAggregator",\n    "ZoneDemographicAggregate",\nfrom core.urban_generator.demography.age_allocation import (
+from core.urban_generator.demography.age_allocation import (
     DEFAULT_MAX_AGE_ALLOCATION_BUILDINGS,
     DEFAULT_MAX_AGE_GROUPS,
     AgeGroupAllocationError,
@@ -55,6 +55,13 @@ from core.urban_generator.demography.employment import (
 )
 
 __all__ = [
+    "BlockDemographicAggregate",
+    "BuildingAggregationRef",
+    "DEFAULT_MAX_DEMOGRAPHIC_AGGREGATION_BUILDINGS",
+    "DemographicAggregationError",
+    "DemographicAggregationResult",
+    "DemographicAggregationTotals",
+    "DemographicAggregator",
     "AgeGroupAllocationError",
     "AgeGroupAllocationResult",
     "AgeGroupAllocationTotal",
@@ -90,4 +97,5 @@ __all__ = [
     "ResidentialCapacityError",
     "ResidentialCapacityResult",
     "ResidentialCapacitySubject",
+    "ZoneDemographicAggregate",
 ]
