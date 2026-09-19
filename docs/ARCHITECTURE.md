@@ -292,6 +292,22 @@ count.
 T06 не выполняет raster calibration или redistribution, persistence/API/UI и demand
 mapping; population-raster adapter начинается с S09-T07.
 
+## Population raster calibration adapter boundary
+
+S09-T07 добавляет optional `PopulationRasterSource`/sampler и не меняет base
+demographic pipeline S09-T01–T06. Source contract содержит только working CRS, raster
+dimensions, metric cell area, value semantics и bounded `read_window`; core demography
+не открывает GeoTIFF и не зависит от rasterio.
+
+Поддерживаются явные value kinds `population_per_cell` и `density_per_km2`, которые
+нормализуются в sampled population и mean density. До первого read проверяются subject,
+window и total-cell limits, bounds и CRS. Nodata policy явный; all-nodata sample
+возвращает zero values и `has_valid_data=False`, без NaN/Inf. Перекрывающиеся windows
+одного subject запрещены для защиты от double counting.
+
+T07 возвращает только external calibration evidence. Изменение spatial distribution с
+сохранением demographic totals является S09-T08.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
