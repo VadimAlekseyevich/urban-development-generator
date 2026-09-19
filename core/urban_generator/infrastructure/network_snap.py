@@ -14,7 +14,6 @@ from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
 from core.urban_generator.infrastructure.existing import ExistingInfrastructureFacility
 from core.urban_generator.infrastructure.site_geometry import InfrastructureCandidateGeometry
 
-
 MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE = 100_000
 
 
