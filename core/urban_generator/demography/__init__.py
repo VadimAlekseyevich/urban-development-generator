@@ -53,7 +53,6 @@ from core.urban_generator.demography.employment import (
     EmploymentSubject,
     JobDensityRule,
 )
-
 from core.urban_generator.demography.population_raster import (
     DEFAULT_MAX_POPULATION_RASTER_SAMPLE_CELLS,
     DEFAULT_MAX_POPULATION_RASTER_SUBJECTS,
@@ -70,6 +69,7 @@ from core.urban_generator.demography.population_raster import (
     PopulationRasterValueKind,
     PopulationRasterWindow,
 )
+
 __all__ = [
     "DEFAULT_MAX_POPULATION_RASTER_SAMPLE_CELLS",
     "DEFAULT_MAX_POPULATION_RASTER_SUBJECTS",
