@@ -1,10 +1,13 @@
 # Infrastructure network-snap contract
 
+> **Status: Implemented — S10-T06 / UG-AI-015..019**
+
 S10-T06 starts by defining the typed boundary between infrastructure subjects and the canonical
 road-network port.
 
-This document covers the S10-T06 contract through **UG-AI-018**. It defines typed records,
-policy/diagnostics semantics, the bounded deterministic batch executor and acceptance coverage.
+This document covers the complete S10-T06 contract through **UG-AI-019**. It defines typed
+records, policy/diagnostics semantics, the bounded deterministic batch executor, acceptance
+coverage and the enforced ownership boundary.
 
 ## Stable subject references
 
@@ -100,17 +103,41 @@ UG-AI-018 proves the executor against a real `NetworkXBackend` adapter for:
 - mixed snapped/unsnapped batches;
 - complete result equality under input permutation.
 
-## Deferred to UG-AI-019
+## Ownership boundary
 
-UG-AI-019 owns the final T06 boundary documentation and static prohibition of direct
-NetworkX/SpatialSnapIndex use from infrastructure.
+Infrastructure owns subject identity, metric snap inputs, tolerance/batch policy, deterministic
+ordering and typed diagnostics. It depends on the backend-independent network domain port only.
 
-This keeps T06 layered as:
+Production modules under `core/urban_generator/infrastructure/` must not:
+
+- import `networkx` directly;
+- import `core.urban_generator.roads.spatial_snapping` directly;
+- import or construct `SpatialSnapIndex`;
+- implement a second network nearest-node index or graph-specific tie-breaking path.
+
+NetworkX graph ownership and `SpatialSnapIndex` stay inside the road-network adapter layer.
+Infrastructure requests snapping only through `NetworkBackend.snap()` and receives only canonical
+domain records such as `NetworkNodeRef` and `NetworkSnapResult`.
+
+The acceptance test module may instantiate the real `NetworkXBackend` to prove port behavior; that
+does not move NetworkX into production infrastructure code.
+
+The rule is executable:
+`tests/unit/test_architecture_boundaries.py::test_infrastructure_network_snap_does_not_bypass_network_backend`
+fails required pytest CI if infrastructure imports NetworkX or `SpatialSnapIndex` directly.
+
+## S10-T06 completion
+
+UG-AI-015..019 are complete when required HEAD CI is green. T06 remains layered as:
 
 ```text
 typed subject/ref records
  -> explicit snap policy/bounds
  -> bounded deterministic NetworkBackend.snap() adapter
  -> acceptance/permutation tests
- -> final boundary documentation
+ -> enforced NetworkBackend-only boundary
 ```
+
+The next ordered capability is **UG-AI-020 / S10-T07**, which defines the accessibility
+query/result contract. T07 may consume T06 snap results but must not move pathfinding into the
+placement loop.

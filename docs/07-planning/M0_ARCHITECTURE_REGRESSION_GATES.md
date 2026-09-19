@@ -13,6 +13,7 @@
 | core has no HTTP/ORM/Redis/worker dependency | `tests/unit/test_architecture_boundaries.py::test_core_does_not_import_application_or_infrastructure_frameworks` |
 | legacy second pipeline cannot return | `tests/unit/test_architecture_boundaries.py::test_legacy_second_pipeline_model_does_not_return` |
 | NetworkX remains behind its adapter | `tests/unit/test_architecture_boundaries.py::test_networkx_is_confined_to_the_network_adapter` |
+| infrastructure snapping cannot import NetworkX or `SpatialSnapIndex` directly | `tests/unit/test_architecture_boundaries.py::test_infrastructure_network_snap_does_not_bypass_network_backend` |
 | canonical stage catalog is unique and dependency ordered | `tests/unit/test_stage_catalog.py::test_canonical_stage_catalog_is_unique_and_dependency_ordered` |
 | every implemented adapter satisfies `Stage` and catalog dependencies | `tests/unit/test_stage_catalog.py::test_all_implemented_stage_adapters_satisfy_canonical_protocol` |
 | persisted stage identity matches canonical metadata and output provenance | `tests/unit/test_stage_persistence_boundary.py` |

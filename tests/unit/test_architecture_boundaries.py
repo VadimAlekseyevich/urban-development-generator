@@ -2,8 +2,14 @@ import ast
 from pathlib import Path
 
 CORE_ROOT = Path(__file__).resolve().parents[2] / "core" / "urban_generator"
+INFRASTRUCTURE_ROOT = CORE_ROOT / "infrastructure"
 FORBIDDEN_CORE_IMPORT_ROOTS = {"fastapi", "sqlalchemy", "redis", "arq", "backend", "worker"}
 LEGACY_PIPELINE_SYMBOLS = {"PipelineStage", "GenerationPipeline"}
+FORBIDDEN_INFRASTRUCTURE_NETWORK_MODULE_PREFIXES = (
+    "networkx",
+    "core.urban_generator.roads.spatial_snapping",
+)
+FORBIDDEN_INFRASTRUCTURE_NETWORK_SYMBOLS = {"SpatialSnapIndex"}
 
 
 def _python_files() -> tuple[Path, ...]:
@@ -52,5 +58,46 @@ def test_networkx_is_confined_to_the_network_adapter() -> None:
             continue
         if "networkx" in _import_roots(path):
             violations.append(str(relative))
+
+    assert violations == []
+
+
+def _forbidden_infrastructure_network_imports(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    violations: set[str] = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if any(
+                    alias.name == prefix or alias.name.startswith(f"{prefix}.")
+                    for prefix in FORBIDDEN_INFRASTRUCTURE_NETWORK_MODULE_PREFIXES
+                ):
+                    violations.add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if any(
+                module == prefix or module.startswith(f"{prefix}.")
+                for prefix in FORBIDDEN_INFRASTRUCTURE_NETWORK_MODULE_PREFIXES
+            ):
+                violations.add(module)
+            violations.update(
+                alias.name
+                for alias in node.names
+                if alias.name in FORBIDDEN_INFRASTRUCTURE_NETWORK_SYMBOLS
+            )
+
+    return violations
+
+
+def test_infrastructure_network_snap_does_not_bypass_network_backend() -> None:
+    violations: list[str] = []
+
+    for path in sorted(INFRASTRUCTURE_ROOT.rglob("*.py")):
+        forbidden = sorted(_forbidden_infrastructure_network_imports(path))
+        if forbidden:
+            violations.append(
+                f"{path.relative_to(CORE_ROOT)}: {', '.join(forbidden)}"
+            )
 
     assert violations == []

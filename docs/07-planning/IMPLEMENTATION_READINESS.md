@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. The current ordered task is **UG-AI-019 / S10-T06**.
+The repository is architecture-ready for S10 feature development. S10-T06 is complete; the current ordered task is **UG-AI-020 / S10-T07**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -73,7 +73,7 @@ Do not pull these forward merely because M0 is complete:
 - production reliability/performance hardening — S14;
 - experiments/research/demo package — S15.
 
-## 5. Ready contract for S10-T06
+## 5. Completed contract for S10-T06
 
 S10-T06 must:
 
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-019 / S10-T06
-Document the final T06 boundary and prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.
+UG-AI-020 / S10-T07
+Define the accessibility query/result contract keyed by infrastructure type, demand ref and facility/site ref.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.

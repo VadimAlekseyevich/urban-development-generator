@@ -52,7 +52,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-016** — **S10-T06** — Define max snap distance, metric CRS compatibility, unsnapped reason/diagnostic semantics and batch-size bound.
 - [x] **UG-AI-017** — **S10-T06** — Implement deterministic bounded batch snapping exclusively through NetworkBackend.snap().
 - [x] **UG-AI-018** — **S10-T06** — Add exact-hit/tie/outside-limit/empty-network/mixed-result tests; prove input permutation does not change identity/results.
-- [ ] **UG-AI-019** — **S10-T06** — Document T06 boundary and explicitly prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.
+- [x] **UG-AI-019** — **S10-T06** — Document T06 boundary and explicitly prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.
 - [ ] **UG-AI-020** — **S10-T07** — Define accessibility query/result contract keyed by infrastructure type, demand ref and facility/site ref.
 - [ ] **UG-AI-021** — **S10-T07** — Implement bounded existing-facility accessibility using NetworkBackend multi-source distance operations and type max-distance cutoffs.
 - [ ] **UG-AI-022** — **S10-T07** — Implement candidate-site accessibility in batches without all-pairs materialization beyond configured bounds.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..018 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-019. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..019 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-020. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
