@@ -2,19 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from core.urban_generator.demography.age_allocation import AgeGroupPopulation
-from core.urban_generator.demography.aggregation import (
+from core.urban_generator.demography import (
+    AgeGroupPopulation,
     BlockDemographicAggregate,
     DemographicAggregationResult,
     DemographicAggregationTotals,
-    ZoneDemographicAggregate,
-)
-from core.urban_generator.demography.population_raster import (
     PopulationRasterSample,
     PopulationRasterSamplingResult,
     PopulationRasterValueKind,
-)
-from core.urban_generator.demography.spatial_calibration import (
     SpatialCalibrationError,
     SpatialCalibrationPolicy,
     SpatialDemographicCalibrator,
