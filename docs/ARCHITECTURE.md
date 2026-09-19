@@ -116,6 +116,8 @@ S08-T09 вводит `BuildingPlacementConverger` как bounded greedy loop п�
 
 Convergence ведётся одновременно по двум target windows относительно явной `site_area_m2`: coverage и FAR. `BuildingPlacementBaseline` позволяет включить уже существующую fixed/generated интенсивность в стартовые метрики. Proposal принимается только если проходит S08-T08 spacing относительно existing footprints и всех ранее принятых proposals и не выводит coverage/FAR выше соответствующей верхней границы tolerance window. Проход завершается как `CONVERGED`, `CANDIDATES_EXHAUSTED` или `MAX_ITERATIONS`; diagnostics сохраняют initial/final значения, unmet/excess target deltas и причины rejection.
 
+Так как Shapely `STRtree` immutable, accepted footprints не добавляются через полный rebuild общего индекса после каждого здания. Existing footprints индексируются один раз, а новые accepted footprints хранятся в immutable power-of-two chunks: при совпадении размеров два chunks сливаются. Поэтому один footprint переиндексируется не более O(log N) раз, а spacing query проверяет base index и O(log N) chunk indexes; это сохраняет S08-T08 exact spacing semantics без квадратичной последовательности полных rebuild.
+
 Поле `planning_floor_area_multiplier` является только provisional planning intensity для FAR convergence. Оно не является назначенной этажностью и не считается финальным GFA. S08-T10 остаётся единственным местом назначения floors/use, а S08-T11 — авторитетного расчёта footprint area/GFA и итоговых coverage/FAR metrics. Если T10/T11 выявляют расхождение с planning target, оно должно быть явно диагностировано, а не скрыто изменением геометрии.
 
 ## Building attribute assignment boundary
@@ -151,6 +153,24 @@ clamp-ит некорректную coverage: если суммарная footpr
 
 T11 не сохраняет результаты в БД и не добавляет API/UI; persistence остаётся S08-T12.
 Также T11 не переоценивает use/floors и не меняет geometry.
+
+## Generated building persistence boundary
+
+S08-T12 специализирует `generated_buildings` как run-scoped persistence результата
+building stage. SQLAlchemy adapter принимает T10 assignments, T11 authoritative area/GFA
+и исходные `BuildingAreaSubject`, проверяет их полное совпадение до любых destructive
+операций и только затем атомарно заменяет rows незавершённого run.
+
+Core `source_id` не заменяется DB UUID. Persistence adapter разрешает его внутри
+конкретного run по `GeneratedParcel.parcel_key` или `GeneratedBlock.block_key`;
+parcel-based building хранит одновременно `parcel_id` и родительский `block_id`,
+block-based building — только `block_id`. Database id здания детерминирован как UUID5
+от `run_id` и core `building_id`, поэтому retry сохраняет идентичность rows.
+
+В typed columns сохраняются building/source refs, zone, archetype, use, floors,
+footprint area и GFA; config/assignment provenance остаётся в `attributes_json`.
+Геометрия обязана быть `POLYGON` в `GenerationRun.working_srid`. Writer блокирует
+успешный run, пишет bounded chunks и не реализует API/UI — это граница S08-T13.
 
 ## Обязательный конечный продукт
 
