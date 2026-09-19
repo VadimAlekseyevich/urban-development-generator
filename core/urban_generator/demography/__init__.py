@@ -1,4 +1,4 @@
-from core.urban_generator.demography.age_allocation import (
+    "DEFAULT_MAX_DEMOGRAPHIC_AGGREGATION_BUILDINGS",\n    "BlockDemographicAggregate",\n    "BuildingAggregationRef",\n    "DemographicAggregationError",\n    "DemographicAggregationResult",\n    "DemographicAggregationTotals",\n    "DemographicAggregator",\n    "ZoneDemographicAggregate",\nfrom core.urban_generator.demography.age_allocation import (
     DEFAULT_MAX_AGE_ALLOCATION_BUILDINGS,
     DEFAULT_MAX_AGE_GROUPS,
     AgeGroupAllocationError,
@@ -7,6 +7,16 @@ from core.urban_generator.demography.age_allocation import (
     AgeGroupAllocator,
     AgeGroupPopulation,
     BuildingAgeGroupAllocation,
+)
+from core.urban_generator.demography.aggregation import (
+    DEFAULT_MAX_DEMOGRAPHIC_AGGREGATION_BUILDINGS,
+    BlockDemographicAggregate,
+    BuildingAggregationRef,
+    DemographicAggregationError,
+    DemographicAggregationResult,
+    DemographicAggregationTotals,
+    DemographicAggregator,
+    ZoneDemographicAggregate,
 )
 from core.urban_generator.demography.allocation import (
     DEFAULT_MAX_POPULATION_ALLOCATION_BUILDINGS,
