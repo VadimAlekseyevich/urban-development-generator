@@ -135,6 +135,23 @@ T10 не принимает и не изменяет geometry и не вычис
 отдельно от placement geometry, а расхождение с provisional FAR target S08-T09 остаётся
 наблюдаемым, а не маскируется повторной геометрической генерацией.
 
+## Building area and GFA metrics boundary
+
+S08-T11 является авторитетным numeric stage для building intensity. Для каждого
+`BuildingAreaSubject` площадь footprint берётся непосредственно из polygonal geometry в
+явной metric `WorkingCRS`, а `gfa_m2` вычисляется как
+`footprint_area_m2 × assigned floors` из результата S08-T10.
+
+Aggregate summary принимает явную `site_area_m2` и, при необходимости,
+`BuildingAreaBaseline` с уже измеренными fixed-state footprint/GFA. Coverage считается
+как `total_footprint_area / site_area`, FAR — как `total_gfa / site_area`.
+Калькулятор не использует provisional `planning_floor_area_multiplier` из S08-T09 и не
+clamp-ит некорректную coverage: если суммарная footprint area превышает site area,
+контракт завершается ошибкой.
+
+T11 не сохраняет результаты в БД и не добавляет API/UI; persistence остаётся S08-T12.
+Также T11 не переоценивает use/floors и не меняет geometry.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.

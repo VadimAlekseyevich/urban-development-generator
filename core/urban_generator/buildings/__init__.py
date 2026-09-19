@@ -1,3 +1,13 @@
+from core.urban_generator.buildings.area_metrics import (
+    DEFAULT_MAX_BUILDING_AREA_SUBJECTS,
+    BuildingAreaBaseline,
+    BuildingAreaCalculationResult,
+    BuildingAreaMetrics,
+    BuildingAreaMetricsCalculator,
+    BuildingAreaMetricsError,
+    BuildingAreaSubject,
+    BuildingAreaSummary,
+)
 from core.urban_generator.buildings.attributes import (
     BUILDING_ATTRIBUTE_ASSIGNMENT_VERSION,
     DEFAULT_MAX_ATTRIBUTE_SUBJECTS,
@@ -106,6 +116,7 @@ from core.urban_generator.buildings.spacing import (
 __all__ = [
     "BUILDING_ATTRIBUTE_ASSIGNMENT_VERSION",
     "DEFAULT_MAX_ATTRIBUTE_SUBJECTS",
+    "DEFAULT_MAX_BUILDING_AREA_SUBJECTS",
     "DEFAULT_MAX_CONVERGENCE_ITERATIONS",
     "DEFAULT_MAX_CONVERGENCE_PROPOSALS",
     "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
@@ -124,6 +135,13 @@ __all__ = [
     "BarFootprintSpec",
     "BarFrontageFootprintStrategy",
     "BuildableEnvelopeBuilder",
+    "BuildingAreaBaseline",
+    "BuildingAreaCalculationResult",
+    "BuildingAreaMetrics",
+    "BuildingAreaMetricsCalculator",
+    "BuildingAreaMetricsError",
+    "BuildingAreaSubject",
+    "BuildingAreaSummary",
     "BuildingArchetype",
     "BuildingArchetypeConfig",
     "BuildingAttributeAssigner",
