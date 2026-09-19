@@ -69,13 +69,12 @@ def _fixture(*, status: str = "running") -> tuple[uuid.UUID, uuid.UUID]:
             session.flush()
             run = GenerationRun(
                 project_id=project.id,
-                status=status,
+                status="running",
                 mode="EXPANSION",
                 seed=42,
                 working_srid=WORKING_SRID,
                 config_json={},
                 config_schema_version="1",
-                commit_sha="a" * 40 if status == "succeeded" else None,
                 metrics_json={"existing": {"value": 1}},
             )
             session.add(run)
@@ -116,6 +115,11 @@ def _fixture(*, status: str = "running") -> tuple[uuid.UUID, uuid.UUID]:
                         geometry=from_shape(geom, srid=WORKING_SRID),
                     )
                 )
+            session.flush()
+            if status == "succeeded":
+                run.commit_sha = "a" * 40
+                run.status = "succeeded"
+                session.flush()
             return run.id, zone.id
 
 
