@@ -429,15 +429,22 @@ def _connected_anchor_pairs(
     growth: RuleBasedRoadGrowthResult,
 ) -> tuple[tuple[str, str], ...]:
     pairs: list[tuple[str, str]] = [
-        tuple(sorted((edge.start_anchor_id, edge.target_anchor_id)))
+        _canonical_anchor_pair(edge.start_anchor_id, edge.target_anchor_id)
         for edge in baseline.edges
         if edge.connected
     ]
     pairs.extend(
-        tuple(sorted((attempt.start_anchor_id, attempt.target_anchor_id)))
+        _canonical_anchor_pair(
+            attempt.start_anchor_id,
+            attempt.target_anchor_id,
+        )
         for attempt in growth.added_edges
     )
     return tuple(sorted(set(pairs)))
+
+
+def _canonical_anchor_pair(first: str, second: str) -> tuple[str, str]:
+    return (first, second) if first <= second else (second, first)
 
 
 def _classify_final_graph(
