@@ -704,8 +704,9 @@ def _resolve_sources(
         key=lambda value: value.cleaned_block.block_id,
     ):
         block_id = item.cleaned_block.block_id
+        zone_id = item.association.zone_id
         zone_class = item.association.zone_class
-        if zone_class is None:
+        if zone_id is None or zone_class is None:
             continue
         profiles = building_config.eligible_archetypes(zone_class)
         parcel_allowed = any(
@@ -730,7 +731,9 @@ def _resolve_sources(
         )
         if block_parcels and parcel_allowed:
             for parcel in block_parcels:
-                if parcel.zone_class is None:
+                zone_id = parcel.zone_id
+                zone_class = parcel.zone_class
+                if zone_id is None or zone_class is None:
                     continue
                 sources.append(
                     _ResolvedBuildingSource(
@@ -745,8 +748,8 @@ def _resolve_sources(
                             working_srid=working_srid,
                         ),
                         block_id=parcel.block_id,
-                        zone_id=parcel.zone_id,
-                        zone_class=parcel.zone_class,
+                        zone_id=zone_id,
+                        zone_class=zone_class,
                         frontages=tuple(
                             BuildingPlacementFrontage(
                                 road_id=frontage.road_id,
@@ -771,7 +774,7 @@ def _resolve_sources(
                         working_srid=working_srid,
                     ),
                     block_id=block_id,
-                    zone_id=item.association.zone_id,
+                    zone_id=zone_id,
                     zone_class=zone_class,
                     frontages=(),
                 )
@@ -972,16 +975,16 @@ def _candidate_footprint(
 ) -> BaseGeometry | None:
     if strategy is BuildingFootprintStrategy.RECTANGULAR_POINT:
         assert isinstance(spec, RectangularPointFootprintSpec)
-        result = RectangularPointFootprintStrategy(
+        rectangular_result = RectangularPointFootprintStrategy(
             working_srid=working_srid
         ).create(
             candidate,
             envelope=envelope,
             spec=spec,
         )
-        if result.status is not BuildingFootprintStatus.READY:
+        if rectangular_result.status is not BuildingFootprintStatus.READY:
             return None
-        geometry: BaseGeometry = result.proposed_geometry
+        geometry: BaseGeometry = rectangular_result.proposed_geometry
         if not math.isclose(
             orientation.angle_degrees,
             0.0,
@@ -1010,7 +1013,7 @@ def _candidate_footprint(
         spec=spec,
         working_srid=working_srid,
     )
-    result = BarFrontageFootprintStrategy(
+    bar_result = BarFrontageFootprintStrategy(
         working_srid=working_srid
     ).create(
         candidate,
@@ -1018,7 +1021,7 @@ def _candidate_footprint(
         axis=axis,
         spec=spec,
     )
-    return result.footprint_geometry
+    return bar_result.footprint_geometry
 
 
 def _bar_axis(
