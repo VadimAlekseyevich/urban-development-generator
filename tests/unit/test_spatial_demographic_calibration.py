@@ -13,6 +13,7 @@ from core.urban_generator.demography import (
     SpatialCalibrationError,
     SpatialCalibrationPolicy,
     SpatialDemographicCalibrator,
+    ZoneDemographicAggregate,
 )
 from core.urban_generator.zoning import ZoneClass
 
