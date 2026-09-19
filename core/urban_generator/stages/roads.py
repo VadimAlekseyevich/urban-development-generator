@@ -10,6 +10,7 @@ from core.urban_generator.domain import (
     RunMode,
     StageDiagnostic,
     StageDiagnosticLevel,
+    StageFingerprint,
     StageResult,
     TerritorySnapshot,
     WorldStateContract,
@@ -427,7 +428,7 @@ def _connected_anchor_pairs(
     baseline: AnchorConnectivityResult,
     growth: RuleBasedRoadGrowthResult,
 ) -> tuple[tuple[str, str], ...]:
-    pairs = [
+    pairs: list[tuple[str, str]] = [
         tuple(sorted((edge.start_anchor_id, edge.target_anchor_id)))
         for edge in baseline.edges
         if edge.connected
@@ -487,7 +488,7 @@ def _fingerprint(
     context: RunContext,
     config: RoadStageConfig,
     output: RoadStageOutput,
-):
+) -> StageFingerprint:
     parts: list[str | bytes] = [
         RoadStage.name,
         RoadStage.version,
