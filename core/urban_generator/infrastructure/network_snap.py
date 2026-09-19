@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TypeAlias
-
 from core.urban_generator.domain import NetworkNodeRef, NetworkPoint
 from core.urban_generator.domain.crs import require_working_crs
 from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
@@ -102,7 +100,7 @@ class InfrastructureCandidateRef:
         return self.candidate_id, self.infrastructure_type_code
 
 
-InfrastructureNetworkSubjectRef: TypeAlias = (
+type InfrastructureNetworkSubjectRef = (
     InfrastructureDemandRef
     | ExistingInfrastructureFacilityRef
     | InfrastructureCandidateRef
@@ -160,7 +158,7 @@ class InfrastructureCandidateSnapInput:
         )
 
 
-InfrastructureNetworkSnapInput: TypeAlias = (
+type InfrastructureNetworkSnapInput = (
     InfrastructureDemandSnapInput
     | ExistingInfrastructureFacilitySnapInput
     | InfrastructureCandidateSnapInput
@@ -218,7 +216,7 @@ class InfrastructureCandidateSnap:
         )
 
 
-InfrastructureNetworkSnap: TypeAlias = (
+type InfrastructureNetworkSnap = (
     InfrastructureDemandSnap
     | ExistingInfrastructureFacilitySnap
     | InfrastructureCandidateSnap
