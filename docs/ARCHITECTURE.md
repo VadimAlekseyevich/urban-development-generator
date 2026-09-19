@@ -116,6 +116,8 @@ S08-T09 вводит `BuildingPlacementConverger` как bounded greedy loop п�
 
 Convergence ведётся одновременно по двум target windows относительно явной `site_area_m2`: coverage и FAR. `BuildingPlacementBaseline` позволяет включить уже существующую fixed/generated интенсивность в стартовые метрики. Proposal принимается только если проходит S08-T08 spacing относительно existing footprints и всех ранее принятых proposals и не выводит coverage/FAR выше соответствующей верхней границы tolerance window. Проход завершается как `CONVERGED`, `CANDIDATES_EXHAUSTED` или `MAX_ITERATIONS`; diagnostics сохраняют initial/final значения, unmet/excess target deltas и причины rejection.
 
+Так как Shapely `STRtree` immutable, accepted footprints не добавляются через полный rebuild общего индекса после каждого здания. Existing footprints индексируются один раз, а новые accepted footprints хранятся в immutable power-of-two chunks: при совпадении размеров два chunks сливаются. Поэтому один footprint переиндексируется не более O(log N) раз, а spacing query проверяет base index и O(log N) chunk indexes; это сохраняет S08-T08 exact spacing semantics без квадратичной последовательности полных rebuild.
+
 Поле `planning_floor_area_multiplier` является только provisional planning intensity для FAR convergence. Оно не является назначенной этажностью и не считается финальным GFA. S08-T10 остаётся единственным местом назначения floors/use, а S08-T11 — авторитетного расчёта footprint area/GFA и итоговых coverage/FAR metrics. Если T10/T11 выявляют расхождение с planning target, оно должно быть явно диагностировано, а не скрыто изменением геометрии.
 
 ## Building attribute assignment boundary
