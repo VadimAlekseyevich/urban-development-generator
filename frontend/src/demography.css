@@ -1,0 +1,97 @@
+.demography-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.demography-select {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.demography-select select,
+.demography-controls select {
+  width: 100%;
+}
+
+.demography-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.demography-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.demography-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.demography-metrics div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.demography-metrics dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.demography-metrics dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.demography-age-list {
+  display: grid;
+  gap: 6px;
+}
+
+.demography-age-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 0.76rem;
+}
+
+.demography-age-list strong {
+  font-size: 0.8rem;
+}
+
+.demography-age-list small {
+  min-width: 42px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.demography-inspector {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.demography-inspector h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}

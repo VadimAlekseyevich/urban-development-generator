@@ -15,6 +15,7 @@ import maplibregl, {
 
 import { BlockParcelsPanel } from './BlockParcelsPanel'
 import { BuildingsPanel } from './BuildingsPanel'
+import { DemographyPanel } from './DemographyPanel'
 import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ZoningPanel } from './ZoningPanel'
@@ -617,6 +618,12 @@ function App() {
         />
 
         <BuildingsPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+        />
+
+        <DemographyPanel
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}

@@ -109,13 +109,13 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая точка реализации в `main` — **Sprint S08 завершён полностью, следующий work item — `S09-T01 — DemographicScenario schema`**.
+Текущая точка реализации в `main` — **S09-T10 Demography metrics/API/UI завершён, следующий work item — `S09-T11 — Numeric/property tests`**.
 
 - полностью реализованы sprint `S00`–`S08`;
-- `S08 Buildings и archetypes` закрыт: `T01`–`T14` реализованы и прошли required CI;
-- следующий этап критического пути — `S09 Demography`;
-- по количеству implementation work items выполнено **111 из 210 (≈52,9%)**, осталось **99 из 210 (≈47,1%)**;
-- после `S09` критический путь продолжается через `S10`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+- в `S09 Demography` завершены `T01`–`T10`: scenario, capacity/allocation, cohorts, jobs/workforce, aggregation, optional raster calibration, demand profile и metrics/API/UI;
+- следующий шаг критического пути — `S09-T11`, после него sprint S09 закрывается;
+- по количеству implementation work items выполнено **121 из 210 (≈57,6%)**, осталось **89 из 210 (≈42,4%)**;
+- после S09 критический путь продолжается через `S10`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
 
 Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.
 
