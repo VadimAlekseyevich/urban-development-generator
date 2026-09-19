@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import networkx as nx
 import pytest
 from shapely.geometry import Point, box
 
@@ -38,6 +39,7 @@ from core.urban_generator.infrastructure import (
     snap_infrastructure_network_batch,
     validate_infrastructure_network_snap_batch,
 )
+from core.urban_generator.roads import NetworkXBackend
 from core.urban_generator.zoning import ZoneClass
 
 WORKING_SRID = 3857
@@ -450,3 +452,175 @@ def test_batch_snapper_rejects_duplicate_subject_identity_before_network_calls()
         )
 
     assert backend.calls == []
+
+
+
+def _real_backend(
+    *,
+    empty: bool = False,
+) -> NetworkXBackend:
+    graph = nx.Graph()
+    if not empty:
+        graph.add_node("a", x_m=0.0, y_m=0.0)
+        graph.add_node("m", x_m=10.0, y_m=0.0)
+        graph.add_node("z", x_m=20.0, y_m=0.0)
+        graph.add_edge("a", "m", length_m=10.0)
+        graph.add_edge("m", "z", length_m=10.0)
+    return NetworkXBackend(
+        graph,
+        snapshot_id="roads:acceptance:v1",
+        working_crs=WorkingCRS(srid=WORKING_SRID),
+    )
+
+
+def _typed_inputs_for_acceptance() -> tuple[
+    InfrastructureDemandSnapInput,
+    ExistingInfrastructureFacilitySnapInput,
+    InfrastructureCandidateSnapInput,
+]:
+    return (
+        InfrastructureDemandSnapInput(
+            ref=InfrastructureDemandRef(
+                block_id="block-exact",
+                infrastructure_type_code="school.general",
+            ),
+            point=NetworkPoint(x_m=0.0, y_m=0.0),
+            working_srid=WORKING_SRID,
+        ),
+        ExistingInfrastructureFacilitySnapInput(
+            ref=ExistingInfrastructureFacilityRef(
+                facility_id="facility-tie",
+                infrastructure_type_code="school.general",
+            ),
+            point=NetworkPoint(x_m=15.0, y_m=0.0),
+            working_srid=WORKING_SRID,
+        ),
+        InfrastructureCandidateSnapInput(
+            ref=InfrastructureCandidateRef(
+                candidate_id="candidate-outside",
+                infrastructure_type_code="school.general",
+            ),
+            point=NetworkPoint(x_m=100.0, y_m=0.0),
+            working_srid=WORKING_SRID,
+        ),
+    )
+
+
+def test_acceptance_exact_hit_returns_zero_distance() -> None:
+    demand = _typed_inputs_for_acceptance()[0]
+
+    result = snap_infrastructure_network_batch(
+        _real_backend(),
+        (demand,),
+        policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=10.0),
+    )
+
+    assert result.snapped == (
+        InfrastructureDemandSnap(
+            ref=demand.ref,
+            node=NetworkNodeRef(node_id="a"),
+            distance_m=0.0,
+        ),
+    )
+    assert result.unsnapped == ()
+
+
+def test_acceptance_equal_distance_tie_uses_stable_network_node_id() -> None:
+    facility = _typed_inputs_for_acceptance()[1]
+
+    result = snap_infrastructure_network_batch(
+        _real_backend(),
+        (facility,),
+        policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=5.0),
+    )
+
+    assert result.snapped == (
+        ExistingInfrastructureFacilitySnap(
+            ref=facility.ref,
+            node=NetworkNodeRef(node_id="m"),
+            distance_m=5.0,
+        ),
+    )
+
+
+def test_acceptance_outside_limit_is_typed_unsnapped_result() -> None:
+    candidate = _typed_inputs_for_acceptance()[2]
+
+    result = snap_infrastructure_network_batch(
+        _real_backend(),
+        (candidate,),
+        policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=10.0),
+    )
+
+    assert result.snapped == ()
+    assert result.unsnapped == (
+        InfrastructureCandidateUnsnapped(
+            ref=candidate.ref,
+            reason=(
+                InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE
+            ),
+        ),
+    )
+    assert result.diagnostics.no_node_within_max_distance_count == 1
+
+
+def test_acceptance_empty_network_accounts_for_every_subject() -> None:
+    inputs = _typed_inputs_for_acceptance()
+
+    result = snap_infrastructure_network_batch(
+        _real_backend(empty=True),
+        inputs,
+        policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=10.0),
+    )
+
+    assert result.snapped == ()
+    assert len(result.unsnapped) == 3
+    assert all(
+        item.reason is InfrastructureNetworkUnsnappedReason.EMPTY_NETWORK
+        for item in result.unsnapped
+    )
+    assert result.diagnostics == InfrastructureNetworkSnapDiagnostics(
+        input_count=3,
+        snapped_count=0,
+        unsnapped_count=3,
+        empty_network_count=3,
+        no_node_within_max_distance_count=0,
+    )
+
+
+def test_acceptance_mixed_results_and_input_permutation_are_identical() -> None:
+    demand, facility, candidate = _typed_inputs_for_acceptance()
+    policy = InfrastructureNetworkSnapPolicy(max_snap_distance_m=5.0)
+    backend = _real_backend()
+
+    first = snap_infrastructure_network_batch(
+        backend,
+        (candidate, facility, demand),
+        policy=policy,
+    )
+    second = snap_infrastructure_network_batch(
+        _real_backend(),
+        (demand, candidate, facility),
+        policy=policy,
+    )
+
+    assert first == second
+    assert [item.ref for item in first.snapped] == [
+        demand.ref,
+        facility.ref,
+    ]
+    assert first.unsnapped == (
+        InfrastructureCandidateUnsnapped(
+            ref=candidate.ref,
+            reason=(
+                InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE
+            ),
+        ),
+    )
+    assert first.diagnostics == InfrastructureNetworkSnapDiagnostics(
+        input_count=3,
+        snapped_count=2,
+        unsnapped_count=1,
+        empty_network_count=0,
+        no_node_within_max_distance_count=1,
+    )
