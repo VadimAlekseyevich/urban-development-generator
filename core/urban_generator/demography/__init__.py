@@ -1,3 +1,12 @@
+from core.urban_generator.demography.allocation import (
+    DEFAULT_MAX_POPULATION_ALLOCATION_BUILDINGS,
+    BuildingPopulationAllocation,
+    PopulationAllocationDiagnostics,
+    PopulationAllocationError,
+    PopulationAllocationResult,
+    PopulationAllocationStatus,
+    PopulationAllocator,
+)
 from core.urban_generator.demography.capacity import (
     DEFAULT_MAX_RESIDENTIAL_CAPACITY_SUBJECTS,
     ResidentialBuildingCapacity,
@@ -16,9 +25,16 @@ from core.urban_generator.demography.config import (
 
 __all__ = [
     "AgeGroupShare",
+    "BuildingPopulationAllocation",
+    "DEFAULT_MAX_POPULATION_ALLOCATION_BUILDINGS",
     "DEFAULT_MAX_RESIDENTIAL_CAPACITY_SUBJECTS",
     "DemographicScenario",
     "DemographicScenarioError",
+    "PopulationAllocationDiagnostics",
+    "PopulationAllocationError",
+    "PopulationAllocationResult",
+    "PopulationAllocationStatus",
+    "PopulationAllocator",
     "PopulationTarget",
     "PopulationTargetKind",
     "ResidentialBuildingCapacity",
