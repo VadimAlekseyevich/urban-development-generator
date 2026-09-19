@@ -188,9 +188,14 @@ class SpatialDemographicCalibrator:
         fallback_zone_count = 0
 
         for zone in aggregation.zones:
+            zone_members = blocks_by_zone.get(zone.zone_id)
+            if zone_members is None:
+                raise SpatialCalibrationError(
+                    "every zone must contain at least one block"
+                )
             zone_blocks = tuple(
                 sorted(
-                    blocks_by_zone.get(zone.zone_id, ()),
+                    zone_members,
                     key=lambda item: item.block_id,
                 )
             )
