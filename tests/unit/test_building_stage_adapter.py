@@ -20,6 +20,7 @@ from core.urban_generator.buildings import (
     BuildingPlacementScope,
     BuildingSpacingPolicy,
     BuildingUse,
+    PlacedBuildingFootprint,
     RectangularPointFootprintSpec,
 )
 from core.urban_generator.domain import (
@@ -245,3 +246,55 @@ def test_building_stage_composes_s08_pipeline_deterministically() -> None:
     assert tuple(
         item.building_id for item in repeated.output.area_subjects
     ) == tuple(item.building_id for item in result.output.area_subjects)
+
+
+
+def test_building_stage_expansion_preserves_fixed_refs_and_spacing_state() -> None:
+    snapshot = TerritorySnapshot(
+        snapshot_id=uuid.UUID("00000000-0000-0000-0000-000000000112"),
+        project=ProjectRef(
+            project_id=uuid.UUID("00000000-0000-0000-0000-000000000222")
+        ),
+        settings=ProjectSettings(working_srid=WORKING_SRID),
+        boundary=SnapshotLayerRef(
+            kind=SnapshotLayerKind.BOUNDARY,
+            source_ref="synthetic:boundary:v1",
+        ),
+        buildings=(
+            SnapshotLayerRef(
+                kind=SnapshotLayerKind.BUILDINGS,
+                source_ref="synthetic:fixed-buildings:v1",
+            ),
+        ),
+    )
+    context = RunContext(
+        run_id=RUN_ID,
+        mode=RunMode.EXPANSION,
+        seed=2026,
+        working_srid=WORKING_SRID,
+        config_refs=(ConfigRef(name="generation", ref="synthetic:v1"),),
+        correlation=CorrelationMetadata(
+            correlation_id="buildings-stage-expansion-test"
+        ),
+    )
+    fixed = PlacedBuildingFootprint(
+        building_id="fixed:building:one",
+        geometry=box(1.5, 1.5, 3.5, 3.5),
+        working_srid=WORKING_SRID,
+    )
+
+    result = BuildingStage().execute(
+        snapshot=snapshot,
+        context=context,
+        stage_input=BuildingStageInput(
+            blocks=_blocks_output(snapshot, context),
+            existing_footprints=(fixed,),
+        ),
+        config=_config(),
+    )
+
+    assert result.output.fixed_building_refs == snapshot.buildings
+    assert all(
+        proposal.geometry.intersection(fixed.geometry).area == 0.0
+        for proposal in result.output.accepted_proposals
+    )

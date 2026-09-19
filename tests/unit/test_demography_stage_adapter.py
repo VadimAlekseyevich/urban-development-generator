@@ -209,3 +209,52 @@ def test_demography_stage_composes_s09_pipeline_deterministically() -> None:
     )
     assert repeated.fingerprint == result.fingerprint
     assert repeated.output.demand_profile == result.output.demand_profile
+
+
+
+def test_demography_stage_expansion_preserves_fixed_refs_and_baseline() -> None:
+    snapshot = TerritorySnapshot(
+        snapshot_id=uuid.UUID("00000000-0000-0000-0000-000000000113"),
+        project=ProjectRef(
+            project_id=uuid.UUID("00000000-0000-0000-0000-000000000222")
+        ),
+        settings=ProjectSettings(working_srid=WORKING_SRID),
+        boundary=SnapshotLayerRef(
+            kind=SnapshotLayerKind.BOUNDARY,
+            source_ref="synthetic:boundary:v1",
+        ),
+        demography=(
+            SnapshotLayerRef(
+                kind=SnapshotLayerKind.DEMOGRAPHY,
+                source_ref="synthetic:fixed-demography:v1",
+            ),
+        ),
+    )
+    context = RunContext(
+        run_id=RUN_ID,
+        mode=RunMode.EXPANSION,
+        seed=2026,
+        working_srid=WORKING_SRID,
+        config_refs=(ConfigRef(name="demography", ref="synthetic:v1"),),
+        correlation=CorrelationMetadata(
+            correlation_id="demography-stage-expansion-test"
+        ),
+    )
+
+    result = DemographyStage().execute(
+        snapshot=snapshot,
+        context=context,
+        stage_input=DemographyStageInput(
+            buildings=_buildings(),
+            baseline_population=5,
+        ),
+        config=_config(),
+    )
+
+    assert result.output.fixed_demography_refs == snapshot.demography
+    diagnostics = result.output.population.diagnostics
+    assert diagnostics.baseline_population == 5
+    assert diagnostics.target_total_population == 8
+    assert diagnostics.generated_population_target == 3
+    assert diagnostics.allocated_generated_population == 3
+    assert diagnostics.unmet_generated_population == 0

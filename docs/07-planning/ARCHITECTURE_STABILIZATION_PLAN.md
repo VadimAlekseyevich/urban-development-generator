@@ -108,7 +108,7 @@ Exit:
 
 **Non-goal:** no production DAG/checkpoint/worker implementation in M0.
 
-**State:** IN PROGRESS. The only schema gap found is dedicated StageResult output-fingerprint persistence; Job/outbox/artifact ownership already matches the accepted boundary.
+**State:** COMPLETE at `d139c3e`. Dedicated output provenance, migration-from-zero, Stage identity mapping and deferred worker boundary are CI-green.
 
 ### M0-07 — Cross-cutting invariant audit
 **Goal:** prove architecture-wide invariants, not only subsystem behavior.
@@ -127,7 +127,7 @@ Exit:
 - every invariant has a canonical owner plus at least one regression/static/integration test or an explicitly deferred future gate;
 - no open Critical/High contradiction remains.
 
-**State:** PENDING.
+**State:** IN PROGRESS. Existing invariant evidence is documented; the remaining automated proof is EXPANSION fixed-building and demographic-baseline regression coverage.
 
 ### M0-08 — Future roadmap architecture audit (S10–S15 + R1–R10)
 **Goal:** guarantee that future tasks extend the stabilized architecture instead of inventing replacements.
@@ -226,6 +226,6 @@ This rule is specifically intended to prevent endless stabilization.
 
 ## 5. Current next task
 
-Continue **M0-06** only.
+Continue **M0-07** only.
 
-Current deliverable: persist the canonical StageResult output fingerprint separately from input/config hashes and prove Stage metadata, RunStageResult, Job/outbox/artifact and the deferred worker boundary can support S12 without changing core contracts. Do not start M0-07 until migration-from-zero and full CI are green.
+Current deliverable: add the two missing EXPANSION regression checks and keep the cross-cutting invariant evidence matrix green. Do not start M0-08 until those tests pass full CI.
