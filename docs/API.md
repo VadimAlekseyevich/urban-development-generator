@@ -35,6 +35,18 @@
 `boundary_metadata` описывает источник/форму project boundary отдельно от PostGIS geometry.
 Само поле boundary в persistence остаётся nullable `MULTIPOLYGON`; его ingest/normalization относится к следующим data tasks.
 
+## Generated buildings viewport API
+
+S08-T13 добавляет read-only delivery persisted зданий конкретного run:
+
+- `GET /projects/{project_id}/building-runs` — generation runs проекта с количеством generated buildings;
+- `GET /projects/{project_id}/building-runs/{run_id}/buildings/geojson?bbox=west,south,east,north&limit=1500` — bounded viewport GeoJSON.
+
+`bbox` задаётся в EPSG:4326, а spatial filtering выполняется в `GenerationRun.working_srid`.
+Ответ возвращается в EPSG:4326 и содержит typed T12 properties: building/source refs,
+zone, archetype, use, floors, footprint area и GFA. `truncated=true` означает, что
+viewport достиг limit и клиенту следует приблизить карту или повторить запрос меньшей областью.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

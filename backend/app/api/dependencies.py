@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.adapters import LocalArtifactStore
 from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
+from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
@@ -15,6 +16,9 @@ from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
 from backend.app.db.block_parcel_layer_query_repository import (
     SqlAlchemyBlockParcelLayerQueryRepository,
+)
+from backend.app.db.building_layer_query_repository import (
+    SqlAlchemyBuildingLayerQueryRepository,
 )
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
@@ -79,6 +83,20 @@ def get_block_parcel_layer_query_service(
 BlockParcelLayerQueryServiceDep = Annotated[
     BlockParcelLayerQueryService,
     Depends(get_block_parcel_layer_query_service),
+]
+
+
+def get_building_layer_query_service(
+    db: DbSession,
+) -> BuildingLayerQueryService:
+    """Compose the generated-building viewport query service."""
+
+    return BuildingLayerQueryService(SqlAlchemyBuildingLayerQueryRepository(db))
+
+
+BuildingLayerQueryServiceDep = Annotated[
+    BuildingLayerQueryService,
+    Depends(get_building_layer_query_service),
 ]
 
 
