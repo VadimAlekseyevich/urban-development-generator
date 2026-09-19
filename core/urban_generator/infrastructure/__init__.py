@@ -1,3 +1,12 @@
+from core.urban_generator.infrastructure.candidates import (
+    DEFAULT_MAX_INFRASTRUCTURE_CANDIDATE_INPUTS,
+    DEFAULT_MAX_INFRASTRUCTURE_CANDIDATES,
+    InfrastructureCandidateSiteDiagnostics,
+    InfrastructureCandidateSiteError,
+    InfrastructureCandidateSiteGenerator,
+    InfrastructureCandidateSiteResult,
+    InfrastructureSiteCandidate,
+)
 from core.urban_generator.infrastructure.config import (
     InfrastructureCandidatePolicy,
     InfrastructureCandidateSource,
@@ -27,6 +36,13 @@ from core.urban_generator.infrastructure.existing import (
 )
 
 __all__ = [
+    "DEFAULT_MAX_INFRASTRUCTURE_CANDIDATE_INPUTS",
+    "DEFAULT_MAX_INFRASTRUCTURE_CANDIDATES",
+    "InfrastructureCandidateSiteDiagnostics",
+    "InfrastructureCandidateSiteError",
+    "InfrastructureCandidateSiteGenerator",
+    "InfrastructureCandidateSiteResult",
+    "InfrastructureSiteCandidate",
     "DEFAULT_MAX_UNMET_DEMAND_ITEMS",
     "BlockInfrastructureDemand",
     "InfrastructureDemandSummary",
