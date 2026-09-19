@@ -422,6 +422,22 @@ which then reduces unmet demand for the exact block/type pair.
 This boundary prevents global capacity subtraction from masquerading as network-aware
 coverage and keeps T03 deterministic and reusable during greedy T08 iterations.
 
+## Infrastructure candidate-site boundary
+
+S10-T04 builds deterministic, bounded candidate records from existing block, planning
+parcel and building domain objects. The source types are controlled by
+`InfrastructureType.candidate_policy.sources`; candidates are additionally filtered by
+`InfrastructureType.allowed_zones`.
+
+A candidate keeps source kind/id, source geometry, working SRID, zone context when
+available, available source area and a representative-point anchor. Parcel candidates use
+the parcel buildable envelope rather than the legal/planning parcel polygon.
+
+T04 does not create the final facility site/footprint and does not reject a source merely
+because its area is below the InfrastructureType minimum site area. Final geometry belongs
+to S10-T05 and capacity/site feasibility to S10-T09. Input and output counts are explicitly
+bounded to keep candidate generation safe on large territories.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
