@@ -8,6 +8,7 @@ from core.urban_generator.domain import (
     NetworkGraphSnapshot,
     NetworkNodeRef,
     NetworkPoint,
+    NetworkSnapResult,
     WorkingCRS,
 )
 from core.urban_generator.infrastructure import (
@@ -34,6 +35,7 @@ from core.urban_generator.infrastructure import (
     InfrastructureNetworkSnapError,
     InfrastructureNetworkSnapPolicy,
     InfrastructureNetworkUnsnappedReason,
+    snap_infrastructure_network_batch,
     validate_infrastructure_network_snap_batch,
 )
 from core.urban_generator.zoning import ZoneClass
@@ -341,3 +343,110 @@ def test_snap_diagnostics_conserve_inputs_and_unsnapped_reasons() -> None:
             empty_network_count=1,
             no_node_within_max_distance_count=1,
         )
+
+
+
+class _RecordingNetworkBackend:
+    def __init__(
+        self,
+        *,
+        snapshot: NetworkGraphSnapshot,
+        responses: dict[NetworkPoint, NetworkSnapResult | None],
+    ) -> None:
+        self._snapshot = snapshot
+        self.responses = responses
+        self.calls: list[tuple[NetworkPoint, float]] = []
+
+    @property
+    def snapshot(self) -> NetworkGraphSnapshot:
+        return self._snapshot
+
+    def snap(
+        self,
+        point: NetworkPoint,
+        *,
+        max_distance_m: float,
+    ) -> NetworkSnapResult | None:
+        self.calls.append((point, max_distance_m))
+        return self.responses.get(point)
+
+    def shortest_path(self, *args, **kwargs):
+        raise AssertionError("batch snapper must not call shortest_path")
+
+    def multi_source_shortest_path(self, *args, **kwargs):
+        raise AssertionError("batch snapper must not call multi_source_shortest_path")
+
+    def multi_source_distances(self, *args, **kwargs):
+        raise AssertionError("batch snapper must not call multi_source_distances")
+
+
+def _candidate_snap_input() -> InfrastructureCandidateSnapInput:
+    return InfrastructureCandidateSnapInput(
+        ref=InfrastructureCandidateRef.from_candidate(_candidate()),
+        point=NetworkPoint(x_m=5.0, y_m=5.0),
+        working_srid=WORKING_SRID,
+    )
+
+
+def test_batch_snapper_uses_canonical_order_and_only_snap_port() -> None:
+    demand = _demand_snap_input()
+    candidate = _candidate_snap_input()
+    backend = _RecordingNetworkBackend(
+        snapshot=_snapshot(),
+        responses={
+            demand.point: NetworkSnapResult(
+                node=NetworkNodeRef(node_id="node-demand"),
+                distance_m=3.0,
+            ),
+            candidate.point: NetworkSnapResult(
+                node=NetworkNodeRef(node_id="node-candidate"),
+                distance_m=4.0,
+            ),
+        },
+    )
+    policy = InfrastructureNetworkSnapPolicy(max_snap_distance_m=25.0)
+
+    result = snap_infrastructure_network_batch(
+        backend,
+        (candidate, demand),
+        policy=policy,
+    )
+
+    assert backend.calls == [
+        (demand.point, 25.0),
+        (candidate.point, 25.0),
+    ]
+    assert [item.ref for item in result.snapped] == [
+        demand.ref,
+        candidate.ref,
+    ]
+    assert result.unsnapped == ()
+    assert result.snapshot_id == "roads:v1"
+    assert result.working_srid == WORKING_SRID
+    assert result.diagnostics == InfrastructureNetworkSnapDiagnostics(
+        input_count=2,
+        snapped_count=2,
+        unsnapped_count=0,
+        empty_network_count=0,
+        no_node_within_max_distance_count=0,
+    )
+
+
+def test_batch_snapper_rejects_duplicate_subject_identity_before_network_calls() -> None:
+    demand = _demand_snap_input()
+    backend = _RecordingNetworkBackend(
+        snapshot=_snapshot(),
+        responses={},
+    )
+
+    with pytest.raises(
+        InfrastructureNetworkSnapError,
+        match="duplicate subject identities",
+    ):
+        snap_infrastructure_network_batch(
+            backend,
+            (demand, demand),
+            policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=25.0),
+        )
+
+    assert backend.calls == []

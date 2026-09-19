@@ -3,8 +3,8 @@
 S10-T06 starts by defining the typed boundary between infrastructure subjects and the canonical
 road-network port.
 
-This document covers the S10-T06 contract through **UG-AI-016**. It defines typed records and
-policy/diagnostics semantics; it does not yet execute snapping.
+This document covers the S10-T06 contract through **UG-AI-017**. It defines typed records,
+policy/diagnostics semantics and the bounded deterministic batch executor.
 
 ## Stable subject references
 
@@ -73,15 +73,30 @@ results.
 `InfrastructureNetworkSnapDiagnostics` conserves total input count and requires all unsnapped
 items to be accounted for by one of the typed reasons.
 
+## Batch execution
+
+`snap_infrastructure_network_batch()`:
+
+1. validates the batch against the network snapshot and snap policy;
+2. canonicalizes inputs by subject family and stable reference;
+3. rejects duplicate subject identities before any network call;
+4. returns `EMPTY_NETWORK` for every subject without calling the backend when the snapshot has
+   zero nodes;
+5. otherwise calls only `NetworkBackend.snap(point, max_distance_m=...)`;
+6. converts successful matches to typed snap records and `None` to
+   `NO_NODE_WITHIN_MAX_DISTANCE`;
+7. emits a canonically sorted `InfrastructureNetworkSnapBatchResult` with conserved diagnostics.
+
+The executor does not call shortest-path or multi-source routing methods.
+
 ## Deferred to the next UG-AI tasks
 
-UG-AI-017/018/019 still own:
+UG-AI-018/019 still own:
 
-- deterministic batch ordering and duplicate handling;
-- calls to `NetworkBackend.snap()`;
-- mapping backend `None` results to typed unsnapped records;
-- exact-hit/tie/outside-limit/empty-network/mixed-result acceptance tests;
-- final T06 boundary closure.
+- exact-hit/tie/outside-limit/empty-network/mixed-result acceptance coverage;
+- explicit input-permutation equivalence tests over the complete result;
+- final T06 boundary documentation and static prohibition of direct NetworkX/SpatialSnapIndex use
+  from infrastructure.
 
 This keeps T06 layered as:
 

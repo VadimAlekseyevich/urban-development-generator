@@ -5,9 +5,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from core.urban_generator.domain import (
+    NetworkBackend,
     NetworkGraphSnapshot,
     NetworkNodeRef,
     NetworkPoint,
+    NetworkSnapResult,
 )
 from core.urban_generator.domain.crs import require_working_crs
 from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
@@ -337,6 +339,151 @@ class InfrastructureNetworkSnapDiagnostics:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class InfrastructureNetworkSnapBatchResult:
+    snapshot_id: str
+    working_srid: int
+    snapped: tuple[InfrastructureNetworkSnap, ...]
+    unsnapped: tuple[InfrastructureNetworkUnsnapped, ...]
+    diagnostics: InfrastructureNetworkSnapDiagnostics
+
+    def __post_init__(self) -> None:
+        _require_id("snapshot_id", self.snapshot_id)
+        require_working_crs(self.working_srid)
+        if not isinstance(self.snapped, tuple):
+            raise InfrastructureNetworkSnapError(
+                "snapped must be an immutable tuple"
+            )
+        if not isinstance(self.unsnapped, tuple):
+            raise InfrastructureNetworkSnapError(
+                "unsnapped must be an immutable tuple"
+            )
+        snap_types = (
+            InfrastructureDemandSnap,
+            ExistingInfrastructureFacilitySnap,
+            InfrastructureCandidateSnap,
+        )
+        unsnapped_types = (
+            InfrastructureDemandUnsnapped,
+            ExistingInfrastructureFacilityUnsnapped,
+            InfrastructureCandidateUnsnapped,
+        )
+        if any(not isinstance(item, snap_types) for item in self.snapped):
+            raise InfrastructureNetworkSnapError(
+                "snapped must contain typed infrastructure snap results"
+            )
+        if any(not isinstance(item, unsnapped_types) for item in self.unsnapped):
+            raise InfrastructureNetworkSnapError(
+                "unsnapped must contain typed infrastructure unsnapped results"
+            )
+        if not isinstance(self.diagnostics, InfrastructureNetworkSnapDiagnostics):
+            raise InfrastructureNetworkSnapError(
+                "diagnostics must be InfrastructureNetworkSnapDiagnostics"
+            )
+        if self.diagnostics.snapped_count != len(self.snapped):
+            raise InfrastructureNetworkSnapError(
+                "diagnostic snapped_count must match snapped results"
+            )
+        if self.diagnostics.unsnapped_count != len(self.unsnapped):
+            raise InfrastructureNetworkSnapError(
+                "diagnostic unsnapped_count must match unsnapped results"
+            )
+        if tuple(sorted(self.snapped, key=_result_sort_key)) != self.snapped:
+            raise InfrastructureNetworkSnapError(
+                "snapped results must be canonically sorted"
+            )
+        if tuple(sorted(self.unsnapped, key=_result_sort_key)) != self.unsnapped:
+            raise InfrastructureNetworkSnapError(
+                "unsnapped results must be canonically sorted"
+            )
+        identities = tuple(
+            _result_identity(item)
+            for item in (*self.snapped, *self.unsnapped)
+        )
+        if len(identities) != len(set(identities)):
+            raise InfrastructureNetworkSnapError(
+                "batch result contains duplicate subject identities"
+            )
+
+
+def snap_infrastructure_network_batch(
+    backend: NetworkBackend,
+    inputs: tuple[InfrastructureNetworkSnapInput, ...],
+    *,
+    policy: InfrastructureNetworkSnapPolicy,
+) -> InfrastructureNetworkSnapBatchResult:
+    """Snap a bounded canonical batch exclusively through NetworkBackend.snap()."""
+
+    if not isinstance(backend, NetworkBackend):
+        raise InfrastructureNetworkSnapError(
+            "backend must satisfy NetworkBackend"
+        )
+    snapshot = backend.snapshot
+    validate_infrastructure_network_snap_batch(
+        inputs,
+        snapshot=snapshot,
+        policy=policy,
+    )
+
+    ordered = tuple(sorted(inputs, key=_input_sort_key))
+    identities = tuple(_input_identity(item) for item in ordered)
+    if len(identities) != len(set(identities)):
+        raise InfrastructureNetworkSnapError(
+            "snap batch contains duplicate subject identities"
+        )
+
+    snapped: list[InfrastructureNetworkSnap] = []
+    unsnapped: list[InfrastructureNetworkUnsnapped] = []
+    empty_network_count = 0
+    no_node_within_max_distance_count = 0
+
+    if snapshot.node_count == 0:
+        for item in ordered:
+            unsnapped.append(
+                _make_unsnapped(
+                    item,
+                    InfrastructureNetworkUnsnappedReason.EMPTY_NETWORK,
+                )
+            )
+        empty_network_count = len(ordered)
+    else:
+        for item in ordered:
+            match = backend.snap(
+                item.point,
+                max_distance_m=policy.max_snap_distance_m,
+            )
+            if match is None:
+                unsnapped.append(
+                    _make_unsnapped(
+                        item,
+                        InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE,
+                    )
+                )
+                no_node_within_max_distance_count += 1
+                continue
+            if match.distance_m > policy.max_snap_distance_m:
+                raise InfrastructureNetworkSnapError(
+                    "NetworkBackend.snap returned a result beyond max_snap_distance_m"
+                )
+            snapped.append(_make_snap(item, match))
+
+    snapped_result = tuple(sorted(snapped, key=_result_sort_key))
+    unsnapped_result = tuple(sorted(unsnapped, key=_result_sort_key))
+    return InfrastructureNetworkSnapBatchResult(
+        snapshot_id=snapshot.snapshot_id,
+        working_srid=snapshot.working_crs.srid,
+        snapped=snapped_result,
+        unsnapped=unsnapped_result,
+        diagnostics=InfrastructureNetworkSnapDiagnostics(
+            input_count=len(ordered),
+            snapped_count=len(snapped_result),
+            unsnapped_count=len(unsnapped_result),
+            empty_network_count=empty_network_count,
+            no_node_within_max_distance_count=no_node_within_max_distance_count,
+        ),
+    )
+
+
 def validate_infrastructure_network_snap_batch(
     inputs: tuple[InfrastructureNetworkSnapInput, ...],
     *,
@@ -377,6 +524,99 @@ def validate_infrastructure_network_snap_batch(
                 "snap input working_srid must match network snapshot: "
                 f"{item.working_srid} != {snapshot.working_crs.srid}"
             )
+
+
+def _input_identity(
+    item: InfrastructureNetworkSnapInput,
+) -> tuple[str, str, str]:
+    if isinstance(item, InfrastructureDemandSnapInput):
+        return ("demand", *item.ref.key)
+    if isinstance(item, ExistingInfrastructureFacilitySnapInput):
+        return ("facility", *item.ref.key)
+    if isinstance(item, InfrastructureCandidateSnapInput):
+        return ("candidate", *item.ref.key)
+    raise InfrastructureNetworkSnapError(
+        "item must be a typed infrastructure snap input"
+    )
+
+
+def _input_sort_key(
+    item: InfrastructureNetworkSnapInput,
+) -> tuple[int, str, str]:
+    family, first, second = _input_identity(item)
+    rank = {"demand": 0, "facility": 1, "candidate": 2}[family]
+    return rank, first, second
+
+
+def _result_identity(
+    item: InfrastructureNetworkSnap | InfrastructureNetworkUnsnapped,
+) -> tuple[str, str, str]:
+    ref = item.ref
+    if isinstance(ref, InfrastructureDemandRef):
+        return ("demand", *ref.key)
+    if isinstance(ref, ExistingInfrastructureFacilityRef):
+        return ("facility", *ref.key)
+    if isinstance(ref, InfrastructureCandidateRef):
+        return ("candidate", *ref.key)
+    raise InfrastructureNetworkSnapError(
+        "result must carry a typed infrastructure subject ref"
+    )
+
+
+def _result_sort_key(
+    item: InfrastructureNetworkSnap | InfrastructureNetworkUnsnapped,
+) -> tuple[int, str, str]:
+    family, first, second = _result_identity(item)
+    rank = {"demand": 0, "facility": 1, "candidate": 2}[family]
+    return rank, first, second
+
+
+def _make_snap(
+    item: InfrastructureNetworkSnapInput,
+    match: NetworkSnapResult,
+) -> InfrastructureNetworkSnap:
+    if isinstance(item, InfrastructureDemandSnapInput):
+        return InfrastructureDemandSnap(
+            ref=item.ref,
+            node=match.node,
+            distance_m=match.distance_m,
+        )
+    if isinstance(item, ExistingInfrastructureFacilitySnapInput):
+        return ExistingInfrastructureFacilitySnap(
+            ref=item.ref,
+            node=match.node,
+            distance_m=match.distance_m,
+        )
+    if isinstance(item, InfrastructureCandidateSnapInput):
+        return InfrastructureCandidateSnap(
+            ref=item.ref,
+            node=match.node,
+            distance_m=match.distance_m,
+        )
+    raise InfrastructureNetworkSnapError(
+        "item must be a typed infrastructure snap input"
+    )
+
+
+def _make_unsnapped(
+    item: InfrastructureNetworkSnapInput,
+    reason: InfrastructureNetworkUnsnappedReason,
+) -> InfrastructureNetworkUnsnapped:
+    if isinstance(item, InfrastructureDemandSnapInput):
+        return InfrastructureDemandUnsnapped(ref=item.ref, reason=reason)
+    if isinstance(item, ExistingInfrastructureFacilitySnapInput):
+        return ExistingInfrastructureFacilityUnsnapped(
+            ref=item.ref,
+            reason=reason,
+        )
+    if isinstance(item, InfrastructureCandidateSnapInput):
+        return InfrastructureCandidateUnsnapped(
+            ref=item.ref,
+            reason=reason,
+        )
+    raise InfrastructureNetworkSnapError(
+        "item must be a typed infrastructure snap input"
+    )
 
 
 def _validate_input(

@@ -49,7 +49,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 ## S10 / Infrastructure and accessibility
 
 - [x] **UG-AI-015** — **S10-T06** — Define typed infrastructure network-snap input/output records for demand, existing facilities and candidate sites using stable domain refs.
-- [ ] **UG-AI-016** — **S10-T06** — Define max snap distance, metric CRS compatibility, unsnapped reason/diagnostic semantics and batch-size bound.
+- [x] **UG-AI-016** — **S10-T06** — Define max snap distance, metric CRS compatibility, unsnapped reason/diagnostic semantics and batch-size bound.
 - [ ] **UG-AI-017** — **S10-T06** — Implement deterministic bounded batch snapping exclusively through NetworkBackend.snap().
 - [ ] **UG-AI-018** — **S10-T06** — Add exact-hit/tie/outside-limit/empty-network/mixed-result tests; prove input permutation does not change identity/results.
 - [ ] **UG-AI-019** — **S10-T06** — Document T06 boundary and explicitly prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.

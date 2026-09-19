@@ -49,6 +49,7 @@ from core.urban_generator.infrastructure.network_snap import (
     InfrastructureDemandSnapInput,
     InfrastructureDemandUnsnapped,
     InfrastructureNetworkSnap,
+    InfrastructureNetworkSnapBatchResult,
     InfrastructureNetworkSnapDiagnostics,
     InfrastructureNetworkSnapError,
     InfrastructureNetworkSnapInput,
@@ -56,6 +57,7 @@ from core.urban_generator.infrastructure.network_snap import (
     InfrastructureNetworkSubjectRef,
     InfrastructureNetworkUnsnapped,
     InfrastructureNetworkUnsnappedReason,
+    snap_infrastructure_network_batch,
     validate_infrastructure_network_snap_batch,
 )
 from core.urban_generator.infrastructure.site_geometry import (
@@ -83,6 +85,7 @@ __all__ = [
     "InfrastructureDemandSnapInput",
     "InfrastructureDemandUnsnapped",
     "InfrastructureNetworkSnap",
+    "InfrastructureNetworkSnapBatchResult",
     "InfrastructureNetworkSnapDiagnostics",
     "InfrastructureNetworkSnapError",
     "InfrastructureNetworkSnapInput",
@@ -90,6 +93,7 @@ __all__ = [
     "InfrastructureNetworkSubjectRef",
     "InfrastructureNetworkUnsnapped",
     "InfrastructureNetworkUnsnappedReason",
+    "snap_infrastructure_network_batch",
     "validate_infrastructure_network_snap_batch",
     "DEFAULT_SITE_GEOMETRY_SEARCH_ITERATIONS",
     "InfrastructureCandidateGeometry",
