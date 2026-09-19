@@ -8,12 +8,12 @@ from core.urban_generator.stages.buildings import (
     BuildingArchetypeStageSpec,
     BuildingSourceBaseline,
     BuildingSourceStageResult,
-    BuildingStageBlockRef,
-    BuildingStageOwnershipRef,
     BuildingStage,
+    BuildingStageBlockRef,
     BuildingStageConfig,
     BuildingStageInput,
     BuildingStageOutput,
+    BuildingStageOwnershipRef,
     BuildingZoneTarget,
 )
 from core.urban_generator.stages.catalog import (
