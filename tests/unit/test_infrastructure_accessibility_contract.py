@@ -3,11 +3,13 @@ from __future__ import annotations
 import pytest
 
 from core.urban_generator.domain import NetworkNodeRef
-from core.urban_generator.infrastructure import (
-    ExistingInfrastructureFacilityRef,
+from core.urban_generator.infrastructure.accessibility import (
     InfrastructureAccessibilityError,
     InfrastructureAccessibilityQuery,
     InfrastructureAccessibilityResult,
+)
+from core.urban_generator.infrastructure.network_snap import (
+    ExistingInfrastructureFacilityRef,
     InfrastructureCandidateRef,
     InfrastructureDemandRef,
 )
