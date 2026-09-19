@@ -406,6 +406,22 @@ The adapter output preserves geometry and provenance for later S10 network snapp
 coverage calculation. It does not query the database, calculate unmet demand, generate
 sites or run accessibility; those belong to T03+.
 
+## Infrastructure unmet-demand boundary
+
+S10-T03 converts the S09 demographic demand profile through each S10-T01
+`InfrastructureType.demand_model` into canonical block/type demand items. Each item keeps
+the source demographic signal/cohort, demand rate, gross demand, explicit served demand and
+remaining unmet demand. Work is bounded by an explicit block×type item budget.
+
+Existing S10-T02 facilities contribute typed available-capacity summaries only. Their
+capacity is not automatically subtracted from any block because network reachability and
+service distance do not exist until S10-T06/T07. Later accessibility/placement stages can
+feed explicit `InfrastructureServedDemand` assignments back into the same calculator,
+which then reduces unmet demand for the exact block/type pair.
+
+This boundary prevents global capacity subtraction from masquerading as network-aware
+coverage and keeps T03 deterministic and reusable during greedy T08 iterations.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
