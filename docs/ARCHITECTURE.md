@@ -276,6 +276,22 @@ Jobs и workforce не принудительно балансируются и 
 T05 сохраняет scenario/config provenance и не выполняет block/zone aggregation,
 calibration, persistence или UI; следующий слой — S09-T06.
 
+## Block/zone demographic aggregation boundary
+
+S09-T06 выполняет strict join по stable `building_id` между S09-T03 population,
+S09-T04 cohorts, S09-T05 jobs и явным `BuildingAggregationRef` с block/zone ownership.
+Все четыре набора building ids обязаны совпадать, scenario provenance обязан быть
+идентичным.
+
+Block обязан принадлежать ровно одной zone, а один `zone_id` — одному `ZoneClass`.
+Block и zone outputs сохраняют generated population, каждый age cohort и jobs estimate.
+Cross-level consistency checks доказывают, что суммы block и zone rows совпадают с
+authoritative T03/T04/T05 totals; output canonicalized по stable ids и bounded по building
+count.
+
+T06 не выполняет raster calibration или redistribution, persistence/API/UI и demand
+mapping; population-raster adapter начинается с S09-T07.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
