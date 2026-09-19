@@ -4,24 +4,37 @@ import pytest
 from shapely.geometry import Point, box
 
 from core.urban_generator.demography import DemographicDemandCategory
-from core.urban_generator.domain import NetworkNodeRef, NetworkPoint
+from core.urban_generator.domain import (
+    NetworkGraphSnapshot,
+    NetworkNodeRef,
+    NetworkPoint,
+    WorkingCRS,
+)
 from core.urban_generator.infrastructure import (
+    MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE,
     BlockInfrastructureDemand,
     ExistingInfrastructureFacility,
     ExistingInfrastructureFacilityRef,
     ExistingInfrastructureFacilitySnap,
     ExistingInfrastructureFacilitySnapInput,
+    ExistingInfrastructureFacilityUnsnapped,
     InfrastructureCandidateGeometry,
     InfrastructureCandidateGeometryKind,
     InfrastructureCandidateRef,
     InfrastructureCandidateSnap,
     InfrastructureCandidateSnapInput,
     InfrastructureCandidateSource,
+    InfrastructureCandidateUnsnapped,
     InfrastructureCategory,
     InfrastructureDemandRef,
     InfrastructureDemandSnap,
     InfrastructureDemandSnapInput,
+    InfrastructureDemandUnsnapped,
+    InfrastructureNetworkSnapDiagnostics,
     InfrastructureNetworkSnapError,
+    InfrastructureNetworkSnapPolicy,
+    InfrastructureNetworkUnsnappedReason,
+    validate_infrastructure_network_snap_batch,
 )
 from core.urban_generator.zoning import ZoneClass
 
@@ -204,4 +217,127 @@ def test_ref_identifiers_reject_blank_and_line_break_values() -> None:
         InfrastructureCandidateRef(
             candidate_id="candidate\n1",
             infrastructure_type_code="school.general",
+        )
+
+
+
+def _snapshot(*, srid: int = WORKING_SRID, node_count: int = 2) -> NetworkGraphSnapshot:
+    return NetworkGraphSnapshot(
+        snapshot_id="roads:v1",
+        working_crs=WorkingCRS(srid=srid),
+        node_count=node_count,
+        edge_count=max(node_count - 1, 0),
+        directed=False,
+    )
+
+
+def _demand_snap_input(*, srid: int = WORKING_SRID) -> InfrastructureDemandSnapInput:
+    return InfrastructureDemandSnapInput(
+        ref=InfrastructureDemandRef.from_demand(_demand()),
+        point=NetworkPoint(x_m=10.0, y_m=20.0),
+        working_srid=srid,
+    )
+
+
+def test_snap_policy_has_explicit_metric_tolerance_and_hard_batch_bound() -> None:
+    policy = InfrastructureNetworkSnapPolicy(max_snap_distance_m=25.0)
+
+    assert policy.max_snap_distance_m == pytest.approx(25.0)
+    assert policy.max_batch_size == MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE
+
+    exact_only = InfrastructureNetworkSnapPolicy(
+        max_snap_distance_m=0.0,
+        max_batch_size=1,
+    )
+    assert exact_only.max_snap_distance_m == 0.0
+
+    with pytest.raises(InfrastructureNetworkSnapError, match="finite non-negative"):
+        InfrastructureNetworkSnapPolicy(max_snap_distance_m=-1.0)
+    with pytest.raises(InfrastructureNetworkSnapError, match="hard limit"):
+        InfrastructureNetworkSnapPolicy(
+            max_snap_distance_m=10.0,
+            max_batch_size=MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE + 1,
+        )
+
+
+def test_batch_contract_requires_exact_network_working_crs() -> None:
+    validate_infrastructure_network_snap_batch(
+        (_demand_snap_input(),),
+        snapshot=_snapshot(),
+        policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=25.0),
+    )
+
+    with pytest.raises(
+        InfrastructureNetworkSnapError,
+        match="must match network snapshot",
+    ):
+        validate_infrastructure_network_snap_batch(
+            (_demand_snap_input(srid=32637),),
+            snapshot=_snapshot(),
+            policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=25.0),
+        )
+
+
+def test_batch_contract_enforces_configured_batch_size() -> None:
+    item = _demand_snap_input()
+    with pytest.raises(
+        InfrastructureNetworkSnapError,
+        match="batch size limit exceeded",
+    ):
+        validate_infrastructure_network_snap_batch(
+            (item, item),
+            snapshot=_snapshot(),
+            policy=InfrastructureNetworkSnapPolicy(
+                max_snap_distance_m=25.0,
+                max_batch_size=1,
+            ),
+        )
+
+
+def test_unsnapped_records_keep_subject_family_and_typed_reason() -> None:
+    demand = InfrastructureDemandUnsnapped(
+        ref=InfrastructureDemandRef.from_demand(_demand()),
+        reason=InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE,
+    )
+    facility = ExistingInfrastructureFacilityUnsnapped(
+        ref=ExistingInfrastructureFacilityRef.from_facility(_facility()),
+        reason=InfrastructureNetworkUnsnappedReason.EMPTY_NETWORK,
+    )
+    candidate = InfrastructureCandidateUnsnapped(
+        ref=InfrastructureCandidateRef.from_candidate(_candidate()),
+        reason=InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE,
+    )
+
+    assert demand.reason is InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE
+    assert facility.reason is InfrastructureNetworkUnsnappedReason.EMPTY_NETWORK
+    assert candidate.reason is InfrastructureNetworkUnsnappedReason.NO_NODE_WITHIN_MAX_DISTANCE
+
+
+def test_snap_diagnostics_conserve_inputs_and_unsnapped_reasons() -> None:
+    diagnostics = InfrastructureNetworkSnapDiagnostics(
+        input_count=5,
+        snapped_count=2,
+        unsnapped_count=3,
+        empty_network_count=0,
+        no_node_within_max_distance_count=3,
+    )
+
+    assert diagnostics.input_count == 5
+
+    with pytest.raises(InfrastructureNetworkSnapError, match="must equal input_count"):
+        InfrastructureNetworkSnapDiagnostics(
+            input_count=5,
+            snapped_count=2,
+            unsnapped_count=2,
+            empty_network_count=0,
+            no_node_within_max_distance_count=2,
+        )
+
+    with pytest.raises(InfrastructureNetworkSnapError, match="reason counts"):
+        InfrastructureNetworkSnapDiagnostics(
+            input_count=5,
+            snapped_count=2,
+            unsnapped_count=3,
+            empty_network_count=1,
+            no_node_within_max_distance_count=1,
         )
