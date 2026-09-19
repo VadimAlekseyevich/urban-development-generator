@@ -193,6 +193,23 @@ Reference benchmark запускает полный T09→T10→T11 путь н�
 
 T14 не добавляет новые building rules и не меняет persistence/UI semantics. После зелёного T14 sprint S08 закрывается, следующий contract — S09-T01 DemographicScenario.
 
+## Demographic scenario boundary
+
+S09-T01 вводит `core.urban_generator.demography.DemographicScenario` как immutable
+versioned input демографического pipeline. Population objective выражается ровно одним
+typed `PopulationTarget`: либо абсолютным `total_population`, либо fractional
+`growth_rate` относительно baseline, который разрешается на более поздней стадии.
+
+Housing assumptions (`occupancy_ratio`, `residential_area_per_person_m2`,
+`average_household_size`, `residential_gfa_share`) хранятся отдельно от building
+geometry/metrics. Age groups являются configurable exhaustive partition с уникальными
+codes, непрерывными непересекающимися age ranges и shares, суммирующимися в 1.0.
+`working_population_ratio` остаётся отдельным scenario-level assumption.
+
+Scenario canonicalizes age-group order и имеет stable SHA-256 fingerprint. S09-T01 не
+распределяет жителей, не вычисляет residential capacity/jobs, не читает population
+raster и не добавляет persistence/API/UI; эти обязанности остаются S09-T02–T11.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
