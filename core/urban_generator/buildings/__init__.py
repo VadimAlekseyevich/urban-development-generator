@@ -67,6 +67,17 @@ from core.urban_generator.buildings.placement import (
     BuildingPlacementCandidateResult,
     BuildingPlacementFrontage,
 )
+from core.urban_generator.buildings.spacing import (
+    DEFAULT_MAX_SPACING_CANDIDATES,
+    DEFAULT_MAX_SPACING_FOOTPRINTS,
+    BuildingSpacingCandidateLimitError,
+    BuildingSpacingError,
+    BuildingSpacingHit,
+    BuildingSpacingIndex,
+    BuildingSpacingPolicy,
+    BuildingSpacingSubject,
+    PlacedBuildingFootprint,
+)
 
 __all__ = [
     "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
@@ -75,6 +86,8 @@ __all__ = [
     "DEFAULT_MAX_GRID_SCAN_CELLS",
     "DEFAULT_MAX_ORIENTATION_AXES",
     "DEFAULT_MAX_PLACEMENT_CANDIDATES",
+    "DEFAULT_MAX_SPACING_CANDIDATES",
+    "DEFAULT_MAX_SPACING_FOOTPRINTS",
     "BarFootprintAxis",
     "BarFootprintAxisSource",
     "BarFootprintError",
@@ -113,6 +126,12 @@ __all__ = [
     "BuildingPlacementCandidateResult",
     "BuildingPlacementFrontage",
     "BuildingPlacementScope",
+    "BuildingSpacingCandidateLimitError",
+    "BuildingSpacingError",
+    "BuildingSpacingHit",
+    "BuildingSpacingIndex",
+    "BuildingSpacingPolicy",
+    "BuildingSpacingSubject",
     "EngineBuildingEnvelopeConstraintEvaluator",
     "PerimeterCourtyardFootprintError",
     "PerimeterCourtyardFootprintResult",
@@ -123,5 +142,6 @@ __all__ = [
     "PerimeterOpeningSide",
     "RectangularPointFootprintKind",
     "RectangularPointFootprintSpec",
+    "PlacedBuildingFootprint",
     "RectangularPointFootprintStrategy",
 ]

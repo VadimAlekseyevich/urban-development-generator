@@ -102,6 +102,14 @@ Tiny/dangling cleanup управляется `RoadGraphCleanupPolicy`. Знач�
 
 Cleanup ограничен `max_nodes`/`max_edges` и использует O(E) duplicate/tiny passes плюс O(`max_prune_passes × E`) dangling pruning. После удаления edges orphan nodes удаляются, shared-node `is_source/is_fixed` агрегируются заново по retained edges, а обычные `RoadGraphDiagnostics` пересчитываются. S06-T06 не добавляет Dijkstra/A* API — shortest-path services остаются S06-T07.
 
+## Building spacing boundary
+
+S08-T08 вводит `core.urban_generator.buildings.BuildingSpacingIndex` как metric spatial primitive для проверки уже размещённых 2D footprints. Индекс принимает immutable набор `PlacedBuildingFootprint` в одной явной `WorkingCRS`, строит Shapely `STRtree` и для каждого candidate footprint проверяет два независимых условия: отсутствие площадного overlap и соблюдение `minimum_gap_m`.
+
+При нулевом gap касание границ допустимо, но положительное площадное пересечение всегда является violation. При положительном gap exact geometry distance должен быть не меньше требуемого значения. Candidate discovery выполняется через расширенный bbox и ограничивается `max_candidates`; общий размер индекса ограничивается `max_footprints`. Если несколько существующих зданий нарушают правило одновременно, результат выбирается детерминированно: overlap имеет приоритет, затем меньшая distance и stable `building_id`.
+
+S08-T08 намеренно не выполняет FAR/coverage convergence, выбор следующего footprint или placement loop. Жизненный цикл spacing index и bounded convergence относятся к S08-T09; T09 обязан переиспользовать этот contract вместо повторного полного N×M scan.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
