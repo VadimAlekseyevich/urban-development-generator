@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.session import SessionLocal
 from backend.app.models.generated_entity import GeneratedBlock
-from backend.app.models.generation_run import GenerationRun, RUN_SUCCESS_STATUS
+from backend.app.models.generation_run import RUN_SUCCESS_STATUS, GenerationRun
 from core.urban_generator.demography.aggregation import DemographicAggregationResult
 from core.urban_generator.demography.metrics import (
     DemographyBlockArea,
