@@ -78,7 +78,7 @@ Exit for each adapter:
 - fixed/generated semantics preserved;
 - unit tests prove the adapter contract.
 
-**State:** IN PROGRESS. evaluate_constraints/suitability/zoning/roads/blocks_and_parcels are CI-green; buildings is under CI and demography is the final adapter.
+**State:** COMPLETE. All seven adapters are implemented and CI-green at `8db28e5`.
 
 **Scope rule:** while implementing an adapter, fix only gaps required to make the already-declared sprint gate true. Such fixes remain part of this gate; they do not create new M0 initiatives.
 
@@ -94,7 +94,7 @@ Exit:
 - deterministic rerun produces the same semantic outputs/fingerprints;
 - no FastAPI/SQLAlchemy/Redis/ARQ dependency is needed.
 
-**State:** PENDING.
+**State:** IN PROGRESS. Full EXPANSION spine fixture is the current deliverable; existing FROM_SCRATCH adapter tests remain required evidence for empty fixed-state semantics.
 
 ### M0-06 — Persistence and future orchestration boundary proof
 **Goal:** ensure S12 can orchestrate the stabilized stages without redesigning them.
@@ -226,6 +226,6 @@ This rule is specifically intended to prevent endless stabilization.
 
 ## 5. Current next task
 
-Continue **M0-04** only.
+Continue **M0-05** only.
 
-Within M0-04 finish `buildings`, then the final `demography` Stage adapter. Do not start M0-05 until both are CI-green.
+Current deliverable: one in-memory synthetic execution spine through demography plus deterministic rerun evidence. Do not start M0-06 until this fixture is CI-green and M0-05 exit criteria are recorded.
