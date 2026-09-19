@@ -477,25 +477,29 @@ Partitioning вводится только после измерений, а н�
 
 ### 10.1. `RunContext`
 
-Содержит run id/mode, seed/RNG factory, project CRS, config, snapshot refs, cancellation token, logger/correlation metadata.
+Core `RunContext` содержит только infrastructure-neutral deterministic run semantics: run id/mode, seed/namespaced RNG factory, project working CRS, immutable config refs и correlation identifiers.
+
+Cancellation, logging sinks, DB sessions, repositories, queue clients и progress reporters принадлежат orchestration/application layer, а не core `RunContext`. Канонический execution boundary определён в `docs/02-architecture/PIPELINE_MODEL.md`.
 
 ### 10.2. `Stage`
 
-Каждая стадия реализует общий контракт:
+Каждая coarse algorithmic стадия доступна через общий typed contract:
 
 ```text
 name
 version
 dependencies
-validate_inputs()
-execute(context, inputs) -> StageResult
+validate_input(value)
+execute(snapshot, context, stage_input, config) -> StageResult
 ```
 
-Stage должен запускаться независимо в тестах.
+Stage запускается независимо от HTTP/DB/queue и тестируется in-memory. Существующие алгоритмы могут оставаться отдельными composable capabilities; Stage adapter собирает их и не дублирует реализацию.
 
 ### 10.3. `StageResult`
 
-Содержит typed output refs, artifacts, diagnostics, metrics/counters, warnings и deterministic fingerprint.
+Core `StageResult` содержит typed output, deterministic fingerprint и structured non-fatal diagnostics.
+
+Lifecycle/progress/timestamps, persisted input/config hashes, artifact publication и retry/cancellation state принадлежат execution/persistence layer (`RunStageResult`, `Artifact`, `Job`) и не входят в core StageResult.
 
 ### 10.4. Constraint contract
 
@@ -579,6 +583,8 @@ prepare_snapshot
 ```
 
 Stages могут иметь дополнительные зависимости, но не должны существовать как одна гигантская `run_all()` функция.
+
+Канонический stage/execution contract, граница между core StageResult и persisted RunStageResult, а также правила адаптации уже реализованных capabilities определены в `docs/02-architecture/PIPELINE_MODEL.md`. Отдельная параллельная модель stage identity запрещена.
 
 ---
 

@@ -28,6 +28,16 @@ React + MapLibre
 
 `frontend` работает как GIS-интерфейс: карта является центральным элементом, а панели управляют слоями, параметрами, сценариями и метриками.
 
+## Canonical pipeline execution boundary
+
+Канонический contract stage execution находится в `docs/02-architecture/PIPELINE_MODEL.md`.
+
+`core.urban_generator.domain.Stage` / `StageResult` являются единственной моделью algorithmic stage. Legacy `PipelineStage` / `GenerationPipeline` на `dict[str, Any]` не являются архитектурой проекта и удаляются в M0 stabilization.
+
+S04–S09 algorithm capabilities подключаются через thin typed stage adapters без дублирования алгоритмов. Persisted lifecycle/progress/checkpoint metadata принадлежат application/persistence layer (`RunStageResult`, `Job`, `Artifact`), а не core StageResult.
+
+До закрытия `docs/07-planning/IMPLEMENTATION_READINESS.md` новые feature work items после S10-T05 заблокированы.
+
 ## Backend request boundary
 
 HTTP-контроллеры не строят SQL statements и не управляют ORM query details. Для прикладных use cases используется направление зависимостей:

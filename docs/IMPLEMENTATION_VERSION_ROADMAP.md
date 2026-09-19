@@ -1,8 +1,10 @@
 # Urban Development Generator — атомарный implementation roadmap
 
-> Этот документ детализирует `docs/DEVELOPMENT_PLAN.md` до work items, которые должны быть достаточно узкими, чтобы **одна задача могла быть реализована одним качественным запросом к нейросети/разработчику**, проверена и принята.
+> Этот документ определяет capability work items, sprint/release gates и критический путь.
 >
-> Главный принцип: атомарность определяется **законченной тестируемой capability**, а не количеством изменённых файлов.
+> One-request-sized execution tasks вынесены в `docs/07-planning/AI_EXECUTION_TASKS.md`. Один capability work item может требовать нескольких UG-AI tasks; нейросети/разработчику передаётся именно UG-AI task, а не расплывчатый parent item.
+>
+> Главный принцип: capability roadmap задаёт **что должно стать истинным**, а execution backlog — **какое конкретное изменение выполняется сейчас**.
 
 ---
 
@@ -41,10 +43,18 @@ v1.0.0
 
 ---
 
-## 2. Шаблон запроса для одной задачи
+## 2. Шаблон запроса для одной execution-задачи
 
 ```text
-Реализуй только work item <ID> из docs/IMPLEMENTATION_VERSION_ROADMAP.md.
+Реализуй только <UG-AI-ID> из docs/07-planning/AI_EXECUTION_TASKS.md.
+Parent capability: <Sxx-Txx/STAB/Rx>.
+
+Перед изменениями обязательно проверь docs/07-planning/IMPLEMENTATION_READINESS.md.
+Если readiness BLOCKED и task не относится к STAB — не начинай feature implementation.
+
+Прочитай parent item в docs/IMPLEMENTATION_VERSION_ROADMAP.md.
+
+
 
 Перед изменениями прочитай:
 1. docs/DEVELOPMENT_PLAN.md;
@@ -589,8 +599,16 @@ Blocks/parcels/buildings, bounded candidates, allowed-zone filter.
 ### S10-T05 — Candidate site geometry
 Generated facility has site/footprint or explicit host building, not only point.
 
+## Architecture Stabilization Gate — M0
+
+После S10-T05 feature development останавливается до закрытия `docs/07-planning/IMPLEMENTATION_READINESS.md`.
+
+Причина: S04–S09 capabilities ещё должны быть выровнены с уже существующим typed `Stage` contract; legacy duplicate pipeline model удаляется; future roadmap проверяется на повторное изобретение существующих contracts.
+
+Исполняются `UG-AI-001`–`UG-AI-014`. Только после M0 можно продолжать S10-T06.
+
 ### S10-T06 — Snap demand/sites to network
-Reusable nearest index on graph snapshot.
+Bounded deterministic batch adapter для demand/existing facilities/candidate sites поверх уже существующего `NetworkBackend.snap()`. Не создавать новый STRtree/nearest-index в infrastructure.
 
 ### S10-T07 — Accessibility matrix/service
 Multi-source Dijkstra/batched path logic where beneficial; max distance cutoffs.
@@ -623,7 +641,7 @@ Candidate/demand size budget, no repeated all-pairs recomputation.
 # Sprint S11 — Final validation, metrics и score → `v0.12.0`
 
 ### S11-T01 — Cross-stage ValidationReport implementation
-Collect violations from all stages with entity refs/problem geometries.
+Extend the existing `ConstraintResult/ValidationReport` family with optional entity refs/problem geometries and aggregate cross-stage violations without creating a second validation model.
 
 ### S11-T02 — Aggregate constraints
 Coverage/FAR/density/capacity bounds through engine.
@@ -632,7 +650,7 @@ Coverage/FAR/density/capacity bounds through engine.
 Structured penalty independent from hard invalidity.
 
 ### S11-T04 — Metric registry
-Metric id/unit/scope/direction/source/version.
+Extend existing `domain.benchmarking.RawMetricId/MetricDefinition` with runtime scope/direction/source/version metadata; no second metric-id vocabulary.
 
 ### S11-T05 — Land/building metrics
 Developed area, green share, coverage, FAR, GFA, archetype distribution.
@@ -674,16 +692,16 @@ Expected ranges/invariants detect unintended algorithm drift.
 # Sprint S12 — Orchestration, jobs и scenarios → `v0.13.0`
 
 ### S12-T01 — Stage dependency graph
-Pipeline DAG metadata, dependencies, skip rules.
+Executable DAG metadata/validation over the stabilized canonical `Stage` identities, dependencies and skip rules; no new stage enum.
 
 ### S12-T02 — PipelineContext adapter
-Assemble RunContext + TerritorySnapshot + service ports from persisted run.
+Assemble core `RunContext` + `TerritorySnapshot` + resolved configs/ports from persisted run without exposing ORM/session types to core.
 
 ### S12-T03 — Persistent checkpoints
-Stage input/config fingerprints, reuse only when fingerprints match.
+Checkpoint identity includes stage name/version plus resolved input/config/dependency fingerprints; reuse only when the full provenance contract matches.
 
 ### S12-T04 — Generation worker job
-Run full DAG outside HTTP, progress updates.
+Replace the current `worker.run_generation` placeholder with real canonical Stage DAG execution outside HTTP and persisted progress.
 
 ### S12-T05 — Cooperative cancellation
 Check cancellation between bounded units/stages, consistent state.
@@ -737,7 +755,7 @@ Strict limits, projection policy, geometry simplification options.
 ETag/cache-control using immutable dataset/run semantics.
 
 ### S13-T05 — Frontend layer registry
-Declarative source type: GeoJSON/bbox/MVT/raster; styles separated from components.
+Mandatory convergence boundary replacing continued root-component special-case wiring: declarative GeoJSON/bbox/MVT/raster sources, ownership/run state and styles separated from components.
 
 ### S13-T06 — Full layer tree
 Source/suitability/zones/roads/blocks/parcels/buildings/facilities/violations.
@@ -809,7 +827,7 @@ Upload/content checks, SQL/path audit, CORS, non-root/non-superuser where reason
 Documented dump/restore of project/run metadata; raw artifacts remain external.
 
 ### S14-T13 — Full migration-from-zero CI
-Fresh DB + all migrations + integration smoke.
+Harden the already-existing migration smoke into release-grade fresh-DB + all migrations + full persistence/integration acceptance; do not duplicate the current basic check.
 
 ### S14-T14 — Reliability E2E
 Worker crash/retry, duplicate enqueue, cancelled run, orphan temp artifact scenarios.
@@ -826,7 +844,7 @@ Deployment, troubleshooting, architecture invariants, benchmark reproduction.
 **Важно:** методика уже зафиксирована в основном ТЗ. Этот sprint реализует и выполняет её.
 
 ### S15-T01 — Experiment runner schema
-territory × config × seed × ablation matrix.
+territory × config × seed × ablation matrix that creates normal ScenarioBatch/runs through the same S12 orchestration; no parallel research execution framework.
 
 ### S15-T02 — Territory A reproducible package
 Expansion-mode real dataset manifest/preprocessing script.
@@ -999,13 +1017,15 @@ S00 baseline
 
 ## 8. Definition of ready для запроса нейросети
 
-Перед передачей work item нейросети должны быть известны:
+Перед передачей задачи нейросети:
 
-- ID задачи;
-- текущий branch/HEAD;
-- входные contracts;
-- acceptance criteria;
-- релевантные fixtures;
-- какие checks являются required.
+- `IMPLEMENTATION_READINESS.md` разрешает этот класс работы;
+- существует конкретный `UG-AI-xxx` ID;
+- известен parent capability;
+- текущий branch/HEAD известен;
+- перечислены canonical input/output contracts;
+- acceptance criteria и explicit non-goals определены;
+- релевантные fixtures известны;
+- required checks известны.
 
-Если какой-то из этих пунктов отсутствует, сначала уточняется/создаётся contract task, а не начинается большой speculative implementation.
+Если чего-то нет, сначала выполняется STAB/contract task. Parent `Sxx-Txx` сам по себе больше не считается достаточно точным prompt.
