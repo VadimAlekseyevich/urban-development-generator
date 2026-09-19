@@ -466,6 +466,26 @@ class DemographicAggregator:
                 "employment and population must contain identical building ids"
             )
 
+        population_by_id = {
+            item.building_id: item for item in population.allocations
+        }
+        for item in age_groups.buildings:
+            if item.total_residents != population_by_id[item.building_id].residents:
+                raise DemographicAggregationError(
+                    "building age totals must match population allocations"
+                )
+        allocated_population = (
+            population.diagnostics.allocated_generated_population
+        )
+        if age_groups.total_population != allocated_population:
+            raise DemographicAggregationError(
+                "age total population must match allocated population"
+            )
+        if employment.summary.generated_population != allocated_population:
+            raise DemographicAggregationError(
+                "employment population must match allocated population"
+            )
+
 
 def _aggregate_members(
     *,
