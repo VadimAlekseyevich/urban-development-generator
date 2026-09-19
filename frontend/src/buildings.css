@@ -1,0 +1,105 @@
+.buildings-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.buildings-select {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.buildings-select select {
+  width: 100%;
+}
+
+.buildings-layer-row {
+  display: grid;
+  grid-template-columns: auto 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.buildings-swatch {
+  background: #7c3aed;
+}
+
+.buildings-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.buildings-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.buildings-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.building-point { background: #f97316; }
+.building-bar { background: #2563eb; }
+.building-perimeter { background: #7c3aed; }
+.building-courtyard { background: #0d9488; }
+.building-public { background: #dc2626; }
+.building-commercial { background: #ca8a04; }
+
+.buildings-inspector {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.buildings-inspector h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.buildings-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.buildings-metrics div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.buildings-metrics dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.buildings-metrics dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.buildings-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.buildings-details .property-grid {
+  margin-top: 10px;
+}
