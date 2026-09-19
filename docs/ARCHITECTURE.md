@@ -246,6 +246,21 @@ utilization 0.0, поэтому NaN/Inf не возникают.
 S09-T03 не распределяет age groups, не оценивает jobs и не агрегирует demographics;
 следующий слой композиции — S09-T04.
 
+## Age-group allocation boundary
+
+S09-T04 распределяет фактически назначенных S09-T03 generated residents по configurable
+age groups из `DemographicScenario`. Сначала общий allocated population переводится в
+integer cohort totals через largest-remainder apportionment; затем эти column totals
+раскладываются по building rows, сохраняя exact resident count каждого здания.
+
+Обе размерности матрицы являются инвариантами: сумма cohorts внутри building равна
+building residents, а сумма одного cohort по всем buildings равна cohort total.
+Building tie-break выполняется по stable `building_id`, cohort tie-break — по
+canonical age-group order. Zero population даёт нулевые counts/shares без NaN/Inf.
+
+T04 не выполняет workforce/jobs estimation, block/zone aggregation или raster
+calibration; эти обязанности начинаются с S09-T05.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
