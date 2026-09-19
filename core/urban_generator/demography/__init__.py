@@ -53,16 +53,6 @@ from core.urban_generator.demography.demand_profile import (
     DemographicDemandTotals,
     DemographicDemandUnit,
 )
-from core.urban_generator.demography.metrics import (
-    DEFAULT_MAX_DEMOGRAPHY_METRIC_BLOCKS,
-    BlockDemographyMetrics,
-    DemographicAgeMetric,
-    DemographyBlockArea,
-    DemographyMetricsBuilder,
-    DemographyMetricsError,
-    DemographyMetricsResult,
-    DemographyMetricsTotals,
-)
 from core.urban_generator.demography.employment import (
     DEFAULT_MAX_EMPLOYMENT_SUBJECTS,
     BuildingJobEstimate,
@@ -73,6 +63,16 @@ from core.urban_generator.demography.employment import (
     EmploymentEstimator,
     EmploymentSubject,
     JobDensityRule,
+)
+from core.urban_generator.demography.metrics import (
+    DEFAULT_MAX_DEMOGRAPHY_METRIC_BLOCKS,
+    BlockDemographyMetrics,
+    DemographicAgeMetric,
+    DemographyBlockArea,
+    DemographyMetricsBuilder,
+    DemographyMetricsError,
+    DemographyMetricsResult,
+    DemographyMetricsTotals,
 )
 from core.urban_generator.demography.population_raster import (
     DEFAULT_MAX_POPULATION_RASTER_SAMPLE_CELLS,
