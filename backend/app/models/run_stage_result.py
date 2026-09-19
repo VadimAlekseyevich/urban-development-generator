@@ -65,200 +65,12 @@ class RunStageResult(Base):
             name="ck_run_stage_results_input_hash",
         ),
         CheckConstraint(
-            "config_hash ~ '^sha256:[0-9a-f]{64}
-            name="ck_run_stage_results_diagnostics_array",
-        ),
-        CheckConstraint(
-            "jsonb_typeof(artifact_refs_json) = 'array'",
-            name="ck_run_stage_results_artifact_refs_array",
-        ),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    run_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("generation_runs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    stage_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    stage_version: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(32),
-        nullable=False,
-        default="pending",
-        server_default="pending",
-        index=True,
-    )
-    progress_percent: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default="0",
-    )
-    input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    output_fingerprint: Mapped[str | None] = mapped_column(
-        String(71),
-        nullable=True,
-    )
-    diagnostics_json: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB,
-        nullable=False,
-        default=list,
-        server_default=text("'[]'::jsonb"),
-    )
-    artifact_refs_json: Mapped[list[str]] = mapped_column(
-        JSONB,
-        nullable=False,
-        default=list,
-        server_default=text("'[]'::jsonb"),
-    )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    run: Mapped["GenerationRun"] = relationship(
-        "GenerationRun",
-        back_populates="stage_results",
-    )
-    artifacts: Mapped[list["Artifact"]] = relationship(
-        "Artifact",
-        secondary=run_stage_result_artifacts,
-        back_populates="stage_results",
-        order_by="Artifact.created_at, Artifact.id",
-    )
-
-
-def _ensure_artifact_refs_mutable(target: RunStageResult) -> None:
-    run = target.__dict__.get("run")
-    if run is not None and run.status == STAGE_SUCCESS_STATUS:
-        raise RunStageResultImmutableError(
-            "artifact refs of a successful generation run are immutable"
-        )
-
-
-@event.listens_for(RunStageResult.artifacts, "append")
-def prevent_completed_run_artifact_ref_append(
-    target: RunStageResult,
-    _value: object,
-    _initiator: object,
-) -> None:
-    _ensure_artifact_refs_mutable(target)
-
-
-@event.listens_for(RunStageResult.artifacts, "remove")
-def prevent_completed_run_artifact_ref_remove(
-    target: RunStageResult,
-    _value: object,
-    _initiator: object,
-) -> None:
-    _ensure_artifact_refs_mutable(target)
-",
+            "config_hash ~ '^sha256:[0-9a-f]{64}$'",
             name="ck_run_stage_results_config_hash",
         ),
         CheckConstraint(
             "output_fingerprint IS NULL OR "
-            "output_fingerprint ~ '^sha256:[0-9a-f]{64}
-            name="ck_run_stage_results_diagnostics_array",
-        ),
-        CheckConstraint(
-            "jsonb_typeof(artifact_refs_json) = 'array'",
-            name="ck_run_stage_results_artifact_refs_array",
-        ),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    run_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("generation_runs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    stage_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    stage_version: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(32),
-        nullable=False,
-        default="pending",
-        server_default="pending",
-        index=True,
-    )
-    progress_percent: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default="0",
-    )
-    input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    diagnostics_json: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB,
-        nullable=False,
-        default=list,
-        server_default=text("'[]'::jsonb"),
-    )
-    artifact_refs_json: Mapped[list[str]] = mapped_column(
-        JSONB,
-        nullable=False,
-        default=list,
-        server_default=text("'[]'::jsonb"),
-    )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    run: Mapped["GenerationRun"] = relationship(
-        "GenerationRun",
-        back_populates="stage_results",
-    )
-    artifacts: Mapped[list["Artifact"]] = relationship(
-        "Artifact",
-        secondary=run_stage_result_artifacts,
-        back_populates="stage_results",
-        order_by="Artifact.created_at, Artifact.id",
-    )
-
-
-def _ensure_artifact_refs_mutable(target: RunStageResult) -> None:
-    run = target.__dict__.get("run")
-    if run is not None and run.status == STAGE_SUCCESS_STATUS:
-        raise RunStageResultImmutableError(
-            "artifact refs of a successful generation run are immutable"
-        )
-
-
-@event.listens_for(RunStageResult.artifacts, "append")
-def prevent_completed_run_artifact_ref_append(
-    target: RunStageResult,
-    _value: object,
-    _initiator: object,
-) -> None:
-    _ensure_artifact_refs_mutable(target)
-
-
-@event.listens_for(RunStageResult.artifacts, "remove")
-def prevent_completed_run_artifact_ref_remove(
-    target: RunStageResult,
-    _value: object,
-    _initiator: object,
-) -> None:
-    _ensure_artifact_refs_mutable(target)
-",
+            "output_fingerprint ~ '^sha256:[0-9a-f]{64}$'",
             name="ck_run_stage_results_output_fingerprint",
         ),
         CheckConstraint(
@@ -297,6 +109,10 @@ def prevent_completed_run_artifact_ref_remove(
     )
     input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    output_fingerprint: Mapped[str | None] = mapped_column(
+        String(71),
+        nullable=True,
+    )
     diagnostics_json: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,

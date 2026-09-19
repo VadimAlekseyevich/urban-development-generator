@@ -1,9 +1,9 @@
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import StageFingerprint, validate_stage_metadata
 from core.urban_generator.stages import (
+    CANONICAL_STAGE_DEPENDENCIES,
     BlocksAndParcelsStage,
     BuildingStage,
-    CANONICAL_STAGE_DEPENDENCIES,
     ConstraintMaskStage,
     DemographyStage,
     RoadStage,
