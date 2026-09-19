@@ -339,7 +339,7 @@ class _IncrementalBuildingSpacingIndex:
             raise BuildingPlacementConvergenceError(
                 "placement footprint count exceeds spacing index limit"
             )
-        chunk = (
+        chunk: tuple[PlacedBuildingFootprint, ...] = (
             PlacedBuildingFootprint(
                 building_id=proposal.proposal_id,
                 geometry=proposal.geometry,
