@@ -122,3 +122,36 @@ The adapter closes two integration gaps discovered by M0 without changing the S0
 endpoint snapping is actually composed before noding/graph build, and EXPANSION generated
 components are explicitly attached to the fixed network instead of relying on accidental geometric
 crossings.
+
+
+### blocks_and_parcels
+
+Input owns:
+- final road graph from `roads`;
+- explicit metric `BlockDevelopableArea`;
+- stable run-scoped generated-zone refs emitted by `zoning`;
+- optional resolved polygonal HARD constraint layers.
+
+Config owns the existing frontage, oversized-split, sliver-cleanup and parcel-subdivision policies.
+
+Composition:
+
+```text
+RoadGraph
+ -> polygonize
+ -> developable clipping
+ -> block metrics
+ -> frontage/access validation
+ -> oversized split
+ -> sliver cleanup
+ -> stable generated-zone association
+ -> simplified planning-parcel subdivision
+```
+
+Output owns the existing S07 result objects through final `BlockZoneAssociationResult` and
+`ParcelSubdivisionResult`. The adapter does not persist blocks/parcels and does not recompute
+zone identity through a database join.
+
+Generated zone identity is run-scoped and deterministic before persistence. The same ID is used by
+`ZoningStageOutput.generated_zone_refs`, `SqlAlchemyGeneratedZoneWriter`, block-zone association,
+and later block/parcel persistence.

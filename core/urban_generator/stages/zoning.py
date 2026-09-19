@@ -21,10 +21,12 @@ from core.urban_generator.zoning import (
     DeterministicZoningSeedGenerator,
     SuitabilityTargetShareAssigner,
     ZoneAssignmentResult,
+    GeneratedZoneRef,
     ZoneConstraintEvaluationResult,
     ZoneConstraintEvaluator,
     ZoneRefinementResult,
     ZoningConfig,
+    build_generated_zone_refs,
     ZoningPartitionResult,
 )
 
@@ -60,6 +62,7 @@ class ZoningStageOutput:
     partition: ZoningPartitionResult
     refinement: ZoneRefinementResult
     constraints: ZoneConstraintEvaluationResult
+    generated_zone_refs: tuple[GeneratedZoneRef, ...]
     fixed_zone_refs: tuple[SnapshotLayerRef, ...]
 
     @property
@@ -146,10 +149,16 @@ class ZoningStage:
             context=context,
             engine=self._constraint_engine,
         )
+        generated_zone_refs = build_generated_zone_refs(
+            run_id=context.run_id,
+            partition=partition,
+            assignment=refinement.assignment,
+        )
         output = ZoningStageOutput(
             partition=partition,
             refinement=refinement,
             constraints=constraints,
+            generated_zone_refs=generated_zone_refs,
             fixed_zone_refs=snapshot.fixed_zones,
         )
 
@@ -174,6 +183,14 @@ class ZoningStage:
                     cell.geometry.wkb,
                     assignment.zone_class.value,
                     repr(assignment.area_m2),
+                )
+            )
+        for zone_ref in generated_zone_refs:
+            parts.extend(
+                (
+                    zone_ref.zone_id,
+                    str(zone_ref.cell_index),
+                    zone_ref.zone_class.value,
                 )
             )
         for result in constraints.report.results:

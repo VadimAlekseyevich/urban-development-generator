@@ -332,3 +332,45 @@ def test_writer_rejects_partition_run_crs_mismatch(db_session: Session) -> None:
             assignment=assignment,
             constraint_evaluation=evaluation,
         )
+
+
+def test_writer_uses_stable_run_scoped_zone_ids(db_session: Session) -> None:
+    run = _create_run(db_session)
+    partition = _make_partition(2)
+    assignment = _make_assignment(
+        partition,
+        (ZoneClass.RESIDENTIAL, ZoneClass.RECREATION),
+    )
+    evaluation = _make_evaluation(partition, assignment)
+
+    _writer().replace(
+        run_id=run.id,
+        partition=partition,
+        assignment=assignment,
+        constraint_evaluation=evaluation,
+    )
+    first_ids = tuple(
+        sorted(
+            str(value)
+            for value in db_session.scalars(
+                select(GeneratedZone.id).where(GeneratedZone.run_id == run.id)
+            ).all()
+        )
+    )
+
+    _writer().replace(
+        run_id=run.id,
+        partition=partition,
+        assignment=assignment,
+        constraint_evaluation=evaluation,
+    )
+    second_ids = tuple(
+        sorted(
+            str(value)
+            for value in db_session.scalars(
+                select(GeneratedZone.id).where(GeneratedZone.run_id == run.id)
+            ).all()
+        )
+    )
+
+    assert second_ids == first_ids

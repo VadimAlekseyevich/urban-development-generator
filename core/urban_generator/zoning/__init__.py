@@ -25,6 +25,12 @@ from core.urban_generator.zoning.fixed_existing import (
     FixedExistingZonesAdapter,
     FixedExistingZonesAdapterError,
 )
+from core.urban_generator.zoning.identity import (
+    GeneratedZoneIdentityError,
+    GeneratedZoneRef,
+    build_generated_zone_refs,
+    generated_zone_uuid,
+)
 from core.urban_generator.zoning.partition import (
     BaseZoningPartitioner,
     ZoningPartitionCell,
@@ -52,6 +58,8 @@ __all__ = [
     "EvaluatedZoneConstraints",
     "FixedExistingZonesAdapter",
     "FixedExistingZonesAdapterError",
+    "GeneratedZoneIdentityError",
+    "GeneratedZoneRef",
     "SuitabilityTargetShareAssigner",
     "ZoneAdjacencyPolicy",
     "ZoneAdjacencyRule",
@@ -76,4 +84,6 @@ __all__ = [
     "ZoningSeed",
     "ZoningSeedError",
     "ZoningSeedSet",
+    "build_generated_zone_refs",
+    "generated_zone_uuid",
 ]

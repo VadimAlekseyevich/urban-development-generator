@@ -1,3 +1,9 @@
+from core.urban_generator.stages.blocks import (
+    BlocksAndParcelsStage,
+    BlocksAndParcelsStageConfig,
+    BlocksAndParcelsStageInput,
+    BlocksAndParcelsStageOutput,
+)
 from core.urban_generator.stages.catalog import (
     BLOCKS_AND_PARCELS_STAGE,
     BUILDINGS_STAGE,
@@ -40,6 +46,10 @@ from core.urban_generator.stages.zoning import (
 
 __all__ = [
     "BLOCKS_AND_PARCELS_STAGE",
+    "BlocksAndParcelsStage",
+    "BlocksAndParcelsStageConfig",
+    "BlocksAndParcelsStageInput",
+    "BlocksAndParcelsStageOutput",
     "BUILDINGS_STAGE",
     "CANONICAL_STAGE_DEPENDENCIES",
     "CANONICAL_STAGE_ORDER",
