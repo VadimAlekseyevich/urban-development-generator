@@ -109,12 +109,12 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая точка реализации в `main` — **Sprint S09 Demography завершён полностью, следующий work item — `S10-T01 — InfrastructureType schema`**.
+Текущая точка реализации в `main` — **S10-T01 InfrastructureType schema завершён, следующий work item — `S10-T02 — Existing infrastructure adapter`**.
 
 - полностью реализованы sprint `S00`–`S09`;
-- `S09 Demography` закрыт: `T01`–`T11` реализованы, включая scenario/capacity/allocation/cohorts/jobs, aggregation, raster calibration, demand profile, metrics/API/UI и numeric/property hardening;
-- следующий этап критического пути — `S10 Infrastructure и accessibility`;
-- по количеству implementation work items выполнено **122 из 210 (≈58,1%)**, осталось **88 из 210 (≈41,9%)**;
+- в `S10 Infrastructure и accessibility` завершён `T01`: versioned infrastructure type schema с demand dependency, capacity, network cutoff, allowed zones, site-area constraints и candidate policy;
+- следующий шаг критического пути — `S10-T02`, адаптер existing infrastructure;
+- по количеству implementation work items выполнено **123 из 210 (≈58,6%)**, осталось **87 из 210 (≈41,4%)**;
 - после `S10` критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
 
 Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.

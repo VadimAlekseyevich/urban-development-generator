@@ -375,6 +375,21 @@ S09-T11 не добавляет новый production layer. Он закрепл
 S10 InfrastructureType/demand/accessibility, который потребляет S09 demographic demand
 profile и metrics, не переопределяя их semantics.
 
+## Infrastructure type contract
+
+S10-T01 вводит новый core boundary `core.urban_generator.infrastructure`.
+`InfrastructureType` является immutable/versioned schema для facility semantics и
+напрямую использует S09 `DemographicDemandCategory` как demand dependency, не дублируя
+population/cohort/workforce/jobs vocabulary.
+
+Контракт хранит category, demand rate, capacity, max network distance, allowed zones,
+minimum/target site area и canonical candidate sources. Zone/source ordering
+нормализуется, а fingerprint стабилен для эквивалентной конфигурации. Category-specific
+presets не захардкожены: T01 задаёт schema, а не policy data.
+
+Existing-facility mapping начинается в S10-T02; unmet demand, candidates, accessibility и
+placement остаются последующими слоями и не входят в T01.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
