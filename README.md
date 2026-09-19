@@ -109,12 +109,12 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая точка реализации в `main` — **S10-T05 Candidate site geometry завершён, следующий work item — `S10-T06 — Snap demand/sites to network`**.
+Текущая точка реализации в `main` — **S10-T06 Snap demand/sites to network завершён, следующий work item — `S10-T07 — Accessibility matrix/service`**.
 
 - полностью реализованы sprint `S00`–`S09`;
-- в `S10 Infrastructure и accessibility` завершены `T01`–`T05`: typed infrastructure schema, existing facilities, unmet demand, bounded candidate generation и explicit site/host-building geometry;
-- следующий шаг критического пути — `S10-T06` reusable nearest-index snap demand/sites к road-network snapshot;
-- по количеству implementation work items выполнено **127 из 210 (≈60,5%)**, осталось **83 из 210 (≈39,5%)**;
+- в `S10 Infrastructure и accessibility` завершены `T01`–`T06`: schema, existing facilities, unmet demand, candidate generation/geometry и reusable road-network snapping;
+- следующий шаг критического пути — `S10-T07` bounded accessibility service с multi-source/batched shortest paths и per-type max-distance cutoffs;
+- по количеству implementation work items выполнено **128 из 210 (≈61,0%)**, осталось **82 из 210 (≈39,0%)**;
 - после S10 критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
 
 Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.

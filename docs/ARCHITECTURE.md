@@ -454,6 +454,22 @@ SRID.
 T05 deliberately does not apply minimum-site/capacity feasibility; that remains S10-T09.
 Network snapping starts at S10-T06.
 
+## Infrastructure network-snap boundary
+
+S10-T06 reuses the backend-independent `NetworkBackend.snap()` port and therefore the
+road snapshot's existing reusable nearest-node index (the NetworkX adapter delegates to
+`SpatialSnapIndex`). Infrastructure code does not depend on NetworkX or STRtree directly.
+
+Demand is snapped once per unique T03 block, using the authoritative T07 block geometry
+representative point. Candidate sites use their S10-T05 anchor; existing S10-T02 facilities
+use their point geometry or representative point. All subjects must share the immutable
+network snapshot working SRID.
+
+Snap radius is an explicit infrastructure orchestration parameter and is intentionally
+separate from `InfrastructureType.max_network_distance_m`, which is an accessibility
+catchment used by S10-T07. Off-network subjects remain explicit unsnapped outputs rather
+than receiving guessed nodes. Total snap subjects are bounded.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
