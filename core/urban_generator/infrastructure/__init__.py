@@ -40,8 +40,8 @@ from core.urban_generator.infrastructure.network_snapping import (
     InfrastructureNetworkSiteKind,
     InfrastructureNetworkSnapDiagnostics,
     InfrastructureNetworkSnapError,
-    InfrastructureNetworkSnapResult,
     InfrastructureNetworkSnapper,
+    InfrastructureNetworkSnapResult,
     InfrastructureSiteNetworkSnap,
     InfrastructureUnsnappedSite,
 )
