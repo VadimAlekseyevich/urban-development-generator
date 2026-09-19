@@ -75,6 +75,6 @@ async def run_ingest(
 
 
 async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, str]:
-    """Entry point for long-running GIS generation jobs."""
+    """S12 placeholder; validates run identity but does not execute the Stage DAG."""
     parsed_id = uuid.UUID(run_id)
     return {"run_id": str(parsed_id), "status": "accepted"}

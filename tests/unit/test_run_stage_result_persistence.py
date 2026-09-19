@@ -16,6 +16,7 @@ def _make_stage_result() -> RunStageResult:
         progress_percent=40,
         input_hash=f"sha256:{'a' * 64}",
         config_hash=f"sha256:{'b' * 64}",
+        output_fingerprint=None,
         diagnostics_json=[
             {"code": "roads.seeded", "message": "seed initialized", "level": "INFO"}
         ],
@@ -37,6 +38,7 @@ def test_run_stage_result_persists_stage_execution_contract() -> None:
         "progress_percent",
         "input_hash",
         "config_hash",
+        "output_fingerprint",
         "diagnostics_json",
         "artifact_refs_json",
         "started_at",
@@ -51,6 +53,8 @@ def test_run_stage_result_persists_stage_execution_contract() -> None:
     assert columns.stage_version.nullable is False
     assert columns.input_hash.type.length == 71
     assert columns.config_hash.type.length == 71
+    assert columns.output_fingerprint.type.length == 71
+    assert columns.output_fingerprint.nullable is True
 
 
 def test_run_stage_result_references_generation_run_with_cascade_delete() -> None:
@@ -86,6 +90,7 @@ def test_run_stage_result_constraints_cover_identity_progress_hashes_and_json() 
         "ck_run_stage_results_success_progress",
         "ck_run_stage_results_input_hash",
         "ck_run_stage_results_config_hash",
+        "ck_run_stage_results_output_fingerprint",
         "ck_run_stage_results_diagnostics_array",
         "ck_run_stage_results_artifact_refs_array",
     } <= constraint_names
@@ -121,3 +126,13 @@ def test_generation_run_owns_stage_results_relationship() -> None:
 
     assert run.stage_results == [result]
     assert result.run is run
+
+
+
+def test_output_fingerprint_is_distinct_from_execution_input_and_config_hashes() -> None:
+    result = _make_stage_result()
+    result.output_fingerprint = f"sha256:{'c' * 64}"
+
+    assert result.input_hash == f"sha256:{'a' * 64}"
+    assert result.config_hash == f"sha256:{'b' * 64}"
+    assert result.output_fingerprint == f"sha256:{'c' * 64}"

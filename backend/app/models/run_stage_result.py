@@ -69,6 +69,11 @@ class RunStageResult(Base):
             name="ck_run_stage_results_config_hash",
         ),
         CheckConstraint(
+            "output_fingerprint IS NULL OR "
+            "output_fingerprint ~ '^sha256:[0-9a-f]{64}$'",
+            name="ck_run_stage_results_output_fingerprint",
+        ),
+        CheckConstraint(
             "jsonb_typeof(diagnostics_json) = 'array'",
             name="ck_run_stage_results_diagnostics_array",
         ),
@@ -104,6 +109,10 @@ class RunStageResult(Base):
     )
     input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    output_fingerprint: Mapped[str | None] = mapped_column(
+        String(71),
+        nullable=True,
+    )
     diagnostics_json: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,

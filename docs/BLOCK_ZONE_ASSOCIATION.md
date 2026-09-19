@@ -9,7 +9,7 @@ S07-T07 attaches the cleaned S07-T06 block geometry to an explicit functional-zo
 - `SliverCleanupResult` from S07-T06;
 - immutable `BlockZoneReference` values containing `zone_id`, canonical `ZoneClass`, polygonal geometry, and the working SRID.
 
-`zone_id` is deliberately a core string rather than a storage-specific UUID. A persisted generated zone may pass `str(GeneratedZone.id)` while a fixed/existing zoning source may pass its own canonical feature ID. Core therefore remains independent from SQLAlchemy and database models.
+`zone_id` is deliberately a core string rather than a storage-specific type. For generated zones, `ZoningStage` emits a deterministic run-scoped UUID string through `GeneratedZoneRef`; the zone writer persists that exact ID. Fixed/existing zoning may still use its own canonical feature ID. Core therefore remains independent from SQLAlchemy and database models.
 
 All block and zone geometry must use the same projected metric working CRS.
 

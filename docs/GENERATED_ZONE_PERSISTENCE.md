@@ -4,7 +4,7 @@ S05-T08 persists the final functional-zoning result as run-scoped `GeneratedZone
 
 ## Stored fields
 
-`generated_zones` keeps the generic generated-entity columns (`id`, `run_id`, `geometry`, `attributes_json`, `created_at`) and adds typed zoning fields:
+`generated_zones` keeps the generic generated-entity columns (`id`, `run_id`, `geometry`, `attributes_json`, `created_at`) and adds typed zoning fields. `id` is the canonical deterministic UUID5 derived from `(run_id, cell_index, seed_index)` by `generated_zone_uuid(...)`, so downstream core stages can reference a generated zone before persistence:
 
 - `zone_class` — one of `residential`, `mixed`, `public`, `recreation`;
 - `area_m2` — positive metric area in the generation run working CRS;
@@ -33,6 +33,8 @@ A retry therefore does not append duplicate zone rows:
 3. validate partition/assignment/constraint-result alignment;
 4. delete previous zones for that run;
 5. insert the complete replacement set in bounded chunks.
+
+A retry preserves the same generated-zone IDs for the same run and aligned partition cells; persistence does not invent a new identity.
 
 If validation or insertion fails, the transaction rolls back and the previous committed zone set remains intact.
 

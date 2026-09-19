@@ -9,6 +9,22 @@ from core.urban_generator.roads.candidate_anchors import (
     CandidateRoadAnchorSampler,
     CandidateRoadAnchorZoneDiagnostics,
 )
+from core.urban_generator.roads.endpoint_snapping import (
+    EndpointRoadSnapper,
+    EndpointRoadSnappingDiagnostics,
+    EndpointRoadSnappingError,
+    EndpointRoadSnappingPolicy,
+    EndpointRoadSnappingResult,
+)
+from core.urban_generator.roads.fixed_network_attachment import (
+    FixedNetworkAttachment,
+    FixedNetworkAttachmentConnector,
+    FixedNetworkAttachmentDiagnostics,
+    FixedNetworkAttachmentError,
+    FixedNetworkAttachmentPolicy,
+    FixedNetworkAttachmentResult,
+    FixedNetworkAttachmentStatus,
+)
 from core.urban_generator.roads.least_cost_connector import (
     DEFAULT_MAX_LEAST_COST_VISITED_CELLS,
     DEFAULT_SUITABILITY_PENALTY_WEIGHT,
@@ -134,6 +150,18 @@ from core.urban_generator.roads.spatial_snapping import (
 )
 
 __all__ = [
+    "EndpointRoadSnapper",
+    "EndpointRoadSnappingDiagnostics",
+    "EndpointRoadSnappingError",
+    "EndpointRoadSnappingPolicy",
+    "EndpointRoadSnappingResult",
+    "FixedNetworkAttachment",
+    "FixedNetworkAttachmentConnector",
+    "FixedNetworkAttachmentDiagnostics",
+    "FixedNetworkAttachmentError",
+    "FixedNetworkAttachmentPolicy",
+    "FixedNetworkAttachmentResult",
+    "FixedNetworkAttachmentStatus",
     "DEFAULT_ARTERIAL_MIN_LENGTH_M",
     "DEFAULT_COLLECTOR_MIN_LENGTH_M",
     "DEFAULT_DANGLING_EDGE_THRESHOLD_M",

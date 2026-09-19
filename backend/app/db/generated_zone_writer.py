@@ -19,6 +19,7 @@ from core.urban_generator.domain import DataError
 from core.urban_generator.domain.constraints import ConstraintResult
 from core.urban_generator.zoning.assignment import ZoneAssignmentResult
 from core.urban_generator.zoning.constraints import ZoneConstraintEvaluationResult
+from core.urban_generator.zoning.identity import generated_zone_uuid
 from core.urban_generator.zoning.partition import ZoningPartitionResult
 
 
@@ -244,7 +245,11 @@ class SqlAlchemyGeneratedZoneWriter:
             }
             rows.append(
                 {
-                    "id": uuid.uuid4(),
+                    "id": generated_zone_uuid(
+                        run_id,
+                        cell_index=cell_index,
+                        seed_index=cell.seed_index,
+                    ),
                     "run_id": run_id,
                     "geometry": from_shape(
                         _as_multipolygon(cell.geometry),

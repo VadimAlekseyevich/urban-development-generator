@@ -101,22 +101,39 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 - `docs/PROJECT_DESCRIPTION.md` — исходная постановка ВКР;
 - `docs/DEVELOPMENT_PLAN.md` — техническое задание и общий roadmap;
-- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — атомарные work items;
+- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — capability roadmap и sprint/release gates;
+- `docs/07-planning/AI_EXECUTION_TASKS.md` — ordered one-request-sized execution backlog;
+- `docs/07-planning/IMPLEMENTATION_READINESS.md` — архитектурный gate перед feature work;
+- `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md` — текущий аудит архитектурного долга;
+- `docs/02-architecture/PIPELINE_MODEL.md` — канонический Stage/pipeline execution contract;
 - `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
-- `docs/ARCHITECTURE.md` — архитектурные решения;
+- `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-Текущая точка реализации в `main` — **S10-T05 Candidate site geometry завершён, следующий work item — `S10-T06 — Snap demand/sites to network`**.
+Текущая feature-точка — **S10-T05 Candidate site geometry завершён**.
 
-- полностью реализованы sprint `S00`–`S09`;
-- в `S10 Infrastructure и accessibility` завершены `T01`–`T05`: typed infrastructure schema, existing facilities, unmet demand, bounded candidate generation и explicit site/host-building geometry;
-- следующий шаг критического пути — `S10-T06` reusable nearest-index snap demand/sites к road-network snapshot;
-- по количеству implementation work items выполнено **127 из 210 (≈60,5%)**, осталось **83 из 210 (≈39,5%)**;
-- после S10 критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
+`39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
 
-Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.
+Результат M0:
 
-Актуальный состав и границы задач определяет `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
+- один канонический `Stage/StageResult` contract и coarse stage catalog;
+- S04–S09 доступны через typed Stage adapters;
+- deterministic in-memory pipeline spine проходит через demography;
+- fixed/generated, CRS, determinism, bounds, persistence/job/artifact invariants защищены regression gates;
+- `RunStageResult` отдельно хранит input/config provenance и canonical output fingerprint;
+- Critical/High architecture debt: **0 open**;
+- оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
+- future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
+
+Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
+**`UG-AI-015 / S10-T06`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+
+Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
+прогресс определяется milestone gates и ordered UG-AI backlog.
+
+Актуальный порядок выполнения определяют `IMPLEMENTATION_READINESS.md`, `MILESTONES.md`,
+`AI_EXECUTION_TASKS.md` и capability roadmap.
