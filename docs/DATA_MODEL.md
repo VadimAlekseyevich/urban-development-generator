@@ -72,6 +72,15 @@ Generated rows можно создавать и изменять только п
 
 S02-T10 добавляет каждому generated layer составной B-tree `(run_id, id)` для run-scoped/keyset access и GiST по `geometry` для bbox/spatial predicates.
 
+Начиная с S08-T12 `generated_buildings` дополнительно хранит typed `building_key`,
+исходный core `source_id`, `block_id`/`parcel_id`, `zone_class`, `archetype`,
+`building_use`, `floors`, `footprint_area_m2` и `gfa_m2`. Ссылки block/parcel
+ведут только на generated rows того же run на уровне writer contract; core продолжает
+оперировать стабильными строковыми ids и не зависит от UUID/SQLAlchemy. Для legacy rows,
+созданных до специализации, новые semantic columns nullable; новые T12 writes всегда
+заполняют полный typed набор. Run/source/use/archetype access paths имеют отдельные
+B-tree indexes, а существующий GiST по geometry остаётся spatial index слоя.
+
 ## Canonical source layers
 
 Нормализованные исходные векторные данные не складываются в одну EAV/feature-таблицу. S02-T09 вводит отдельные таблицы `source_roads`, `source_buildings`, `source_landuse`, `source_water`, `source_facilities` и `source_constraints`.

@@ -154,6 +154,24 @@ clamp-ит некорректную coverage: если суммарная footpr
 T11 не сохраняет результаты в БД и не добавляет API/UI; persistence остаётся S08-T12.
 Также T11 не переоценивает use/floors и не меняет geometry.
 
+## Generated building persistence boundary
+
+S08-T12 специализирует `generated_buildings` как run-scoped persistence результата
+building stage. SQLAlchemy adapter принимает T10 assignments, T11 authoritative area/GFA
+и исходные `BuildingAreaSubject`, проверяет их полное совпадение до любых destructive
+операций и только затем атомарно заменяет rows незавершённого run.
+
+Core `source_id` не заменяется DB UUID. Persistence adapter разрешает его внутри
+конкретного run по `GeneratedParcel.parcel_key` или `GeneratedBlock.block_key`;
+parcel-based building хранит одновременно `parcel_id` и родительский `block_id`,
+block-based building — только `block_id`. Database id здания детерминирован как UUID5
+от `run_id` и core `building_id`, поэтому retry сохраняет идентичность rows.
+
+В typed columns сохраняются building/source refs, zone, archetype, use, floors,
+footprint area и GFA; config/assignment provenance остаётся в `attributes_json`.
+Геометрия обязана быть `POLYGON` в `GenerationRun.working_srid`. Writer блокирует
+успешный run, пишет bounded chunks и не реализует API/UI — это граница S08-T13.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.

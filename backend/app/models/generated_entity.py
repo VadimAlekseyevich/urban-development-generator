@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     func,
     text,
@@ -224,9 +225,60 @@ class GeneratedBuilding(GeneratedEntityMixin, Base):
     __tablename__ = "generated_buildings"
     __table_args__ = (
         *_generated_access_indexes("generated_buildings"),
+        Index(
+            "uq_generated_buildings_run_building_key",
+            "run_id",
+            "building_key",
+            unique=True,
+        ),
+        Index("ix_generated_buildings_run_block_id", "run_id", "block_id"),
+        Index("ix_generated_buildings_run_parcel_id", "run_id", "parcel_id"),
+        Index("ix_generated_buildings_run_source_id", "run_id", "source_id"),
+        Index("ix_generated_buildings_run_use", "run_id", "building_use"),
+        Index("ix_generated_buildings_run_archetype", "run_id", "archetype"),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_buildings_attributes_object",
+        ),
+        CheckConstraint(
+            "building_key IS NULL OR length(btrim(building_key)) > 0",
+            name="ck_generated_buildings_building_key_nonempty",
+        ),
+        CheckConstraint(
+            "source_id IS NULL OR length(btrim(source_id)) > 0",
+            name="ck_generated_buildings_source_id_nonempty",
+        ),
+        CheckConstraint(
+            "zone_class IS NULL OR zone_class IN "
+            "('residential', 'mixed', 'public', 'recreation')",
+            name="ck_generated_buildings_zone_class",
+        ),
+        CheckConstraint(
+            "archetype IS NULL OR archetype IN "
+            "('detached', 'point', 'bar', 'perimeter', 'courtyard', "
+            "'public', 'commercial')",
+            name="ck_generated_buildings_archetype",
+        ),
+        CheckConstraint(
+            "building_use IS NULL OR building_use IN "
+            "('residential', 'mixed', 'public', 'commercial')",
+            name="ck_generated_buildings_use",
+        ),
+        CheckConstraint(
+            "floors IS NULL OR floors > 0",
+            name="ck_generated_buildings_floors_positive",
+        ),
+        CheckConstraint(
+            "footprint_area_m2 IS NULL OR footprint_area_m2 > 0",
+            name="ck_generated_buildings_footprint_area_positive",
+        ),
+        CheckConstraint(
+            "gfa_m2 IS NULL OR gfa_m2 > 0",
+            name="ck_generated_buildings_gfa_positive",
+        ),
+        CheckConstraint(
+            "parcel_id IS NULL OR block_id IS NOT NULL",
+            name="ck_generated_buildings_parcel_requires_block",
         ),
     )
 
@@ -234,6 +286,24 @@ class GeneratedBuilding(GeneratedEntityMixin, Base):
         Geometry(geometry_type="POLYGON", srid=-1, spatial_index=False),
         nullable=False,
     )
+    building_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    block_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("generated_blocks.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    parcel_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("generated_parcels.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    zone_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    archetype: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    building_use: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    floors: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    footprint_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gfa_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class GeneratedInfrastructure(GeneratedEntityMixin, Base):
