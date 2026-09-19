@@ -25,15 +25,6 @@ from core.urban_generator.infrastructure.demand import (
     UnmetDemandError,
     UnmetDemandResult,
 )
-from core.urban_generator.infrastructure.site_geometry import (
-    DEFAULT_SITE_GEOMETRY_SEARCH_ITERATIONS,
-    InfrastructureCandidateGeometry,
-    InfrastructureCandidateGeometryBuilder,
-    InfrastructureCandidateGeometryDiagnostics,
-    InfrastructureCandidateGeometryError,
-    InfrastructureCandidateGeometryKind,
-    InfrastructureCandidateGeometryResult,
-)
 from core.urban_generator.infrastructure.existing import (
     ExistingFacilityMappingRule,
     ExistingFacilitySourceRecord,
@@ -42,6 +33,15 @@ from core.urban_generator.infrastructure.existing import (
     ExistingInfrastructureError,
     ExistingInfrastructureFacility,
     ExistingInfrastructureResult,
+)
+from core.urban_generator.infrastructure.site_geometry import (
+    DEFAULT_SITE_GEOMETRY_SEARCH_ITERATIONS,
+    InfrastructureCandidateGeometry,
+    InfrastructureCandidateGeometryBuilder,
+    InfrastructureCandidateGeometryDiagnostics,
+    InfrastructureCandidateGeometryError,
+    InfrastructureCandidateGeometryKind,
+    InfrastructureCandidateGeometryResult,
 )
 
 __all__ = [
