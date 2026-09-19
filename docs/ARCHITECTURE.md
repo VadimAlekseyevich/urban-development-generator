@@ -342,6 +342,28 @@ S09-T08 result.aggregation, проверяет scenario provenance, age-group me
 block count и canonical signal schema. T09 не считает unmet demand и не добавляет
 persistence/API/UI; UI/metrics начинаются в S09-T10, infrastructure semantics — в S10.
 
+## Demography metrics/API/UI boundary
+
+S09-T10 добавляет pure `DemographyMetricsBuilder`, который объединяет authoritative
+S09 block aggregation с metric block area и вычисляет population density, total
+population/jobs и exact age-group shares без NaN/Inf. Metrics сохраняют scenario и
+employment provenance.
+
+Persistence не вводит новую spatial table: `SqlAlchemyGeneratedDemographyWriter`
+использует существующие extension points. Block metrics записываются namespaced в
+`GeneratedBlock.attributes_json.demography`, run/project totals — в
+`GenerationRun.metrics_json.demography`. Writer требует exact block-key alignment,
+positive authoritative area и запрещает mutation successful run.
+
+Read API предоставляет список demography runs, run-level metrics и bounded block GeoJSON.
+GeoJSON flatten-ит population, density и jobs для MapLibre data-driven styling, сохраняя
+cohort array для inspector. Frontend panel поддерживает choropleth modes density,
+population и jobs, total metric cards, age shares и block inspector. Viewport limit
+сохраняет bounded read contract.
+
+T10 не определяет infrastructure demand coefficients и не меняет core demographic
+allocation/calibration. Numeric/property hardening остаётся S09-T11.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
