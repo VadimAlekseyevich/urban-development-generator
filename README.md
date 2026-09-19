@@ -101,22 +101,28 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 - `docs/PROJECT_DESCRIPTION.md` — исходная постановка ВКР;
 - `docs/DEVELOPMENT_PLAN.md` — техническое задание и общий roadmap;
-- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — атомарные work items;
+- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — capability roadmap и sprint/release gates;
+- `docs/07-planning/AI_EXECUTION_TASKS.md` — ordered one-request-sized execution backlog;
+- `docs/07-planning/IMPLEMENTATION_READINESS.md` — архитектурный gate перед feature work;
+- `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md` — текущий аудит архитектурного долга;
+- `docs/02-architecture/PIPELINE_MODEL.md` — канонический Stage/pipeline execution contract;
 - `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
-- `docs/ARCHITECTURE.md` — архитектурные решения;
+- `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-Текущая точка реализации в `main` — **S10-T05 Candidate site geometry завершён, следующий work item — `S10-T06 — Snap demand/sites to network`**.
+Текущая feature-точка в `main` — **S10-T05 Candidate site geometry завершён**.
 
-- полностью реализованы sprint `S00`–`S09`;
-- в `S10 Infrastructure и accessibility` завершены `T01`–`T05`: typed infrastructure schema, existing facilities, unmet demand, bounded candidate generation и explicit site/host-building geometry;
-- следующий шаг критического пути — `S10-T06` reusable nearest-index snap demand/sites к road-network snapshot;
-- по количеству implementation work items выполнено **127 из 210 (≈60,5%)**, осталось **83 из 210 (≈39,5%)**;
-- после S10 критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+Перед S10-T06 включён обязательный **M0 Architecture Stabilization Gate**. Аудит обнаружил интеграционный долг: typed `Stage` contract и persistence foundation существуют, но завершённые S04–S09 capability ещё не собраны через этот contract, а legacy scaffold содержал вторую untyped pipeline-модель.
 
-Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.
+Поэтому:
 
-Актуальный состав и границы задач определяет `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
+- S10-T06 и последующие feature work items пока **BLOCKED**;
+- следующий execution item — `UG-AI-001` из `docs/07-planning/AI_EXECUTION_TASKS.md`;
+- текущий readiness status — `BLOCKED`, см. `docs/07-planning/IMPLEMENTATION_READINESS.md`;
+- feature work resumes only after M0 exit criteria and green required CI;
+- арифметика прежних work items (127/210) остаётся исторической оценкой объёма capability и **не является** оценкой архитектурной готовности или end-to-end готовности продукта.
+
+Актуальный порядок выполнения определяют `IMPLEMENTATION_READINESS.md`, `MILESTONES.md`, `AI_EXECUTION_TASKS.md` и capability roadmap.
