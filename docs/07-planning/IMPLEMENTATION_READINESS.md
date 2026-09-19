@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready to resume feature development at **UG-AI-015 / S10-T06**.
+The repository is architecture-ready for S10 feature development. The current ordered task is **UG-AI-019 / S10-T06**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-015 / S10-T06
-Define typed infrastructure network-snap input/output records.
+UG-AI-019 / S10-T06
+Document the final T06 boundary and prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.

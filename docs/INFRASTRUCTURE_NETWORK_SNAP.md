@@ -3,8 +3,8 @@
 S10-T06 starts by defining the typed boundary between infrastructure subjects and the canonical
 road-network port.
 
-This document covers the S10-T06 contract through **UG-AI-017**. It defines typed records,
-policy/diagnostics semantics and the bounded deterministic batch executor.
+This document covers the S10-T06 contract through **UG-AI-018**. It defines typed records,
+policy/diagnostics semantics, the bounded deterministic batch executor and acceptance coverage.
 
 ## Stable subject references
 
@@ -89,14 +89,21 @@ items to be accounted for by one of the typed reasons.
 
 The executor does not call shortest-path or multi-source routing methods.
 
-## Deferred to the next UG-AI tasks
+## Acceptance coverage
 
-UG-AI-018/019 still own:
+UG-AI-018 proves the executor against a real `NetworkXBackend` adapter for:
 
-- exact-hit/tie/outside-limit/empty-network/mixed-result acceptance coverage;
-- explicit input-permutation equivalence tests over the complete result;
-- final T06 boundary documentation and static prohibition of direct NetworkX/SpatialSnapIndex use
-  from infrastructure.
+- exact node hits with zero snap distance;
+- deterministic equal-distance ties;
+- points outside the configured snap limit;
+- empty-network accounting for every subject;
+- mixed snapped/unsnapped batches;
+- complete result equality under input permutation.
+
+## Deferred to UG-AI-019
+
+UG-AI-019 owns the final T06 boundary documentation and static prohibition of direct
+NetworkX/SpatialSnapIndex use from infrastructure.
 
 This keeps T06 layered as:
 
