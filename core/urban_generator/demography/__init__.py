@@ -42,6 +42,17 @@ from core.urban_generator.demography.config import (
     PopulationTarget,
     PopulationTargetKind,
 )
+from core.urban_generator.demography.demand_profile import (
+    DEFAULT_MAX_DEMOGRAPHIC_DEMAND_BLOCKS,
+    BlockDemographicDemand,
+    DemographicDemandCategory,
+    DemographicDemandProfile,
+    DemographicDemandProfileBuilder,
+    DemographicDemandProfileError,
+    DemographicDemandSignal,
+    DemographicDemandTotals,
+    DemographicDemandUnit,
+)
 from core.urban_generator.demography.employment import (
     DEFAULT_MAX_EMPLOYMENT_SUBJECTS,
     BuildingJobEstimate,
@@ -80,6 +91,15 @@ from core.urban_generator.demography.spatial_calibration import (
 )
 
 __all__ = [
+    "DEFAULT_MAX_DEMOGRAPHIC_DEMAND_BLOCKS",
+    "BlockDemographicDemand",
+    "DemographicDemandCategory",
+    "DemographicDemandProfile",
+    "DemographicDemandProfileBuilder",
+    "DemographicDemandProfileError",
+    "DemographicDemandSignal",
+    "DemographicDemandTotals",
+    "DemographicDemandUnit",
     "DEFAULT_MAX_SPATIAL_CALIBRATION_BLOCKS",
     "BlockSpatialCalibration",
     "SpatialCalibrationDiagnostics",

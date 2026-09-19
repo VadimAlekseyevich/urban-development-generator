@@ -324,6 +324,24 @@ tie-break. После изменения block row totals age cohorts перер
 T08 не меняет target/capacity, не читает raster напрямую и не добавляет persistence/API/UI;
 следующий слой — S09-T09 typed demographic demand profile.
 
+## Demographic demand profile boundary
+
+S09-T09 является стабильной границей между demography и infrastructure. На каждый block
+формируется canonical набор typed signals: total population, configurable age-group
+cohorts, workforce и jobs. Signal хранит category, unit и, для cohort, stable demographic
+group code + age bounds. Project totals имеют ту же schema, а block values обязаны
+суммироваться обратно в totals.
+
+Profile не кодирует education/healthcare/retail/recreation и не содержит facility-specific
+coefficients. Эти правила принадлежат S10-T01 InfrastructureType/demand model. Поэтому
+S10 может потреблять population/cohort/workforce/jobs без reverse dependency из
+demography в infrastructure.
+
+Builder принимает обычный S09-T06 aggregation либо calibrated
+S09-T08 result.aggregation, проверяет scenario provenance, age-group metadata, bounded
+block count и canonical signal schema. T09 не считает unmet demand и не добавляет
+persistence/API/UI; UI/metrics начинаются в S09-T10, infrastructure semantics — в S10.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
