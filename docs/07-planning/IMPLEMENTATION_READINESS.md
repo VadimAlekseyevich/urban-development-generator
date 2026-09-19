@@ -32,22 +32,18 @@ The following are accepted and must not be re-invented:
 
 ## 3. Blocking stabilization work
 
-The next executable work is **STAB**, not S10-T06.
+The finite stabilization scope is defined by [ARCHITECTURE_STABILIZATION_PLAN.md](ARCHITECTURE_STABILIZATION_PLAN.md). The next executable work is **M0-04**, not S10-T06. New findings must be absorbed by one of the ten frozen M0 gates rather than creating an open-ended stabilization program.
 
-- [ ] STAB-01 — Remove the legacy `GenerationPipeline` / `PipelineStage` model.
-- [ ] STAB-02 — Synchronize DEVELOPMENT_PLAN with the canonical RunContext/StageResult ownership boundary.
-- [ ] STAB-03 — Define stable coarse stage names and adapter input/output ownership for S04-S09.
-- [ ] STAB-04 — Add suitability/constraint stage adapter(s) without duplicating algorithms.
-- [ ] STAB-05 — Add zoning stage adapter.
-- [ ] STAB-06 — Add roads stage adapter.
-- [ ] STAB-07 — Add blocks/parcels stage adapter.
-- [ ] STAB-08 — Add buildings stage adapter.
-- [ ] STAB-09 — Add demography stage adapter.
-- [ ] STAB-10 — Add an in-memory typed dependency-spine integration fixture through demography.
-- [ ] STAB-11 — Verify stable stage names/versions and deterministic fingerprints under input permutation policy.
-- [ ] STAB-12 — Re-audit future S10–S15 roadmap against the stabilized contracts.
-- [ ] STAB-13 — Run full required CI and record the stabilization commit.
-- [ ] STAB-14 — Mark this document Accepted only after every blocking item passes.
+- [x] M0-01 — Documentation ownership and architecture authority.
+- [x] M0-02 — Current-state inventory and debt ledger.
+- [x] M0-03 — Canonical contract convergence baseline.
+- [ ] M0-04 — S04–S09 typed Stage integration.
+- [ ] M0-05 — In-memory execution spine through demography.
+- [ ] M0-06 — Persistence/future-orchestration boundary proof.
+- [ ] M0-07 — Cross-cutting invariant audit.
+- [ ] M0-08 — Final future-roadmap architecture audit.
+- [ ] M0-09 — Architecture regression gates.
+- [ ] M0-10 — Debt-zero closure, full CI and readiness decision.
 
 ## 4. Explicitly not required before leaving stabilization
 
@@ -90,4 +86,4 @@ Before an AI task starts:
 
 ## 7. Current next action
 
-Execute `UG-AI-001` onward from `AI_EXECUTION_TASKS.md`. Do not start S10-T06 until STAB closes.
+Execute the frozen M0 plan in `ARCHITECTURE_STABILIZATION_PLAN.md` strictly in order. Current gate: **M0-04**. Do not start S10-T06 until M0-10 closes.

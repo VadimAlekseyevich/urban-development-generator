@@ -1,7 +1,10 @@
 # 07 — Planning
 
-> **Current gate:** Architecture stabilization (M0)
+> **Current gate:** Architecture stabilization (M0-04)
+>
+> Canonical finite scope: [ARCHITECTURE_STABILIZATION_PLAN.md](ARCHITECTURE_STABILIZATION_PLAN.md)
 
+- [ARCHITECTURE_STABILIZATION_PLAN.md](ARCHITECTURE_STABILIZATION_PLAN.md) — frozen M0-01..M0-10 work order and exit criteria.
 - [IMPLEMENTATION_READINESS.md](IMPLEMENTATION_READINESS.md) — blocking architecture-to-feature gate.
 - [ARCHITECTURE_DEBT_AUDIT.md](ARCHITECTURE_DEBT_AUDIT.md) — confirmed current debt and required closure.
 - [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) — architecture review of S10–S15 and release gates.
