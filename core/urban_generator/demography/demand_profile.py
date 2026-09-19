@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from core.urban_generator.demography.age_allocation import AgeGroupPopulation
 from core.urban_generator.demography.aggregation import (
     DemographicAggregationResult,
 )
@@ -306,7 +307,7 @@ class DemographicDemandProfileBuilder:
 def _signals(
     *,
     population: int,
-    age_groups: tuple[object, ...],
+    age_groups: tuple[AgeGroupPopulation, ...],
     workforce: float,
     jobs: float,
 ) -> tuple[DemographicDemandSignal, ...]:
