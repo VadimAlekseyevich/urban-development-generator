@@ -43,8 +43,8 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-010** — **STAB-10** — Add synthetic in-memory typed execution-spine fixture that composes stabilized adapters through demography without FastAPI/SQLAlchemy/Redis.
 - [x] **UG-AI-011** — **STAB-11** — Add deterministic fingerprint/permutation tests and stage metadata dependency validation for the execution spine.
 - [x] **UG-AI-012** — **STAB-12** — Re-audit S10-S15 task contracts against stabilized adapter outputs and update ROADMAP_AUDIT/roadmap where mismatched.
-- [ ] **UG-AI-013** — **STAB-13** — Run required Python/frontend/migration/compose CI checks and fix stabilization regressions only.
-- [ ] **UG-AI-014** — **STAB-14** — Close architecture debt findings, mark IMPLEMENTATION_READINESS Accepted, and record stabilization commit/CI evidence.
+- [x] **UG-AI-013** — **STAB-13** — Run required Python/frontend/migration/compose CI checks and fix stabilization regressions only.
+- [x] **UG-AI-014** — **STAB-14** — Close architecture debt findings, mark IMPLEMENTATION_READINESS Accepted, and record stabilization commit/CI evidence.
 
 ## S10 / Infrastructure and accessibility
 
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-No S10 task may start before UG-AI-001..014 are complete and IMPLEMENTATION_READINESS is Accepted. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..014 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-015. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

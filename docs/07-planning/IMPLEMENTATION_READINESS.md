@@ -1,18 +1,26 @@
 # Implementation Readiness
 
-> **Status: BLOCKED — architecture stabilization in progress**
+> **Status: ACCEPTED — M0 architecture stabilization complete**
 >
-> Baseline audited: `main@405890d820751d07156099f6f7073f22cdd083fa`
+> Original audited baseline: `main@405890d820751d07156099f6f7073f22cdd083fa`
+>
+> Stabilization evidence commit: `39eaa1688e06669b0e01e999304710873fd9cf0e`
+>
+> Required CI on that commit: **green**.
 
-## 1. Meaning of this gate
+## 1. Decision
 
-This document is the gate between the current completed capability set and additional feature work.
+The repository is architecture-ready to resume feature development at **UG-AI-015 / S10-T06**.
 
-“Blocked” does not mean the existing algorithms are invalid. It means the repository has known integration/contract debt that must be removed before adding new infrastructure, validation, orchestration, or UI complexity.
+This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
+that S10-S15 can extend them without another pre-feature architecture rewrite.
+
+It does **not** mean S12 orchestration, S13 delivery, S14 hardening or S15 experiments are already
+implemented; those remain normal future roadmap work.
 
 ## 2. Accepted architecture decisions
 
-The following are accepted and must not be re-invented:
+The following are canonical and must not be re-invented:
 
 - modular monolith + separate worker process;
 - core independent of HTTP/DB/Redis/UI;
@@ -24,66 +32,78 @@ The following are accepted and must not be re-invented:
 - metric working CRS for geometry calculations;
 - deterministic namespaced RNG from RunContext;
 - core `Stage` / `StageResult` as the only stage contract;
-- ConstraintEngine as shared validation rule engine;
-- NetworkBackend as routing/snapping port;
-- ArtifactStore as blob storage port;
+- canonical coarse stage catalog/dependency identities;
+- `ConstraintEngine` / `ValidationReport` as the validation family;
+- `NetworkBackend` as routing/snapping port;
+- `ArtifactStore` as blob storage port;
 - raw metric vocabulary from `domain.benchmarking`;
-- Job + outbox as DB-authoritative queue handoff foundation.
+- `Job` + outbox as DB-authoritative queue handoff foundation;
+- `RunStageResult.output_fingerprint` is distinct from input/config provenance hashes.
 
-## 3. Blocking stabilization work
-
-The finite stabilization scope is defined by [ARCHITECTURE_STABILIZATION_PLAN.md](ARCHITECTURE_STABILIZATION_PLAN.md). The next executable work is **M0-04**, not S10-T06. New findings must be absorbed by one of the ten frozen M0 gates rather than creating an open-ended stabilization program.
+## 3. M0 completion
 
 - [x] M0-01 — Documentation ownership and architecture authority.
 - [x] M0-02 — Current-state inventory and debt ledger.
-- [x] M0-03 — Canonical contract convergence baseline.
-- [ ] M0-04 — S04–S09 typed Stage integration.
-- [ ] M0-05 — In-memory execution spine through demography.
-- [ ] M0-06 — Persistence/future-orchestration boundary proof.
-- [ ] M0-07 — Cross-cutting invariant audit.
-- [ ] M0-08 — Final future-roadmap architecture audit.
-- [ ] M0-09 — Architecture regression gates.
-- [ ] M0-10 — Debt-zero closure, full CI and readiness decision.
+- [x] M0-03 — Canonical contract convergence.
+- [x] M0-04 — S04–S09 typed Stage integration.
+- [x] M0-05 — In-memory execution spine through demography.
+- [x] M0-06 — Persistence/future-orchestration boundary proof.
+- [x] M0-07 — Cross-cutting invariant audit.
+- [x] M0-08 — Final future-roadmap architecture audit.
+- [x] M0-09 — Architecture regression gates.
+- [x] M0-10 — Debt-zero closure and readiness decision.
 
-## 4. Explicitly not required before leaving stabilization
+Critical/High architecture debt: **0 open**.
 
-The following remain future roadmap work and must not be pulled into STAB:
+Remaining Medium items:
+- AD-007 -> UG-AI-046/047 (canonical validation detail extension);
+- AD-009 -> UG-AI-085/086 (frontend layer registry/tree).
 
-- persistent DAG/checkpoints;
-- production generation worker orchestration;
-- cancellation/retry execution policy;
-- scenario batches;
-- exact rerun;
-- provenance manifest;
-- MVT/export;
-- production queues/backpressure;
-- experiments.
+Both are named roadmap work and do not threaten the stabilized cross-cutting architecture.
 
-STAB fixes architecture boundaries; it does not implement S12 early.
+## 4. What remains intentionally future work
 
-## 5. Definition of Ready for S10-T06
+Do not pull these forward merely because M0 is complete:
 
-S10-T06 becomes Ready only when:
+- executable persistent DAG/checkpoints — S12;
+- production generation worker — S12;
+- cancellation/retry execution policy — S12;
+- scenario batches/exact rerun/provenance manifest — S12;
+- MVT/export/workspace generalization — S13;
+- production reliability/performance hardening — S14;
+- experiments/research/demo package — S15.
 
-- there is one Stage model in the repository;
-- completed coarse stages through demography are available behind typed adapters;
-- one deterministic in-memory execution fixture composes them;
-- `NetworkBackend.snap()` is the documented dependency for infrastructure snapping;
-- no critical/high architecture debt remains open;
-- all required CI checks are green.
+## 5. Ready contract for S10-T06
 
-## 6. Definition of Ready for any AI task
+S10-T06 must:
 
-Before an AI task starts:
+- use existing `NetworkBackend.snap()`;
+- define typed demand/facility/candidate snap records;
+- keep metric CRS and maximum snap distance explicit;
+- define unsnapped diagnostics;
+- bound batch size;
+- be deterministic under input permutation/ties;
+- not import NetworkX or `SpatialSnapIndex` from infrastructure code.
 
-- the exact `UG-AI-xxx` entry exists;
-- parent work item and prerequisites are complete;
-- canonical docs are listed;
-- input/output contracts are known;
-- non-goals are explicit;
-- test/fixture evidence is defined;
-- architecture changes are either prohibited or owned by a named ADR task.
+The ordered execution tasks are UG-AI-015 through UG-AI-019.
+
+## 6. Definition of Ready for every future AI task
+
+Before starting an AI task:
+
+- use the exact `UG-AI-xxx` entry;
+- verify parent/prerequisites;
+- read the canonical contract owner;
+- state input/output contracts and non-goals;
+- preserve M0 architecture regression gates;
+- define required tests/fixtures;
+- use ADR before intentionally changing an Accepted architecture decision.
 
 ## 7. Current next action
 
-Execute the frozen M0 plan in `ARCHITECTURE_STABILIZATION_PLAN.md` strictly in order. Current gate: **M0-04**. Do not start S10-T06 until M0-10 closes.
+```text
+UG-AI-015 / S10-T06
+Define typed infrastructure network-snap input/output records.
+```
+
+Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.

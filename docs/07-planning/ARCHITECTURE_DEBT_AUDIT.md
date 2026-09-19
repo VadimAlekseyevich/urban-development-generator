@@ -1,151 +1,150 @@
 # Architecture Debt Audit
 
-> **Status: Active — blocking feature work**
+> **Status: Closed for M0 — non-blocking**
 >
-> Audited baseline: `main@405890d820751d07156099f6f7073f22cdd083fa`
+> Original audited baseline: `main@405890d820751d07156099f6f7073f22cdd083fa`
 >
-> Audit date: 2026-09-19
+> Stabilization evidence commit: `39eaa1688e06669b0e01e999304710873fd9cf0e`
+>
+> Required CI on the evidence commit: **green** (Python, frontend, Docker Compose smoke).
 
-## 1. Executive result
+## 1. Closure result
 
-The project has substantial, well-tested domain capabilities and a strong persistence foundation, but it is **not architecture-ready for S10-T06 yet**.
+The M0 audit is closed for feature-readiness purposes.
 
-The main debt is integration debt, not algorithm quality: early contracts exist, but several completed algorithmic sprints are not yet connected through the contracts that were intended to govern the full pipeline.
+There are **zero open Critical or High architecture findings**. The integration debt that blocked
+S10-T06 was removed or converted into an explicit, non-architectural future implementation task.
 
-Feature work is blocked until all Critical/High stabilization findings below are resolved or explicitly superseded by ADR.
+The remaining Medium findings are assigned to named future UG-AI tasks and do not require changing
+the stabilized Stage, persistence, network, validation, metric or ownership contracts.
 
-## 2. Confirmed strengths
-
-The audit confirmed:
-
-- `core` is infrastructure-independent in the reviewed module graph;
-- request endpoints use application services rather than embedding SQL query details;
-- repository ports isolate DB access for project/layer read paths;
-- working CRS is explicitly metric and EPSG:4326 is rejected for `RunContext`;
-- deterministic namespaced RNG exists;
-- `NetworkBackend` hides NetworkX;
-- reusable STRtree snapping already exists and is used by `NetworkXBackend`;
-- fixed/generated ownership and run scoping are represented in persistence;
-- `RunStageResult`, `Artifact`, `Job`, and outbox foundations already exist;
-- successful runs and ready dataset versions have immutability guards;
-- CI currently checks lint, mypy, tests, benchmarks, migration smoke, frontend build, and Docker Compose smoke;
-- baseline HEAD CI is green.
-
-## 3. Blocking findings
+## 2. Final finding ledger
 
 ### AD-001 — Legacy second pipeline model
 **Severity:** Critical  
-**State:** Open
+**State:** Closed
 
-`core/urban_generator/pipeline/service.py` and `stages.py` define an untyped `dict[str, Any]` pipeline and separate `PipelineStage` identity while `domain.Stage` already exists.
+The untyped `dict[str, Any]` pipeline and independent `PipelineStage` vocabulary were removed.
+`domain.Stage` / `StageResult` are the only canonical stage contract.
 
-No reviewed production/test code depends on the legacy model outside those files.
+Regression evidence:
+`tests/unit/test_architecture_boundaries.py::test_legacy_second_pipeline_model_does_not_return`.
 
-**Required resolution:** remove the legacy model and make `domain.Stage` the only canonical pipeline contract.
-
-### AD-002 — Stage contract is not adopted by completed S04-S09 capabilities
+### AD-002 — Stage contract not adopted by completed S04-S09 capabilities
 **Severity:** Critical  
-**State:** Open
+**State:** Closed
 
-The Stage protocol is tested in isolation, but repository-wide review found no S04-S09 algorithmic stage implementing it.
+Suitability/constraints, zoning, roads, blocks/parcels, buildings and demography now have typed
+Stage adapters with stable metadata, deterministic fingerprints and no infrastructure imports.
 
-Suitability, zoning, roads, blocks/parcels, buildings, and demography are currently strong component libraries/vertical slices rather than one typed pipeline.
+The in-memory execution spine composes the adapters through demography.
 
-**Required resolution:** add thin stage adapters and an integration spine fixture before continuing infrastructure.
+Evidence: M0-04, M0-05 and `tests/integration/test_in_memory_generation_spine.py`.
 
 ### AD-003 — Generation worker is a placeholder
+**Severity:** High at audit time  
+**State:** Stabilization-resolved; implementation intentionally deferred to S12
+
+`worker.tasks.run_generation()` is explicitly documented as an S12 placeholder and is not
+presented as completed orchestration.
+
+The stabilized Stage and persistence boundaries now prove that S12 can implement the real worker
+without redesigning core.
+
+Future implementation owner:
+- `UG-AI-068` / S12-T04 — real DAG execution;
+- `UG-AI-069` / S12-T04 — worker integration fixture.
+
+This is future functionality, not open architecture debt.
+
+### AD-004 — Development plan overstated RunContext/StageResult responsibilities
 **Severity:** High  
-**State:** Open / intentionally deferred functionality
+**State:** Closed
 
-`worker.tasks.run_generation()` validates the UUID and returns `{"status": "accepted"}`; it does not execute a run.
+`PIPELINE_MODEL.md`, ADR/documentation and roadmap now agree on the narrower core boundary:
+algorithmic Stage output/fingerprint/diagnostics remain in core; lifecycle, progress, retry,
+timestamps and persistence provenance remain outside core.
 
-This is acceptable only while S12 is future scope, but it must be clearly documented as unavailable rather than interpreted as completed orchestration.
-
-**Required resolution now:** make readiness/docs explicit.  
-**Required implementation later:** S12-T02–T07, after typed adapters are stable.
-
-### AD-004 — Development plan overstates core RunContext/StageResult responsibilities
+### AD-005 — S10-T06 could duplicate snapping infrastructure
 **Severity:** High  
-**State:** Open
+**State:** Closed
 
-The plan says `RunContext` contains cancellation/logger and `StageResult` contains artifacts/metrics/counters/warnings. The implemented core contracts intentionally do not.
+S10-T06 and UG-AI-015..019 explicitly consume `NetworkBackend.snap()`.
+Infrastructure-specific NetworkX/STRtree ownership is prohibited.
 
-Mixing those concerns into core would leak execution infrastructure.
-
-**Required resolution:** canonicalize the narrower core boundary in PIPELINE_MODEL and update DEVELOPMENT_PLAN wording.
-
-### AD-005 — Future S10-T06 wording would duplicate existing snapping infrastructure
+### AD-006 — S11-T04 could duplicate metric vocabulary
 **Severity:** High  
-**State:** Open
+**State:** Closed
 
-Road work already implemented `SpatialSnapIndex` and `NetworkBackend.snap()`. The roadmap currently says “Reusable nearest index on graph snapshot”, which can encourage a second infrastructure index.
+S11 work explicitly extends canonical `RawMetricId` / `MetricDefinition`; it may not create
+another metric identity vocabulary.
 
-**Required resolution:** redefine T06 as a bounded infrastructure-domain batch adapter over `NetworkBackend.snap()`.
-
-### AD-006 — Future S11-T04 would duplicate existing metric vocabulary
-**Severity:** High  
-**State:** Open
-
-`domain.benchmarking` already defines `RawMetricId`, `MetricDefinition`, canonical raw metrics, experiments, diagnostics, and the v1 reference profile.
-
-**Required resolution:** S11 metric registry must extend this vocabulary with runtime metadata; it must not replace or fork metric IDs.
-
-### AD-007 — ValidationReport is intentionally too small for future violations layer
-**Severity:** Medium / planned extension
-
-Current `ConstraintResult` contains code/severity/scope/pass/message but no entity reference or problem geometry. S11-T01 explicitly needs those.
-
-**Required resolution:** extend the canonical constraint result/report contract in S11-T01 before API/UI violation delivery. No separate violation DTO should become the domain authority.
-
-### AD-008 — Work-item completion count can overstate integrated readiness
+### AD-007 — ValidationReport needs richer violation detail
 **Severity:** Medium  
-**State:** Open
+**State:** Deferred with named owner; non-blocking
 
-The README reports 127/210 items complete, but work-item arithmetic does not show whether capabilities compose end-to-end.
+This is a planned additive extension of the canonical validation family, not a competing contract.
 
-**Required resolution:** keep count as informational only and report architecture readiness + milestone state separately.
+Future owner:
+- `UG-AI-046` / S11-T01 — entity/problem-geometry detail;
+- `UG-AI-047` / S11-T01 — aggregation/serialization evidence.
 
-### AD-009 — Frontend composition is accumulating in App-level wiring
-**Severity:** Medium / future
+### AD-008 — Work-item count can overstate integrated readiness
+**Severity:** Medium  
+**State:** Closed
 
-The current UI correctly delivers stage vertical slices, but the final workspace would become difficult to evolve if each future layer continues to be manually wired into the root component.
+README/planning now report architecture readiness and milestone state separately from historical
+work-item arithmetic. A raw completed-item percentage is not treated as product readiness.
 
-**Required resolution:** S13-T05 frontend layer registry is an architecture gate, not cosmetic refactoring. S10–S12 UI additions may add panels but must not invent a competing layer-state model.
+### AD-009 — Frontend composition may accumulate in root wiring
+**Severity:** Medium  
+**State:** Deferred with named owner; non-blocking
 
-## 4. Future-roadmap architecture audit
+Current UI slices do not require an architecture rewrite before S10. Generalized composition is an
+explicit S13 gate.
 
-### S10 — Infrastructure/accessibility
-Keep the sprint, but rewrite T06 around existing `NetworkBackend`. T07 owns batched accessibility; T08 may cache coverage incrementally but must consume T07 outputs. T09 is feasibility validation, not a second placement engine. Persistence starts only after domain contracts are stable.
+Future owner:
+- `UG-AI-085` / S13-T05 — declarative frontend layer registry;
+- `UG-AI-086` / S13-T06 — full layer tree from catalog/registry.
 
-### S11 — Validation/metrics/score
-Extend existing Constraint and benchmarking contracts. Preserve raw metrics independently from normalization/score. Violation geometry belongs to the canonical validation result family. Score sensitivity operates on persisted raw metrics without rerunning GIS.
+### AD-010 — Stage output provenance was not persisted separately
+**Severity:** High discovered during M0-06  
+**State:** Closed
 
-### S12 — Orchestration/scenarios
-This sprint is where executable DAG, persisted context assembly, checkpoints, real worker execution, cancellation, retries, outbox hardening, manifests, batches, and compare belong. Stabilization must not prematurely implement those features, but must ensure S12 has one Stage vocabulary to orchestrate.
+`RunStageResult.output_fingerprint` now persists the canonical `StageResult.fingerprint`
+separately from `input_hash` and `config_hash`. Migration-from-zero and persistence boundary
+tests are green.
 
-Ordering requirement:
-`DAG -> persisted context adapter -> checkpoint contract -> generation job -> cancellation/retry -> outbox/artifact hardening -> batches/rerun/provenance/compare -> UI`.
+S12 checkpoint work must consume dependency output fingerprints through resolved input provenance;
+it must not collapse the three hash roles into one value.
 
-### S13 — Delivery/export/UI
-Layer catalog must precede MVT/full tree/workspace. Export is asynchronous and artifact-backed. S3/MinIO remains an ArtifactStore adapter and may not change core. Frontend registry must replace ad-hoc root wiring before “complete workspace” is accepted.
+## 3. Architecture invariants now enforced
 
-### S14 — Hardening
-Profiling tasks produce evidence before optimization. Existing CI already performs migration-from-zero style smoke, so S14-T13 must harden the release matrix rather than duplicate the current check. Reliability E2E must exercise the same authoritative Job/outbox/artifact state machines used in production-like execution.
+Required CI protects:
 
-### S15 — Research/demo
-Experiments consume canonical raw metric IDs and provenance manifests. Experiment schema may not create another configuration/run model. Offline demo artifacts are a release fallback, not an alternate execution path.
+- one Stage model and canonical stage catalog;
+- core independence from HTTP/ORM/Redis/worker frameworks;
+- NetworkX isolation behind the network adapter;
+- metric CRS boundaries;
+- deterministic RNG/fingerprints/tie-breaking;
+- bounded spatial/network work;
+- fixed/source immutability and generated/run ownership;
+- EXPANSION and FROM_SCRATCH use of the same stage family;
+- independent input/config/output provenance;
+- Job/outbox and Artifact lifecycle authority;
+- in-memory typed composition through demography.
 
-## 5. No-go rules until stabilization passes
+See `M0_ARCHITECTURE_REGRESSION_GATES.md`.
 
-Do not:
+## 4. Feature-readiness decision
 
-- start S10-T06 implementation;
-- add another pipeline/stage enum;
-- build infrastructure-specific STRtree snapping;
-- add new metric IDs outside the canonical raw metric vocabulary without updating its owner;
-- implement generation orchestration around legacy `dict[str, Any]`;
-- mark architecture readiness Accepted while AD-001–AD-004 remain open.
+The debt audit no longer blocks feature work.
 
-## 6. Exit condition
+The next allowed feature item after M0 closure is:
 
-This audit becomes non-blocking only when every Critical/High item is Closed or has an Accepted ADR that intentionally supersedes it, and required CI is green.
+```text
+UG-AI-015 / S10-T06
+```
+
+Any future task that would introduce a competing cross-cutting contract must stop for ADR review
+rather than reopening an unbounded stabilization program.

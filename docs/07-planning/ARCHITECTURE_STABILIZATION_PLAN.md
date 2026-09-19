@@ -1,10 +1,10 @@
 # M0 Architecture Stabilization Plan
 
-> **Status: ACTIVE / SCOPE FROZEN**
+> **Status: COMPLETE / SCOPE CLOSED**
 >
 > Baseline branch: `architecture/stabilization-audit`
 >
-> Feature development after S10-T05 is blocked until every M0 gate below is complete.
+> M0 completed with architecture-gate evidence at `39eaa1688e06669b0e01e999304710873fd9cf0e`. Feature development resumes from UG-AI-015 / S10-T06.
 
 ## Why this document exists
 
@@ -55,7 +55,7 @@ Exit:
 - DEVELOPMENT_PLAN/ARCHITECTURE/roadmap use the same ownership boundaries;
 - architecture regression tests prevent reintroduction of competing models.
 
-**State:** COMPLETE for Stage/RunContext and documented for the remaining existing contracts; final regression check occurs in M0-09.
+**State:** COMPLETE. Canonical contract convergence is protected by the M0-09 architecture regression gates.
 
 ### M0-04 — S04–S09 stage integration
 **Goal:** completed algorithmic sprints are exposed through the canonical Stage contract without rewriting algorithms.
@@ -158,7 +158,7 @@ Exit:
 - required checks are automated;
 - failures are actionable and block merge.
 
-**State:** IN PROGRESS.
+**State:** COMPLETE at `39eaa16`. Protocol conformance and the complete architecture regression matrix are enforced by required CI.
 
 ### M0-10 — Debt-zero closure and readiness decision
 **Goal:** make a binary decision before feature work resumes.
@@ -171,7 +171,7 @@ Exit:
 - README and IMPLEMENTATION_READINESS record that exact commit;
 - readiness changes from BLOCKED to ACCEPTED only then.
 
-**State:** PENDING.
+**State:** COMPLETE. Critical/High debt is zero; remaining Medium items have named future owners; IMPLEMENTATION_READINESS is ACCEPTED.
 
 ## 2. Work order
 
@@ -180,18 +180,18 @@ Execute strictly:
 ```text
 M0-01 ✓
  -> M0-02 ✓
- -> M0-03 ✓/final check later
- -> M0-04
- -> M0-05
- -> M0-06
- -> M0-07
- -> M0-08 final pass
- -> M0-09
- -> M0-10
- -> S10-T06
+ -> M0-03 ✓
+ -> M0-04 ✓
+ -> M0-05 ✓
+ -> M0-06 ✓
+ -> M0-07 ✓
+ -> M0-08 ✓
+ -> M0-09 ✓
+ -> M0-10 ✓
+ -> UG-AI-015 / S10-T06
 ```
 
-No S10-T06 code is allowed before M0-10.
+M0-10 is complete. S10-T06 work is now allowed only through the ordered UG-AI backlog, beginning with UG-AI-015.
 
 ## 3. Project-wide invariants M0 must protect
 
@@ -226,6 +226,7 @@ This rule is specifically intended to prevent endless stabilization.
 
 ## 5. Current next task
 
-Continue **M0-09** only.
+M0 is closed. Resume feature development with **UG-AI-015 / S10-T06** only.
 
-Current deliverable: turn all M0 architectural assumptions into explicit regression gates already executed by required CI, then run the complete suite. Do not start M0-10 until those gates are CI-green.
+Do not reopen stabilization for non-blocking cleanup. A future issue changes architecture only if it
+violates an Accepted invariant or requires an ADR; otherwise it belongs to its named roadmap task.

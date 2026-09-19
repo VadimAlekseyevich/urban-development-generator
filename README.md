@@ -113,16 +113,27 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая feature-точка в `main` — **S10-T05 Candidate site geometry завершён**.
+Текущая feature-точка — **S10-T05 Candidate site geometry завершён**.
 
-Перед S10-T06 включён обязательный **M0 Architecture Stabilization Gate**. Аудит обнаружил интеграционный долг: typed `Stage` contract и persistence foundation существуют, но завершённые S04–S09 capability ещё не собраны через этот contract, а legacy scaffold содержал вторую untyped pipeline-модель.
+Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
+`39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
 
-Поэтому:
+Результат M0:
 
-- S10-T06 и последующие feature work items пока **BLOCKED**;
-- следующий execution item — `UG-AI-001` из `docs/07-planning/AI_EXECUTION_TASKS.md`;
-- текущий readiness status — `BLOCKED`, см. `docs/07-planning/IMPLEMENTATION_READINESS.md`;
-- feature work resumes only after M0 exit criteria and green required CI;
-- арифметика прежних work items (127/210) остаётся исторической оценкой объёма capability и **не является** оценкой архитектурной готовности или end-to-end готовности продукта.
+- один канонический `Stage/StageResult` contract и coarse stage catalog;
+- S04–S09 доступны через typed Stage adapters;
+- deterministic in-memory pipeline spine проходит через demography;
+- fixed/generated, CRS, determinism, bounds, persistence/job/artifact invariants защищены regression gates;
+- `RunStageResult` отдельно хранит input/config provenance и canonical output fingerprint;
+- Critical/High architecture debt: **0 open**;
+- оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
+- future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
-Актуальный порядок выполнения определяют `IMPLEMENTATION_READINESS.md`, `MILESTONES.md`, `AI_EXECUTION_TASKS.md` и capability roadmap.
+Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
+**`UG-AI-015 / S10-T06`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+
+Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
+прогресс определяется milestone gates и ordered UG-AI backlog.
+
+Актуальный порядок выполнения определяют `IMPLEMENTATION_READINESS.md`, `MILESTONES.md`,
+`AI_EXECUTION_TASKS.md` и capability roadmap.

@@ -6,6 +6,8 @@
 
 ## M0 — Architecture Aligned
 
+**State: COMPLETE.** Evidence commit: `39eaa1688e06669b0e01e999304710873fd9cf0e`.
+
 Exit:
 
 - documentation ownership rules accepted;
