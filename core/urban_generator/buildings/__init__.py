@@ -14,6 +14,18 @@ from core.urban_generator.buildings.config import (
     BuildingFootprintStrategy,
     BuildingPlacementScope,
 )
+from core.urban_generator.buildings.convergence import (
+    DEFAULT_MAX_CONVERGENCE_ITERATIONS,
+    DEFAULT_MAX_CONVERGENCE_PROPOSALS,
+    BuildingPlacementBaseline,
+    BuildingPlacementConvergenceDiagnostics,
+    BuildingPlacementConvergenceError,
+    BuildingPlacementConvergenceResult,
+    BuildingPlacementConvergenceStatus,
+    BuildingPlacementConverger,
+    BuildingPlacementProposal,
+    BuildingPlacementTargets,
+)
 from core.urban_generator.buildings.envelope import (
     DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS,
     DEFAULT_MAX_ENVELOPE_PARTS,
@@ -80,6 +92,8 @@ from core.urban_generator.buildings.spacing import (
 )
 
 __all__ = [
+    "DEFAULT_MAX_CONVERGENCE_ITERATIONS",
+    "DEFAULT_MAX_CONVERGENCE_PROPOSALS",
     "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
     "DEFAULT_MAX_ENVELOPE_PARTS",
     "DEFAULT_MAX_FRONTAGE_SAMPLES",
@@ -117,6 +131,7 @@ __all__ = [
     "BuildingOrientationResult",
     "BuildingOrientationSource",
     "BuildingOrientationStrategy",
+    "BuildingPlacementBaseline",
     "BuildingPlacementCandidate",
     "BuildingPlacementCandidateDiagnostics",
     "BuildingPlacementCandidateError",
@@ -124,8 +139,15 @@ __all__ = [
     "BuildingPlacementCandidateKind",
     "BuildingPlacementCandidatePolicy",
     "BuildingPlacementCandidateResult",
+    "BuildingPlacementConvergenceDiagnostics",
+    "BuildingPlacementConvergenceError",
+    "BuildingPlacementConvergenceResult",
+    "BuildingPlacementConvergenceStatus",
+    "BuildingPlacementConverger",
     "BuildingPlacementFrontage",
+    "BuildingPlacementProposal",
     "BuildingPlacementScope",
+    "BuildingPlacementTargets",
     "BuildingSpacingCandidateLimitError",
     "BuildingSpacingError",
     "BuildingSpacingHit",
