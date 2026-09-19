@@ -1,6 +1,6 @@
 # Future Roadmap Architecture Audit
 
-> **Status: Accepted for planning**
+> **Status: Accepted after M0 stabilized-contract final pass**
 >
 > Scope: remaining S10 work through v1.0.0.
 
@@ -8,7 +8,7 @@
 
 The high-level S10-S15 ordering remains valid. The required change is to make several tasks extensions of already-existing contracts rather than invitations to create replacements.
 
-No new feature sprint is inserted. A blocking STAB gate sits between S10-T05 and S10-T06.
+No new feature sprint is inserted. The finite M0 gate sits between S10-T05 and S10-T06; after M0 closes, the next feature task is UG-AI-015 / S10-T06.
 
 ## 2. S10 corrections
 
@@ -51,7 +51,7 @@ T01 DAG metadata
  -> T14/T15 UI
 ```
 
-T01 must orchestrate the Stage identities stabilized in M0. T02 maps persistence into core types/ports but does not let ORM types enter core. T03 uses stage version + input/config/dependency provenance. T04 is the first point where `worker.run_generation` becomes real.
+T01 must orchestrate the Stage identities stabilized in M0. T02 maps persistence into core types/ports but does not let ORM types enter core. T03 uses stage name/version + independent input/config hashes, with ordered dependency `RunStageResult.output_fingerprint` values participating in resolved input identity; successful outputs persist their own fingerprint separately. T04 is the first point where `worker.run_generation` becomes real.
 
 ## 5. S13 corrections
 
@@ -101,3 +101,43 @@ Every future item must preserve:
 - one raw metric vocabulary;
 - one run provenance lineage;
 - same pipeline for EXPANSION and FROM_SCRATCH.
+
+
+## 10. Final stabilized contract matrix
+
+Future implementation extends the following M0 contracts rather than replacing them.
+
+| Future scope | Canonical contracts that must be extended |
+| --- | --- |
+| S10 infrastructure | `DemographyStageOutput.demand_profile`, `RoadStageOutput.graph`, `NetworkBackend`, generated/run ownership, `RawMetricId` |
+| S11 validation/metrics | `ConstraintEngine` / `ConstraintResult` / `ValidationReport`, authoritative Stage metric outputs, `RawMetricId` / `MetricDefinition` |
+| S12 orchestration | `Stage` / `StageResult`, `RunContext`, `TerritorySnapshot`, `RunStageResult` including `output_fingerprint`, `Job`, `JobOutbox`, `ArtifactStore` / `Artifact` |
+| S13 delivery/export/UI | persisted run-scoped entities/read models, future canonical `LayerCatalog`, existing `ArtifactStore`, shared frontend layer registry |
+| S14 hardening | the same S12/S13 runtime, Job/outbox/artifact state machines, existing benchmark/CI paths; no parallel reliability framework |
+| S15 experiments | normal `ScenarioBatch`/S12 runs, immutable provenance, canonical raw metrics and validation outputs |
+| R1-R10 | the same production pipeline and contracts used by normal runs; no release-only execution path |
+
+### Contract-extension rule
+
+A UG-AI task is not ready if it cannot name the row above that owns its cross-cutting boundary.
+If implementation would require a second Stage, Constraint, NetworkBackend, ArtifactStore, Job
+authority, generated-state model, raw-metric vocabulary, or run lineage, stop and create an ADR
+rather than implementing the duplicate.
+
+## 11. Final ordering conclusion
+
+The audited critical path remains:
+
+```text
+S10 infrastructure
+ -> S11 final validation/raw metrics/score
+ -> S12 durable orchestration/scenarios
+ -> S13 scalable delivery/export/workspace
+ -> S14 reliability/performance
+ -> S15 experiments/demo
+ -> R1-R10 acceptance
+```
+
+No remaining task requires moving a later sprint ahead of an earlier one. UI vertical slices may
+follow their stabilized backend contracts, but no milestone or release gate may be claimed from
+isolated modules.

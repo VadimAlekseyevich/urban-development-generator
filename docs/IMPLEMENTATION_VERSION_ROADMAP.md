@@ -698,7 +698,7 @@ Executable DAG metadata/validation over the stabilized canonical `Stage` identit
 Assemble core `RunContext` + `TerritorySnapshot` + resolved configs/ports from persisted run without exposing ORM/session types to core.
 
 ### S12-T03 — Persistent checkpoints
-Checkpoint identity includes stage name/version plus resolved input/config/dependency fingerprints; reuse only when the full provenance contract matches.
+Checkpoint eligibility uses stage name/version + independent `input_hash`/`config_hash`; canonical resolved input identity incorporates ordered dependency `RunStageResult.output_fingerprint` values. Successful stage outputs persist their own `output_fingerprint` separately. Reuse only when the full provenance contract matches and required fingerprints are present.
 
 ### S12-T04 — Generation worker job
 Replace the current `worker.run_generation` placeholder with real canonical Stage DAG execution outside HTTP and persisted progress.
@@ -725,7 +725,7 @@ Create reproducible runs from matrix spec.
 Clone config/dataset versions/seed with availability/hash checks.
 
 ### S12-T12 — Provenance manifest
-One JSON manifest of code/config/data/stages/artifacts/metrics.
+One JSON manifest of code/config/data/stages including input/config/output fingerprints, artifacts and canonical raw metrics.
 
 ### S12-T13 — Run compare backend
 Raw metrics delta/ranking/validation summary without GIS recompute.

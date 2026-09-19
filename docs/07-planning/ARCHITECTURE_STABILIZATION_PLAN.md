@@ -127,7 +127,7 @@ Exit:
 - every invariant has a canonical owner plus at least one regression/static/integration test or an explicitly deferred future gate;
 - no open Critical/High contradiction remains.
 
-**State:** IN PROGRESS. Existing invariant evidence is documented; the remaining automated proof is EXPANSION fixed-building and demographic-baseline regression coverage.
+**State:** COMPLETE at `f5e4e99`. All eight invariants have canonical ownership and CI-green regression/static/integration evidence; no new Critical/High contradiction was found.
 
 ### M0-08 — Future roadmap architecture audit (S10–S15 + R1–R10)
 **Goal:** guarantee that future tasks extend the stabilized architecture instead of inventing replacements.
@@ -139,7 +139,7 @@ Exit:
 - one-request-sized UG-AI tasks have non-goals and acceptance evidence;
 - release gates test one coherent pipeline rather than independent modules.
 
-**State:** PARTIALLY COMPLETE; final pass happens after M0-04–07 so the audit reflects the actual stabilized contracts.
+**State:** COMPLETE. S10–S15/R1–R10 now name the stabilized contract families they extend; duplicate-risk tasks, ordering and checkpoint provenance are synchronized with M0.
 
 ### M0-09 — Architecture regression gates
 **Goal:** make the architecture enforceable by CI.
@@ -226,6 +226,6 @@ This rule is specifically intended to prevent endless stabilization.
 
 ## 5. Current next task
 
-Continue **M0-07** only.
+Continue **M0-09** only.
 
-Current deliverable: add the two missing EXPANSION regression checks and keep the cross-cutting invariant evidence matrix green. Do not start M0-08 until those tests pass full CI.
+Current deliverable: turn all M0 architectural assumptions into explicit regression gates already executed by required CI, then run the complete suite. Do not start M0-10 until those gates are CI-green.

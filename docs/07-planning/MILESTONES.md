@@ -13,8 +13,10 @@ Exit:
 - one canonical Stage/StageResult model;
 - S04-S09 capabilities exposed through typed stage adapters;
 - deterministic in-memory execution spine passes through demography;
+- persistence/orchestration boundary can carry Stage output provenance without changing core;
+- cross-cutting CRS/determinism/bounds/ownership/retry invariants have regression evidence;
 - future roadmap S10-S15 audited against existing contracts;
-- required CI green.
+- required architecture regression and full CI green.
 
 ## M1 — Infrastructure Complete
 

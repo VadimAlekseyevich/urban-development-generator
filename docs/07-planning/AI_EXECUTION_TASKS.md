@@ -29,18 +29,20 @@ Report:
 
 ## M0 / Architecture stabilization
 
-- [ ] **UG-AI-001** — **STAB-01** — Delete legacy core/urban_generator/pipeline/service.py and stages.py after confirming no repository imports; do not replace them with another enum.
-- [ ] **UG-AI-002** — **STAB-02** — Synchronize DEVELOPMENT_PLAN RunContext/StageResult wording with PIPELINE_MODEL and ADR-0001.
-- [ ] **UG-AI-003** — **STAB-03** — Define canonical coarse stage names, versions, dependency identities and typed adapter input/output ownership for S04-S09.
-- [ ] **UG-AI-004** — **STAB-04** — Implement suitability/constraint stage adapter(s) over existing constraint and suitability services; no algorithm duplication or persistence.
-- [ ] **UG-AI-005** — **STAB-05** — Implement zoning stage adapter over existing fixed-zone, seed, partition, assignment, refinement and validation capabilities.
-- [ ] **UG-AI-006** — **STAB-06** — Implement roads stage adapter over canonical road semantics/graph/generation/validation/metrics services and NetworkBackend boundary.
-- [ ] **UG-AI-007** — **STAB-07** — Implement blocks_and_parcels stage adapter over polygonize/clip/metrics/frontage/split/cleanup/association/subdivision capabilities.
-- [ ] **UG-AI-008** — **STAB-08** — Implement buildings stage adapter over envelope/candidate/archetype/orientation/spacing/convergence/attributes/area capabilities.
-- [ ] **UG-AI-009** — **STAB-09** — Implement demography stage adapter over scenario/capacity/allocation/cohorts/employment/aggregation/calibration/demand/metrics capabilities.
-- [ ] **UG-AI-010** — **STAB-10** — Add synthetic in-memory typed execution-spine fixture that composes stabilized adapters through demography without FastAPI/SQLAlchemy/Redis.
-- [ ] **UG-AI-011** — **STAB-11** — Add deterministic fingerprint/permutation tests and stage metadata dependency validation for the execution spine.
-- [ ] **UG-AI-012** — **STAB-12** — Re-audit S10-S15 task contracts against stabilized adapter outputs and update ROADMAP_AUDIT/roadmap where mismatched.
+Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 through M0-08 have now supplied the evidence for UG-AI-001 through UG-AI-012; UG-AI-013/014 remain the CI/readiness closure.
+
+- [x] **UG-AI-001** — **STAB-01** — Delete legacy core/urban_generator/pipeline/service.py and stages.py after confirming no repository imports; do not replace them with another enum.
+- [x] **UG-AI-002** — **STAB-02** — Synchronize DEVELOPMENT_PLAN RunContext/StageResult wording with PIPELINE_MODEL and ADR-0001.
+- [x] **UG-AI-003** — **STAB-03** — Define canonical coarse stage names, versions, dependency identities and typed adapter input/output ownership for S04-S09.
+- [x] **UG-AI-004** — **STAB-04** — Implement suitability/constraint stage adapter(s) over existing constraint and suitability services; no algorithm duplication or persistence.
+- [x] **UG-AI-005** — **STAB-05** — Implement zoning stage adapter over existing fixed-zone, seed, partition, assignment, refinement and validation capabilities.
+- [x] **UG-AI-006** — **STAB-06** — Implement roads stage adapter over canonical road semantics/graph/generation/validation/metrics services and NetworkBackend boundary.
+- [x] **UG-AI-007** — **STAB-07** — Implement blocks_and_parcels stage adapter over polygonize/clip/metrics/frontage/split/cleanup/association/subdivision capabilities.
+- [x] **UG-AI-008** — **STAB-08** — Implement buildings stage adapter over envelope/candidate/archetype/orientation/spacing/convergence/attributes/area capabilities.
+- [x] **UG-AI-009** — **STAB-09** — Implement demography stage adapter over scenario/capacity/allocation/cohorts/employment/aggregation/calibration/demand/metrics capabilities.
+- [x] **UG-AI-010** — **STAB-10** — Add synthetic in-memory typed execution-spine fixture that composes stabilized adapters through demography without FastAPI/SQLAlchemy/Redis.
+- [x] **UG-AI-011** — **STAB-11** — Add deterministic fingerprint/permutation tests and stage metadata dependency validation for the execution spine.
+- [x] **UG-AI-012** — **STAB-12** — Re-audit S10-S15 task contracts against stabilized adapter outputs and update ROADMAP_AUDIT/roadmap where mismatched.
 - [ ] **UG-AI-013** — **STAB-13** — Run required Python/frontend/migration/compose CI checks and fix stabilization regressions only.
 - [ ] **UG-AI-014** — **STAB-14** — Close architecture debt findings, mark IMPLEMENTATION_READINESS Accepted, and record stabilization commit/CI evidence.
 
@@ -100,8 +102,8 @@ Report:
 - [ ] **UG-AI-063** — **S12-T01** — Define deterministic topological order and explicit skip semantics with unit tests.
 - [ ] **UG-AI-064** — **S12-T02** — Define persistence-to-core PipelineContext assembly contract for RunContext, TerritorySnapshot, configs and ports.
 - [ ] **UG-AI-065** — **S12-T02** — Implement adapter without exposing ORM/session types to core.
-- [ ] **UG-AI-066** — **S12-T03** — Define checkpoint key from stage identity/version + resolved input/config/dependency fingerprints.
-- [ ] **UG-AI-067** — **S12-T03** — Implement persisted checkpoint eligibility/reuse and stale-checkpoint rejection tests.
+- [ ] **UG-AI-066** — **S12-T03** — Define checkpoint eligibility from stage name/version + independent input/config hashes; resolved input identity must include ordered dependency `RunStageResult.output_fingerprint` values, while the current stage output fingerprint remains a separate persisted provenance field.
+- [ ] **UG-AI-067** — **S12-T03** — Implement persisted checkpoint eligibility/reuse requiring matching name/version/input/config provenance and non-null dependency/output fingerprints; add stale/missing-fingerprint rejection tests.
 - [ ] **UG-AI-068** — **S12-T04** — Replace worker.run_generation placeholder with real DAG execution outside HTTP and persisted stage progress.
 - [ ] **UG-AI-069** — **S12-T04** — Add generation worker integration fixture covering success/failure and immutable successful results.
 - [ ] **UG-AI-070** — **S12-T05** — Add cooperative cancellation checks between stages/bounded units with consistent run/stage/job states.
