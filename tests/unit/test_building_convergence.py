@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import math
+
 import pytest
 from shapely.geometry import Point, box
 
+import core.urban_generator.buildings.convergence as convergence_module
 from core.urban_generator.buildings import (
     BuildingPlacementBaseline,
     BuildingPlacementConvergenceError,
@@ -343,6 +346,53 @@ def test_positive_spacing_gap_is_applied_by_convergence_loop() -> None:
         "proposal:two",
     )
     assert result.diagnostics.spacing_rejected_count == 1
+
+
+def test_incremental_spacing_index_rebuild_work_is_logarithmically_bounded(
+    monkeypatch,
+) -> None:
+    original_index = convergence_module.BuildingSpacingIndex
+    indexed_sizes: list[int] = []
+
+    class TrackingBuildingSpacingIndex(original_index):
+        def __init__(self, *args, **kwargs):
+            footprints = kwargs["footprints"]
+            indexed_sizes.append(len(footprints))
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(
+        convergence_module,
+        "BuildingSpacingIndex",
+        TrackingBuildingSpacingIndex,
+    )
+
+    proposal_count = 64
+    proposals = tuple(
+        _proposal(
+            f"proposal:{index:03d}",
+            box(index * 3, 0, index * 3 + 1, 1),
+        )
+        for index in range(proposal_count)
+    )
+    result = BuildingPlacementConverger(
+        working_srid=WORKING_SRID,
+    ).converge(
+        proposals,
+        targets=BuildingPlacementTargets(
+            site_area_m2=float(proposal_count),
+            target_coverage_ratio=1.0,
+            target_far=1.0,
+            coverage_tolerance=0.0,
+            far_tolerance=0.0,
+        ),
+    )
+
+    assert result.diagnostics.status is BuildingPlacementConvergenceStatus.CONVERGED
+    assert result.diagnostics.accepted_count == proposal_count
+    assert max(indexed_sizes) == proposal_count
+    assert sum(indexed_sizes) <= proposal_count * (
+        math.ceil(math.log2(proposal_count)) + 1
+    )
 
 
 def test_contract_rejects_invalid_targets_geometry_crs_ids_and_bounds() -> None:
