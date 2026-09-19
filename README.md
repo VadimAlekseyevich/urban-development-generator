@@ -109,14 +109,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая точка реализации в `main` — **`S08-T07 — Orientation strategy` включительно**.
+Текущая точка реализации в `main` — **Sprint S08 завершён полностью, следующий work item — `S09-T01 — DemographicScenario schema`**.
 
-- полностью реализованы sprint `S00`–`S07`;
-- в `S08 Buildings и archetypes` завершены `T01`–`T07` из 14;
-- следующий work item — `S08-T08 — Inter-building spacing`;
-- required HEAD CI на текущем checkpoint зелёный: Python, frontend и Docker Compose smoke;
-- по количеству implementation work items выполнено **104 из 210 (≈49,5%)**, осталось **106 из 210 (≈50,5%)**.
+- полностью реализованы sprint `S00`–`S08`;
+- `S08 Buildings и archetypes` закрыт: `T01`–`T14` реализованы и прошли required CI;
+- следующий этап критического пути — `S09 Demography`;
+- по количеству implementation work items выполнено **111 из 210 (≈52,9%)**, осталось **99 из 210 (≈47,1%)**;
+- после `S09` критический путь продолжается через `S10`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
 
-Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости. После завершения `S08` критический путь продолжается через `S09`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.
 
 Актуальный состав и границы задач определяет `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
