@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
 } from 'react'
 import type {
+  ExpressionSpecification,
   GeoJSONSource,
   Map as MapLibreMap,
   MapGeoJSONFeature,
@@ -81,7 +82,7 @@ function metricLabel(mode: MetricMode): string {
   return 'Density'
 }
 
-function fillExpression(mode: MetricMode): unknown[] {
+function fillExpression(mode: MetricMode): ExpressionSpecification {
   const property = metricProperty(mode)
   const stops =
     mode === 'density'
@@ -101,7 +102,7 @@ function fillExpression(mode: MetricMode): unknown[] {
     '#38bdf8',
     stops[3],
     '#0c4a6e',
-  ]
+  ] as ExpressionSpecification
 }
 
 function ensureLayers(map: MapLibreMap, mode: MetricMode): void {
@@ -245,7 +246,9 @@ export function DemographyPanel({
       setSelected(hit ? selectedBlock(hit) : null)
     }
     map.on('click', handleClick)
-    return () => map.off('click', handleClick)
+    return () => {
+      map.off('click', handleClick)
+    }
   }, [map, visible])
 
   useEffect(() => {
@@ -380,7 +383,9 @@ export function DemographyPanel({
     }
     map.on('moveend', refresh)
     refresh()
-    return () => map.off('moveend', refresh)
+    return () => {
+      map.off('moveend', refresh)
+    }
   }, [loadViewport, map, runId, visible])
 
   function onRunChange(event: ChangeEvent<HTMLSelectElement>): void {
