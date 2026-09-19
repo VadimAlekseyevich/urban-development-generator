@@ -1,3 +1,14 @@
+from core.urban_generator.roads.candidate_anchors import (
+    DEFAULT_MAX_ANCHOR_SAMPLE_CELLS,
+    DEFAULT_MAX_ROAD_ANCHORS,
+    CandidateRoadAnchor,
+    CandidateRoadAnchorDiagnostics,
+    CandidateRoadAnchorError,
+    CandidateRoadAnchorPolicy,
+    CandidateRoadAnchorResult,
+    CandidateRoadAnchorSampler,
+    CandidateRoadAnchorZoneDiagnostics,
+)
 from core.urban_generator.roads.endpoint_snapping import (
     EndpointRoadSnapper,
     EndpointRoadSnappingDiagnostics,
@@ -13,17 +24,6 @@ from core.urban_generator.roads.fixed_network_attachment import (
     FixedNetworkAttachmentPolicy,
     FixedNetworkAttachmentResult,
     FixedNetworkAttachmentStatus,
-)
-from core.urban_generator.roads.candidate_anchors import (
-    DEFAULT_MAX_ANCHOR_SAMPLE_CELLS,
-    DEFAULT_MAX_ROAD_ANCHORS,
-    CandidateRoadAnchor,
-    CandidateRoadAnchorDiagnostics,
-    CandidateRoadAnchorError,
-    CandidateRoadAnchorPolicy,
-    CandidateRoadAnchorResult,
-    CandidateRoadAnchorSampler,
-    CandidateRoadAnchorZoneDiagnostics,
 )
 from core.urban_generator.roads.least_cost_connector import (
     DEFAULT_MAX_LEAST_COST_VISITED_CELLS,
