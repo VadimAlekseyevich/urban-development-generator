@@ -226,6 +226,26 @@ T02 сохраняет fractional capacities и scenario provenance, но нам
 population target, age-group shares и working ratio при расчёте физической вместимости.
 Integer resident allocation и target reconciliation принадлежат S09-T03.
 
+## Population allocation boundary
+
+S09-T03 преобразует fractional S09-T02 resident capacity в integer generated-resident
+allocation. Absolute target учитывает optional baseline как уже существующее население;
+growth target требует baseline и сначала детерминированно разрешается в target total.
+Generated target равен положительной разнице target total и baseline.
+
+Per-building integer capacity получается из fractional capacity без превышения физической
+вместимости. Распределение использует exact integer quotient/remainder apportionment,
+взвешенное integer capacities; tie-break выполняется по stable `building_id`. Поэтому
+результат не зависит от порядка входа и не требует floating-point normalization.
+
+Если generated target выше доступной capacity, результат остаётся валидным и возвращает
+`CAPACITY_EXHAUSTED` с unmet count. Если baseline уже выше target, новые residents не
+назначаются и возвращается `BASELINE_EXCEEDS_TARGET`. Zero capacity использует
+utilization 0.0, поэтому NaN/Inf не возникают.
+
+S09-T03 не распределяет age groups, не оценивает jobs и не агрегирует demographics;
+следующий слой композиции — S09-T04.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
