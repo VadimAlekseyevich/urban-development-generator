@@ -210,6 +210,22 @@ Scenario canonicalizes age-group order и имеет stable SHA-256 fingerprint.
 распределяет жителей, не вычисляет residential capacity/jobs, не читает population
 raster и не добавляет persistence/API/UI; эти обязанности остаются S09-T02–T11.
 
+## Residential capacity boundary
+
+S09-T02 связывает authoritative S08-T10 use/floors и S08-T11 GFA без повторного чтения
+geometry. `ResidentialCapacitySubject` требует совпадения building id и floors между
+`AssignedBuildingAttributes` и `BuildingAreaMetrics`.
+
+Residential building использует весь GFA, mixed building — scenario-level
+`residential_gfa_share`, public/commercial — нулевую residential capacity. Далее
+occupancy применяется к residential GFA, resident capacity вычисляется через
+`residential_area_per_person_m2`, а fractional household capacity — через
+`average_household_size`.
+
+T02 сохраняет fractional capacities и scenario provenance, но намеренно игнорирует
+population target, age-group shares и working ratio при расчёте физической вместимости.
+Integer resident allocation и target reconciliation принадлежат S09-T03.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
