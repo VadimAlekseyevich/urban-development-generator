@@ -155,3 +155,39 @@ zone identity through a database join.
 Generated zone identity is run-scoped and deterministic before persistence. The same ID is used by
 `ZoningStageOutput.generated_zone_refs`, `SqlAlchemyGeneratedZoneWriter`, block-zone association,
 and later block/parcel persistence.
+
+
+### buildings
+
+Input owns the stabilized `BlocksAndParcelsStageOutput` plus resolved fixed-building spacing/baseline
+state when running in EXPANSION.
+
+Config owns:
+- canonical `BuildingConfig` archetype catalog;
+- canonical `BuildingAttributeConfig`;
+- one geometry spec for every configured archetype;
+- zone coverage/FAR targets;
+- existing envelope/candidate/orientation/spacing bounds.
+
+Composition:
+
+```text
+S07 associated blocks/planning parcels
+ -> non-overlapping placement sources (prefer parcel sources, block fallback)
+ -> buildable envelope + shared constraint evaluators
+ -> bounded grid/frontage candidates
+ -> deterministic weighted archetype selection
+ -> orientation
+ -> rectangular/bar/perimeter/courtyard footprint strategy
+ -> per-source bounded coverage/FAR convergence with global spacing state
+ -> use/floor assignment
+ -> authoritative footprint/GFA/coverage/FAR metrics
+```
+
+The stage emits generated buildings only and carries `snapshot.buildings` unchanged as fixed refs.
+FROM_SCRATCH rejects fixed building state. EXPANSION requires resolved fixed footprints whenever the
+snapshot contains fixed-building refs, so generated footprints cannot silently overlap fixed state.
+
+Archetype selection uses the existing `selection_weight` field with a namespaced `RunContext`
+RNG. This closes the S08 integration gap where weights existed in config but were not consumed by a
+coarse execution path.

@@ -4,6 +4,16 @@ from core.urban_generator.stages.blocks import (
     BlocksAndParcelsStageInput,
     BlocksAndParcelsStageOutput,
 )
+from core.urban_generator.stages.buildings import (
+    BuildingArchetypeStageSpec,
+    BuildingSourceBaseline,
+    BuildingSourceStageResult,
+    BuildingStage,
+    BuildingStageConfig,
+    BuildingStageInput,
+    BuildingStageOutput,
+    BuildingZoneTarget,
+)
 from core.urban_generator.stages.catalog import (
     BLOCKS_AND_PARCELS_STAGE,
     BUILDINGS_STAGE,
@@ -51,6 +61,14 @@ __all__ = [
     "BlocksAndParcelsStageInput",
     "BlocksAndParcelsStageOutput",
     "BUILDINGS_STAGE",
+    "BuildingArchetypeStageSpec",
+    "BuildingSourceBaseline",
+    "BuildingSourceStageResult",
+    "BuildingStage",
+    "BuildingStageConfig",
+    "BuildingStageInput",
+    "BuildingStageOutput",
+    "BuildingZoneTarget",
     "CANONICAL_STAGE_DEPENDENCIES",
     "CANONICAL_STAGE_ORDER",
     "DEMOGRAPHY_STAGE",
