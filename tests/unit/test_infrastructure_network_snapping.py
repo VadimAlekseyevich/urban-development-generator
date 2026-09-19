@@ -155,7 +155,7 @@ def _demand(
     return UnmetDemandResult(
         scenario_version="demography-v1",
         scenario_fingerprint="a" * 64,
-        demands=demands,
+        demands=tuple(sorted(demands, key=lambda item: item.key)),
         summaries=tuple(
             sorted(
                 summaries,
