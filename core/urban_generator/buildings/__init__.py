@@ -54,17 +54,6 @@ from core.urban_generator.buildings.perimeter_courtyard import (
     PerimeterCourtyardKind,
     PerimeterOpeningSide,
 )
-from core.urban_generator.buildings.spacing import (
-    DEFAULT_MAX_SPACING_CANDIDATES,
-    DEFAULT_MAX_SPACING_FOOTPRINTS,
-    BuildingSpacingCandidateLimitError,
-    BuildingSpacingError,
-    BuildingSpacingHit,
-    BuildingSpacingIndex,
-    BuildingSpacingPolicy,
-    BuildingSpacingSubject,
-    PlacedBuildingFootprint,
-)
 from core.urban_generator.buildings.placement import (
     DEFAULT_MAX_FRONTAGE_SAMPLES,
     DEFAULT_MAX_GRID_SCAN_CELLS,
@@ -77,6 +66,17 @@ from core.urban_generator.buildings.placement import (
     BuildingPlacementCandidatePolicy,
     BuildingPlacementCandidateResult,
     BuildingPlacementFrontage,
+)
+from core.urban_generator.buildings.spacing import (
+    DEFAULT_MAX_SPACING_CANDIDATES,
+    DEFAULT_MAX_SPACING_FOOTPRINTS,
+    BuildingSpacingCandidateLimitError,
+    BuildingSpacingError,
+    BuildingSpacingHit,
+    BuildingSpacingIndex,
+    BuildingSpacingPolicy,
+    BuildingSpacingSubject,
+    PlacedBuildingFootprint,
 )
 
 __all__ = [
