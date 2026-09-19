@@ -109,13 +109,13 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая точка реализации в `main` — **S10-T01 InfrastructureType schema завершён, следующий work item — `S10-T02 — Existing infrastructure adapter`**.
+Текущая точка реализации в `main` — **S10-T02 Existing infrastructure adapter завершён, следующий work item — `S10-T03 — Unmet demand calculation`**.
 
 - полностью реализованы sprint `S00`–`S09`;
-- в `S10 Infrastructure и accessibility` завершён `T01`: versioned infrastructure type schema с demand dependency, capacity, network cutoff, allowed zones, site-area constraints и candidate policy;
-- следующий шаг критического пути — `S10-T02`, адаптер existing infrastructure;
-- по количеству implementation work items выполнено **123 из 210 (≈58,6%)**, осталось **87 из 210 (≈41,4%)**;
-- после `S10` критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+- в `S10 Infrastructure и accessibility` завершены `T01`–`T02`: InfrastructureType schema и adapter существующей инфраструктуры;
+- следующий шаг критического пути — `S10-T03` расчёт unmet demand по block/category/demographic cohort;
+- по количеству implementation work items выполнено **124 из 210 (≈59,0%)**, осталось **86 из 210 (≈41,0%)**;
+- после S10 критический путь продолжается через `S11`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
 
 Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости.
 
