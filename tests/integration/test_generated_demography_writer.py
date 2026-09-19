@@ -13,7 +13,7 @@ from backend.app.db.generated_demography_writer import (
     GeneratedDemographyPersistenceError,
     SqlAlchemyGeneratedDemographyWriter,
 )
-from backend.app.db.session import SessionLocal, engine
+from backend.app.db.session import engine
 from backend.app.models.generated_entity import GeneratedBlock, GeneratedZone
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
