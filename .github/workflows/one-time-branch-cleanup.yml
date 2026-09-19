@@ -1,0 +1,31 @@
+name: One-time stale branch cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.head_commit.message == 'chore: clean stale branches'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Delete all non-main branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-remote --heads origin |
+            awk '{print $2}' |
+            sed 's#^refs/heads/##' |
+            while IFS= read -r branch; do
+              if [ "$branch" = "main" ]; then
+                continue
+              fi
+              echo "Deleting $branch"
+              git push origin --delete "$branch"
+            done
