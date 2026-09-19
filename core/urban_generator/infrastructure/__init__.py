@@ -1,3 +1,11 @@
+from core.urban_generator.infrastructure.config import (
+    InfrastructureCandidatePolicy,
+    InfrastructureCandidateSource,
+    InfrastructureCategory,
+    InfrastructureDemandModel,
+    InfrastructureType,
+    InfrastructureTypeError,
+)
 from core.urban_generator.infrastructure.existing import (
     ExistingFacilityMappingRule,
     ExistingFacilitySourceRecord,
@@ -6,14 +14,6 @@ from core.urban_generator.infrastructure.existing import (
     ExistingInfrastructureError,
     ExistingInfrastructureFacility,
     ExistingInfrastructureResult,
-)
-from core.urban_generator.infrastructure.config import (
-    InfrastructureCandidatePolicy,
-    InfrastructureCandidateSource,
-    InfrastructureCategory,
-    InfrastructureDemandModel,
-    InfrastructureType,
-    InfrastructureTypeError,
 )
 
 __all__ = [
