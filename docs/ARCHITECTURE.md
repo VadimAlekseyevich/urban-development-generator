@@ -172,6 +172,19 @@ footprint area и GFA; config/assignment provenance остаётся в `attribu
 Геометрия обязана быть `POLYGON` в `GenerationRun.working_srid`. Writer блокирует
 успешный run, пишет bounded chunks и не реализует API/UI — это граница S08-T13.
 
+## Generated buildings UI boundary
+
+S08-T13 доставляет persisted `GeneratedBuilding` через project/run-scoped bbox GeoJSON
+и отображает его отдельным MapLibre layer. Backend остаётся authoritative для run list,
+typed properties и spatial filtering; frontend не реконструирует floors/GFA или
+block/parcel relations из других слоёв.
+
+UI позволяет переключать generation run, независимо скрывать generated buildings,
+визуально различать archetype/use, видеть viewport truncation и инспектировать typed
+атрибуты кликом. Source buildings остаются отдельным source layer и не смешиваются с
+generated rows. T13 использует bounded GeoJSON path; MVT/cache/export/общий layer catalog
+остаются S13 и не внедряются преждевременно.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
