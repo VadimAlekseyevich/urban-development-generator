@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 is complete; the current ordered task is **UG-AI-020 / S10-T07**.
+The repository is architecture-ready for S10 feature development. S10-T06 is complete; the current ordered task is **UG-AI-021 / S10-T07**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-020 / S10-T07
-Define the accessibility query/result contract keyed by infrastructure type, demand ref and facility/site ref.
+UG-AI-021 / S10-T07
+Implement bounded existing-facility accessibility using NetworkBackend multi-source distance operations and type max-distance cutoffs.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
