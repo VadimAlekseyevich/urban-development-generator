@@ -34,6 +34,21 @@ from core.urban_generator.infrastructure.existing import (
     ExistingInfrastructureFacility,
     ExistingInfrastructureResult,
 )
+from core.urban_generator.infrastructure.network_snap import (
+    ExistingInfrastructureFacilityRef,
+    ExistingInfrastructureFacilitySnap,
+    ExistingInfrastructureFacilitySnapInput,
+    InfrastructureCandidateRef,
+    InfrastructureCandidateSnap,
+    InfrastructureCandidateSnapInput,
+    InfrastructureDemandRef,
+    InfrastructureDemandSnap,
+    InfrastructureDemandSnapInput,
+    InfrastructureNetworkSnap,
+    InfrastructureNetworkSnapError,
+    InfrastructureNetworkSnapInput,
+    InfrastructureNetworkSubjectRef,
+)
 from core.urban_generator.infrastructure.site_geometry import (
     DEFAULT_SITE_GEOMETRY_SEARCH_ITERATIONS,
     InfrastructureCandidateGeometry,
@@ -45,6 +60,19 @@ from core.urban_generator.infrastructure.site_geometry import (
 )
 
 __all__ = [
+    "ExistingInfrastructureFacilityRef",
+    "ExistingInfrastructureFacilitySnap",
+    "ExistingInfrastructureFacilitySnapInput",
+    "InfrastructureCandidateRef",
+    "InfrastructureCandidateSnap",
+    "InfrastructureCandidateSnapInput",
+    "InfrastructureDemandRef",
+    "InfrastructureDemandSnap",
+    "InfrastructureDemandSnapInput",
+    "InfrastructureNetworkSnap",
+    "InfrastructureNetworkSnapError",
+    "InfrastructureNetworkSnapInput",
+    "InfrastructureNetworkSubjectRef",
     "DEFAULT_SITE_GEOMETRY_SEARCH_ITERATIONS",
     "InfrastructureCandidateGeometry",
     "InfrastructureCandidateGeometryBuilder",
