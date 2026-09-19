@@ -14,6 +14,7 @@ import maplibregl, {
 } from 'maplibre-gl'
 
 import { BlockParcelsPanel } from './BlockParcelsPanel'
+import { BuildingsPanel } from './BuildingsPanel'
 import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ZoningPanel } from './ZoningPanel'
@@ -610,6 +611,12 @@ function App() {
         />
 
         <BlockParcelsPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+        />
+
+        <BuildingsPanel
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
