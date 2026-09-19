@@ -438,6 +438,22 @@ because its area is below the InfrastructureType minimum site area. Final geomet
 to S10-T05 and capacity/site feasibility to S10-T09. Input and output counts are explicitly
 bounded to keep candidate generation safe on large territories.
 
+## Infrastructure candidate geometry boundary
+
+S10-T05 materializes every T04 candidate into one of two explicit spatial forms. Block and
+parcel candidates receive a polygonal site geometry contained inside the T04 source
+geometry; building candidates become explicit host-building references and never degrade
+to point-only facilities.
+
+For polygon sites the builder targets `InfrastructureType.target_site_area_m2` when the
+source is large enough. A deterministic bounded square-window search around the candidate
+anchor clips a site to the target area. If the source is smaller than the target, the full
+source geometry is retained. The result preserves source/zone/block provenance and working
+SRID.
+
+T05 deliberately does not apply minimum-site/capacity feasibility; that remains S10-T09.
+Network snapping starts at S10-T06.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
