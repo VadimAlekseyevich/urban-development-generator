@@ -94,7 +94,7 @@ Exit:
 - deterministic rerun produces the same semantic outputs/fingerprints;
 - no FastAPI/SQLAlchemy/Redis/ARQ dependency is needed.
 
-**State:** IN PROGRESS. Full EXPANSION spine fixture is the current deliverable; existing FROM_SCRATCH adapter tests remain required evidence for empty fixed-state semantics.
+**State:** COMPLETE at `1d849f1`. Full EXPANSION spine, deterministic rerun and existing FROM_SCRATCH mode evidence are CI-green.
 
 ### M0-06 — Persistence and future orchestration boundary proof
 **Goal:** ensure S12 can orchestrate the stabilized stages without redesigning them.
@@ -108,7 +108,7 @@ Exit:
 
 **Non-goal:** no production DAG/checkpoint/worker implementation in M0.
 
-**State:** PENDING.
+**State:** IN PROGRESS. The only schema gap found is dedicated StageResult output-fingerprint persistence; Job/outbox/artifact ownership already matches the accepted boundary.
 
 ### M0-07 — Cross-cutting invariant audit
 **Goal:** prove architecture-wide invariants, not only subsystem behavior.
@@ -226,6 +226,6 @@ This rule is specifically intended to prevent endless stabilization.
 
 ## 5. Current next task
 
-Continue **M0-05** only.
+Continue **M0-06** only.
 
-Current deliverable: one in-memory synthetic execution spine through demography plus deterministic rerun evidence. Do not start M0-06 until this fixture is CI-green and M0-05 exit criteria are recorded.
+Current deliverable: persist the canonical StageResult output fingerprint separately from input/config hashes and prove Stage metadata, RunStageResult, Job/outbox/artifact and the deferred worker boundary can support S12 without changing core contracts. Do not start M0-07 until migration-from-zero and full CI are green.

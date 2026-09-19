@@ -136,10 +136,13 @@ No second enum such as legacy `PipelineStage` may become an independent source o
 Core fingerprint and execution input/config hashes are related but distinct:
 
 - core Stage fingerprint identifies deterministic stage output from canonical semantic parts;
-- persisted `input_hash` identifies the resolved execution inputs;
-- persisted `config_hash` identifies resolved stage configuration.
+- persisted `input_hash` identifies the resolved execution inputs, including dependency output identities when S12 assembles the checkpoint key;
+- persisted `config_hash` identifies resolved stage configuration;
+- persisted `output_fingerprint` stores the exact string value of `StageResult.fingerprint`.
 
-S12 checkpoint reuse requires all required hashes/version/dependency outputs to match. It must not treat an arbitrary core fingerprint as a substitute for independently versioned input/config provenance.
+`output_fingerprint` is nullable only for compatibility with pre-stabilization rows and incomplete/failed executions. New successful S12 stage executions must persist it.
+
+S12 checkpoint reuse requires stage name/version plus independently resolved input/config provenance to match. Dependency output fingerprints participate in resolved input identity; an output fingerprint is never substituted for the input/config hashes of the same stage.
 
 ## 9. Cancellation and retry
 
