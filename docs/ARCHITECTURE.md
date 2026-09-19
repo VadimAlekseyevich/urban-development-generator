@@ -308,6 +308,22 @@ window и total-cell limits, bounds и CRS. Nodata policy явный; all-nodata
 T07 возвращает только external calibration evidence. Изменение spatial distribution с
 сохранением demographic totals является S09-T08.
 
+## Spatial demographic calibration boundary
+
+S09-T08 применяет optional S09-T07 raster evidence только к spatial distribution внутри
+каждой functional zone. Zone/project population и age-cohort totals сохраняются exact;
+jobs не изменяются. Raster share смешивается с S09-T06 baseline share через explicit
+`raster_weight`; samples ниже `minimum_valid_fraction` исключаются, а zone без positive
+eligible evidence детерминированно fallback-ится к baseline.
+
+Integer population использует largest-remainder apportionment со stable block-order
+tie-break. После изменения block row totals age cohorts перераспределяются exact-margin
+алгоритмом, поэтому block rows и zone cohort columns одновременно сохраняются. Result
+содержит per-block audit и moved-population diagnostics.
+
+T08 не меняет target/capacity, не читает raster напрямую и не добавляет persistence/API/UI;
+следующий слой — S09-T09 typed demographic demand profile.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.

@@ -69,8 +69,24 @@ from core.urban_generator.demography.population_raster import (
     PopulationRasterValueKind,
     PopulationRasterWindow,
 )
+from core.urban_generator.demography.spatial_calibration import (
+    DEFAULT_MAX_SPATIAL_CALIBRATION_BLOCKS,
+    BlockSpatialCalibration,
+    SpatialCalibrationDiagnostics,
+    SpatialCalibrationError,
+    SpatialCalibrationPolicy,
+    SpatialCalibrationResult,
+    SpatialDemographicCalibrator,
+)
 
 __all__ = [
+    "DEFAULT_MAX_SPATIAL_CALIBRATION_BLOCKS",
+    "BlockSpatialCalibration",
+    "SpatialCalibrationDiagnostics",
+    "SpatialCalibrationError",
+    "SpatialCalibrationPolicy",
+    "SpatialCalibrationResult",
+    "SpatialDemographicCalibrator",
     "DEFAULT_MAX_POPULATION_RASTER_SAMPLE_CELLS",
     "DEFAULT_MAX_POPULATION_RASTER_SUBJECTS",
     "DEFAULT_MAX_POPULATION_RASTER_WINDOWS_PER_SUBJECT",
