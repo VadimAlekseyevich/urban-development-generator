@@ -364,6 +364,17 @@ population и jobs, total metric cards, age shares и block inspector. Viewport 
 T10 не определяет infrastructure demand coefficients и не меняет core demographic
 allocation/calibration. Numeric/property hardening остаётся S09-T11.
 
+## Demography numeric/property hardening
+
+S09-T11 не добавляет новый production layer. Он закрепляет cross-module invariants для
+всей demographic chain: zero capacity остаётся finite, mixed-use GFA согласованно делится
+между residential capacity и jobs, target/cohort sums сохраняются exact, all-nodata raster
+является neutral fallback, а результаты pipeline не зависят от input permutation.
+
+Эти property tests являются sprint gate для S09. Следующий architectural boundary —
+S10 InfrastructureType/demand/accessibility, который потребляет S09 demographic demand
+profile и metrics, не переопределяя их semantics.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
