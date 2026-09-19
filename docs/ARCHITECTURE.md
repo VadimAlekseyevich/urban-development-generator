@@ -110,6 +110,14 @@ S08-T08 вводит `core.urban_generator.buildings.BuildingSpacingIndex` ка�
 
 S08-T08 намеренно не выполняет FAR/coverage convergence, выбор следующего footprint или placement loop. Жизненный цикл spacing index и bounded convergence относятся к S08-T09; T09 обязан переиспользовать этот contract вместо повторного полного N×M scan.
 
+## Building placement convergence boundary
+
+S08-T09 вводит `BuildingPlacementConverger` как bounded greedy loop поверх уже построенных 2D footprint proposals. Входные proposals сортируются детерминированно по `(-priority, proposal_id)`; каждый proposal рассматривается не более одного раза, а общий проход ограничен `max_proposals` и `max_iterations`.
+
+Convergence ведётся одновременно по двум target windows относительно явной `site_area_m2`: coverage и FAR. `BuildingPlacementBaseline` позволяет включить уже существующую fixed/generated интенсивность в стартовые метрики. Proposal принимается только если проходит S08-T08 spacing относительно existing footprints и всех ранее принятых proposals и не выводит coverage/FAR выше соответствующей верхней границы tolerance window. Проход завершается как `CONVERGED`, `CANDIDATES_EXHAUSTED` или `MAX_ITERATIONS`; diagnostics сохраняют initial/final значения, unmet/excess target deltas и причины rejection.
+
+Поле `planning_floor_area_multiplier` является только provisional planning intensity для FAR convergence. Оно не является назначенной этажностью и не считается финальным GFA. S08-T10 остаётся единственным местом назначения floors/use, а S08-T11 — авторитетного расчёта footprint area/GFA и итоговых coverage/FAR metrics. Если T10/T11 выявляют расхождение с planning target, оно должно быть явно диагностировано, а не скрыто изменением геометрии.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
