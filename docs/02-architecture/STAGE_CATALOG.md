@@ -90,3 +90,35 @@ Each must compose existing S06-S09 capabilities rather than copy them.
 M0 adapter fingerprints include stage name/version, snapshot identity, run seed where relevant, versioned config identity, and canonical result/input bytes needed to distinguish semantic outputs.
 
 Persistent checkpoint input/config hashing remains S12 scope and must not be inferred solely from these core fingerprints.
+
+
+### roads
+
+Input owns:
+- stabilized zoning output;
+- canonical suitability + hard mask;
+- resolved fixed `SemanticRoad` values with preserved source class;
+- optional forbidden geometries.
+
+Config owns explicit bounded policies for endpoint snapping, candidate sampling, least-cost routing,
+MST/growth, fixed-network attachment, graph cleanup, classification, validation and metrics.
+
+Composition:
+
+```text
+fixed SemanticRoad
+ -> endpoint snap -> semantic noding -> fixed graph
+zoning+suitability -> anchors -> MST -> bounded growth
+EXPANSION generated components -> explicit fixed-network attachment
+generated+fixed semantic roads -> endpoint snap -> semantic noding -> graph build -> cleanup
+ -> classification -> validation -> raw road metrics
+```
+
+Output owns candidate/baseline/growth provenance, optional attachment result, final `RoadGraph`,
+`RoadClassificationResult`, `RoadValidationResult` and `RoadMetrics`. Persistence remains
+outside core.
+
+The adapter closes two integration gaps discovered by M0 without changing the S06 algorithms:
+endpoint snapping is actually composed before noding/graph build, and EXPANSION generated
+components are explicitly attached to the fixed network instead of relying on accidental geometric
+crossings.

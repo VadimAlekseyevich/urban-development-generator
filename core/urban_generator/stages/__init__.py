@@ -19,6 +19,13 @@ from core.urban_generator.stages.constraints import (
     ConstraintMaskStageConfig,
     ConstraintMaskStageInput,
 )
+from core.urban_generator.stages.roads import (
+    FixedRoadStageInput,
+    RoadStage,
+    RoadStageConfig,
+    RoadStageInput,
+    RoadStageOutput,
+)
 from core.urban_generator.stages.suitability import (
     SuitabilityStage,
     SuitabilityStageConfig,
@@ -41,6 +48,11 @@ __all__ = [
     "FINAL_VALIDATION_STAGE",
     "INFRASTRUCTURE_STAGE",
     "METRICS_STAGE",
+    "FixedRoadStageInput",
+    "RoadStage",
+    "RoadStageConfig",
+    "RoadStageInput",
+    "RoadStageOutput",
     "PERSIST_MANIFEST_STAGE",
     "PREPARE_SNAPSHOT_STAGE",
     "ROADS_STAGE",
