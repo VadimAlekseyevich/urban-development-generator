@@ -19,15 +19,15 @@ from core.urban_generator.zoning import (
     BaseZoningPartitioner,
     BoundedRegionRefiner,
     DeterministicZoningSeedGenerator,
+    GeneratedZoneRef,
     SuitabilityTargetShareAssigner,
     ZoneAssignmentResult,
-    GeneratedZoneRef,
     ZoneConstraintEvaluationResult,
     ZoneConstraintEvaluator,
     ZoneRefinementResult,
     ZoningConfig,
-    build_generated_zone_refs,
     ZoningPartitionResult,
+    build_generated_zone_refs,
 )
 
 
