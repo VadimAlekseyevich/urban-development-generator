@@ -11,6 +11,7 @@ from shapely.geometry.base import BaseGeometry
 from core.urban_generator.buildings.spacing import (
     DEFAULT_MAX_SPACING_CANDIDATES,
     DEFAULT_MAX_SPACING_FOOTPRINTS,
+    BuildingSpacingHit,
     BuildingSpacingIndex,
     BuildingSpacingPolicy,
     BuildingSpacingSubject,
@@ -271,13 +272,109 @@ class BuildingPlacementConvergenceResult:
             )
 
 
+class _IncrementalBuildingSpacingIndex:
+    """Incrementally index accepted footprints without rebuilding the full tree.
+
+    Shapely STRtree is immutable, so accepted footprints are stored in power-of-two
+    immutable chunks. Adding one footprint behaves like a binary counter: equal-sized
+    chunks merge into one larger index. Each accepted footprint is therefore reindexed
+    at most O(log N) times instead of once for every later acceptance.
+    """
+
+    def __init__(
+        self,
+        *,
+        existing_footprints: tuple[PlacedBuildingFootprint, ...],
+        working_srid: int,
+        policy: BuildingSpacingPolicy,
+        max_footprints: int,
+        max_candidates: int,
+    ) -> None:
+        self.working_srid = working_srid
+        self.policy = policy
+        self.max_footprints = max_footprints
+        self.max_candidates = max_candidates
+        self._existing_count = len(existing_footprints)
+        self._accepted_count = 0
+        self._base = (
+            BuildingSpacingIndex(
+                footprints=existing_footprints,
+                working_srid=working_srid,
+                policy=policy,
+                max_footprints=max_footprints,
+                max_candidates=max_candidates,
+            )
+            if existing_footprints
+            else None
+        )
+        self._chunks: list[tuple[PlacedBuildingFootprint, ...]] = []
+        self._indexes: list[BuildingSpacingIndex] = []
+
+    def check(
+        self,
+        subject: BuildingSpacingSubject,
+    ) -> BuildingSpacingHit | None:
+        hits: list[BuildingSpacingHit] = []
+        if self._base is not None:
+            hit = self._base.check(subject)
+            if hit is not None:
+                hits.append(hit)
+        for index in self._indexes:
+            hit = index.check(subject)
+            if hit is not None:
+                hits.append(hit)
+        if not hits:
+            return None
+        return min(
+            hits,
+            key=lambda hit: (
+                0 if hit.overlaps else 1,
+                hit.actual_distance_m,
+                hit.building_id,
+            ),
+        )
+
+    def add(self, proposal: BuildingPlacementProposal) -> None:
+        if self._existing_count + self._accepted_count >= self.max_footprints:
+            raise BuildingPlacementConvergenceError(
+                "placement footprint count exceeds spacing index limit"
+            )
+        chunk: tuple[PlacedBuildingFootprint, ...] = (
+            PlacedBuildingFootprint(
+                building_id=proposal.proposal_id,
+                geometry=proposal.geometry,
+                working_srid=self.working_srid,
+            ),
+        )
+        while self._chunks and len(self._chunks[-1]) == len(chunk):
+            previous = self._chunks.pop()
+            self._indexes.pop()
+            chunk = previous + chunk
+        self._chunks.append(chunk)
+        self._indexes.append(self._build(chunk))
+        self._accepted_count += 1
+
+    def _build(
+        self,
+        footprints: tuple[PlacedBuildingFootprint, ...],
+    ) -> BuildingSpacingIndex:
+        return BuildingSpacingIndex(
+            footprints=footprints,
+            working_srid=self.working_srid,
+            policy=self.policy,
+            max_footprints=self.max_footprints,
+            max_candidates=self.max_candidates,
+        )
+
+
 class BuildingPlacementConverger:
     """Greedy bounded placement loop for coverage/FAR target windows.
 
     Proposals are evaluated once in deterministic priority/id order. The loop never
-    performs all-pairs geometry scans: each spacing decision delegates to the S08-T08
-    ``BuildingSpacingIndex``. The index is rebuilt only after an accepted proposal so
-    later candidates also respect spacing to buildings accepted in this pass.
+    performs all-pairs geometry scans: each spacing decision delegates to S08-T08
+    ``BuildingSpacingIndex`` instances. Existing footprints are indexed once; newly
+    accepted footprints are maintained in power-of-two immutable chunks so each accepted
+    footprint is reindexed only O(log N) times.
     """
 
     def __init__(
@@ -364,9 +461,8 @@ class BuildingPlacementConverger:
                 final_far=initial_far,
             )
 
-        spacing_index = self._spacing_index(
+        spacing_index = self._incremental_spacing_index(
             existing_footprints=existing_footprints,
-            accepted=(),
         )
         status = BuildingPlacementConvergenceStatus.CANDIDATES_EXHAUSTED
 
@@ -403,10 +499,7 @@ class BuildingPlacementConverger:
             accepted.append(proposal)
             coverage_area = next_coverage_area
             planning_floor_area = next_floor_area
-            spacing_index = self._spacing_index(
-                existing_footprints=existing_footprints,
-                accepted=tuple(accepted),
-            )
+            spacing_index.add(proposal)
 
             if _targets_met(
                 coverage_ratio=next_coverage,
@@ -518,22 +611,13 @@ class BuildingPlacementConverger:
                 f"{maximum_possible_footprints} > {self.max_spacing_footprints}"
             )
 
-    def _spacing_index(
+    def _incremental_spacing_index(
         self,
         *,
         existing_footprints: tuple[PlacedBuildingFootprint, ...],
-        accepted: tuple[BuildingPlacementProposal, ...],
-    ) -> BuildingSpacingIndex:
-        accepted_footprints = tuple(
-            PlacedBuildingFootprint(
-                building_id=proposal.proposal_id,
-                geometry=proposal.geometry,
-                working_srid=self.working_crs.srid,
-            )
-            for proposal in accepted
-        )
-        return BuildingSpacingIndex(
-            footprints=existing_footprints + accepted_footprints,
+    ) -> _IncrementalBuildingSpacingIndex:
+        return _IncrementalBuildingSpacingIndex(
+            existing_footprints=existing_footprints,
             working_srid=self.working_crs.srid,
             policy=self.spacing_policy,
             max_footprints=self.max_spacing_footprints,
