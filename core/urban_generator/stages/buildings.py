@@ -14,6 +14,7 @@ from core.urban_generator.buildings import (
     BarFootprintAxisSource,
     BarFootprintSpec,
     BarFrontageFootprintStrategy,
+    BuildableEnvelopeBuilder,
     BuildingArchetype,
     BuildingArchetypeConfig,
     BuildingAreaBaseline,
@@ -290,9 +291,28 @@ class BuildingSourceStageResult:
 
 
 @dataclass(frozen=True, slots=True)
+class BuildingStageOwnershipRef:
+    building_id: str
+    source_id: str
+    block_id: str
+    zone_id: str
+    zone_class: ZoneClass
+
+
+@dataclass(frozen=True, slots=True)
+class BuildingStageBlockRef:
+    block_id: str
+    zone_id: str
+    zone_class: ZoneClass
+    area_m2: float
+
+
+@dataclass(frozen=True, slots=True)
 class BuildingStageOutput:
     sources: tuple[BuildingSourceStageResult, ...]
     accepted_proposals: tuple[BuildingPlacementProposal, ...]
+    ownership: tuple[BuildingStageOwnershipRef, ...]
+    blocks: tuple[BuildingStageBlockRef, ...]
     attributes: BuildingAttributeAssignmentResult
     area_subjects: tuple[BuildingAreaSubject, ...]
     area_metrics: BuildingAreaCalculationResult
@@ -303,6 +323,8 @@ class BuildingStageOutput:
 class _ResolvedBuildingSource:
     source: BuildingEnvelopeSource
     mask: BuildingDevelopableMask
+    block_id: str
+    zone_id: str
     zone_class: ZoneClass
     frontages: tuple[BuildingPlacementFrontage, ...]
 
@@ -414,7 +436,10 @@ class BuildingStage:
 
         source_results: list[BuildingSourceStageResult] = []
         accepted: list[BuildingPlacementProposal] = []
-        accepted_meta: dict[str, tuple[ZoneClass, BuildingArchetype]] = {}
+        accepted_meta: dict[
+            str,
+            tuple[ZoneClass, BuildingArchetype, str, str],
+        ] = {}
         spacing_footprints = list(value.existing_footprints)
 
         for resolved in sources:
@@ -503,6 +528,8 @@ class BuildingStage:
                 accepted_meta[proposal.proposal_id] = (
                     resolved.zone_class,
                     profile.archetype,
+                    resolved.block_id,
+                    resolved.zone_id,
                 )
                 spacing_footprints.append(
                     PlacedBuildingFootprint(
@@ -524,6 +551,17 @@ class BuildingStage:
             )
             for proposal in ordered_accepted
         )
+        ownership = tuple(
+            BuildingStageOwnershipRef(
+                building_id=proposal.proposal_id,
+                source_id=proposal.source_id,
+                block_id=accepted_meta[proposal.proposal_id][2],
+                zone_id=accepted_meta[proposal.proposal_id][3],
+                zone_class=accepted_meta[proposal.proposal_id][0],
+            )
+            for proposal in ordered_accepted
+        )
+        block_refs = _block_refs(value.blocks)
         attributes = BuildingAttributeAssigner(
             max_subjects=max(1, config.max_sources * config.max_candidates_per_source)
         ).assign(
@@ -566,6 +604,8 @@ class BuildingStage:
         output = BuildingStageOutput(
             sources=tuple(source_results),
             accepted_proposals=ordered_accepted,
+            ownership=ownership,
+            blocks=block_refs,
             attributes=attributes,
             area_subjects=area_subjects,
             area_metrics=area_metrics,
@@ -704,6 +744,8 @@ def _resolve_sources(
                             geometry=parcel.buildable_envelope,
                             working_srid=working_srid,
                         ),
+                        block_id=parcel.block_id,
+                        zone_id=parcel.zone_id,
                         zone_class=parcel.zone_class,
                         frontages=tuple(
                             BuildingPlacementFrontage(
@@ -728,6 +770,8 @@ def _resolve_sources(
                         geometry=item.cleaned_block.geometry,
                         working_srid=working_srid,
                     ),
+                    block_id=block_id,
+                    zone_id=item.association.zone_id,
                     zone_class=zone_class,
                     frontages=(),
                 )
@@ -735,6 +779,25 @@ def _resolve_sources(
     return tuple(
         sorted(sources, key=lambda item: item.source.source_id)
     )
+
+
+def _block_refs(
+    blocks: BlocksAndParcelsStageOutput,
+) -> tuple[BuildingStageBlockRef, ...]:
+    refs = []
+    for item in blocks.association.blocks:
+        association = item.association
+        if association.zone_id is None or association.zone_class is None:
+            continue
+        refs.append(
+            BuildingStageBlockRef(
+                block_id=item.cleaned_block.block_id,
+                zone_id=association.zone_id,
+                zone_class=association.zone_class,
+                area_m2=float(item.cleaned_block.geometry.area),
+            )
+        )
+    return tuple(sorted(refs, key=lambda item: item.block_id))
 
 
 def _select_archetype(
@@ -1006,7 +1069,7 @@ def _proposal(
 ) -> BuildingPlacementProposal:
     token = (
         f"{source_id}|{archetype.value}|{index}"
-    ).encode("utf-8")
+    ).encode()
     digest = hashlib.blake2b(token, digest_size=10).hexdigest()
     return BuildingPlacementProposal(
         proposal_id=f"building:{digest}:{index:08d}",
@@ -1054,6 +1117,25 @@ def _fingerprint(
                 source.envelope.status.value,
                 str(source.candidate_count),
                 str(source.proposal_count),
+            )
+        )
+    for ownership in output.ownership:
+        parts.extend(
+            (
+                ownership.building_id,
+                ownership.source_id,
+                ownership.block_id,
+                ownership.zone_id,
+                ownership.zone_class.value,
+            )
+        )
+    for block in output.blocks:
+        parts.extend(
+            (
+                block.block_id,
+                block.zone_id,
+                block.zone_class.value,
+                repr(block.area_m2),
             )
         )
     for subject in output.area_subjects:

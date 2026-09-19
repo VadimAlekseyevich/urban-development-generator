@@ -227,6 +227,13 @@ def test_building_stage_composes_s08_pipeline_deterministically() -> None:
         for item in result.output.area_subjects
     )
     assert result.output.fixed_building_refs == ()
+    assert len(result.output.ownership) == 4
+    assert {item.block_id for item in result.output.ownership} == {
+        result.output.blocks[0].block_id
+    }
+    assert {item.zone_id for item in result.output.ownership} == {
+        result.output.blocks[0].zone_id
+    }
 
     repeated = stage.execute(
         snapshot=snapshot,
