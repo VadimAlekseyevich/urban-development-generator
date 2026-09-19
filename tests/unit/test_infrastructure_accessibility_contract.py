@@ -2,24 +2,15 @@ from __future__ import annotations
 
 import pytest
 
+from core.urban_generator import infrastructure
 from core.urban_generator.domain import NetworkNodeRef
-from core.urban_generator.infrastructure.accessibility import (
-    InfrastructureAccessibilityError,
-    InfrastructureAccessibilityQuery,
-    InfrastructureAccessibilityResult,
-)
-from core.urban_generator.infrastructure.network_snap import (
-    ExistingInfrastructureFacilityRef,
-    InfrastructureCandidateRef,
-    InfrastructureDemandRef,
-)
 
 
 TYPE_CODE = "school.general"
 
 
-def _demand_ref(*, type_code: str = TYPE_CODE) -> InfrastructureDemandRef:
-    return InfrastructureDemandRef(
+def _demand_ref(*, type_code: str = TYPE_CODE) -> infrastructure.InfrastructureDemandRef:
+    return infrastructure.InfrastructureDemandRef(
         block_id="block-1",
         infrastructure_type_code=type_code,
     )
@@ -29,8 +20,8 @@ def _facility_ref(
     *,
     facility_id: str = "site-1",
     type_code: str = TYPE_CODE,
-) -> ExistingInfrastructureFacilityRef:
-    return ExistingInfrastructureFacilityRef(
+) -> infrastructure.ExistingInfrastructureFacilityRef:
+    return infrastructure.ExistingInfrastructureFacilityRef(
         facility_id=facility_id,
         infrastructure_type_code=type_code,
     )
@@ -40,8 +31,8 @@ def _candidate_ref(
     *,
     candidate_id: str = "site-1",
     type_code: str = TYPE_CODE,
-) -> InfrastructureCandidateRef:
-    return InfrastructureCandidateRef(
+) -> infrastructure.InfrastructureCandidateRef:
+    return infrastructure.InfrastructureCandidateRef(
         candidate_id=candidate_id,
         infrastructure_type_code=type_code,
     )
@@ -57,11 +48,11 @@ def test_accessibility_query_key_keeps_existing_and_candidate_families_distinct(
         "max_network_distance_m": 1500.0,
     }
 
-    existing = InfrastructureAccessibilityQuery(
+    existing = infrastructure.InfrastructureAccessibilityQuery(
         facility_site_ref=_facility_ref(),
         **common,
     )
-    candidate = InfrastructureAccessibilityQuery(
+    candidate = infrastructure.InfrastructureAccessibilityQuery(
         facility_site_ref=_candidate_ref(),
         **common,
     )
@@ -97,12 +88,12 @@ def test_accessibility_query_key_keeps_existing_and_candidate_families_distinct(
     ],
 )
 def test_accessibility_query_rejects_cross_type_refs(
-    demand_ref: InfrastructureDemandRef,
-    facility_site_ref: ExistingInfrastructureFacilityRef | InfrastructureCandidateRef,
+    demand_ref: infrastructure.InfrastructureDemandRef,
+    facility_site_ref: infrastructure.ExistingInfrastructureFacilityRef | infrastructure.InfrastructureCandidateRef,
     message: str,
 ) -> None:
-    with pytest.raises(InfrastructureAccessibilityError, match=message):
-        InfrastructureAccessibilityQuery(
+    with pytest.raises(infrastructure.InfrastructureAccessibilityError, match=message):
+        infrastructure.InfrastructureAccessibilityQuery(
             snapshot_id="roads:v1",
             infrastructure_type_code=TYPE_CODE,
             demand_ref=demand_ref,
@@ -120,8 +111,8 @@ def test_accessibility_query_rejects_cross_type_refs(
 def test_accessibility_query_requires_positive_finite_service_cutoff(
     max_distance_m: float,
 ) -> None:
-    with pytest.raises(InfrastructureAccessibilityError):
-        InfrastructureAccessibilityQuery(
+    with pytest.raises(infrastructure.InfrastructureAccessibilityError):
+        infrastructure.InfrastructureAccessibilityQuery(
             snapshot_id="roads:v1",
             infrastructure_type_code=TYPE_CODE,
             demand_ref=_demand_ref(),
@@ -133,7 +124,7 @@ def test_accessibility_query_requires_positive_finite_service_cutoff(
 
 
 def test_accessibility_result_preserves_query_identity_and_network_provenance() -> None:
-    result = InfrastructureAccessibilityResult(
+    result = infrastructure.InfrastructureAccessibilityResult(
         snapshot_id="roads:v1",
         infrastructure_type_code=TYPE_CODE,
         demand_ref=_demand_ref(),
@@ -158,10 +149,10 @@ def test_accessibility_result_preserves_query_identity_and_network_provenance() 
 
 def test_accessibility_result_rejects_distance_beyond_query_cutoff() -> None:
     with pytest.raises(
-        InfrastructureAccessibilityError,
+        infrastructure.InfrastructureAccessibilityError,
         match="must not exceed",
     ):
-        InfrastructureAccessibilityResult(
+        infrastructure.InfrastructureAccessibilityResult(
             snapshot_id="roads:v1",
             infrastructure_type_code=TYPE_CODE,
             demand_ref=_demand_ref(),
@@ -181,10 +172,10 @@ def test_accessibility_result_distance_is_finite_and_non_negative(
     distance_m: float,
 ) -> None:
     with pytest.raises(
-        InfrastructureAccessibilityError,
+        infrastructure.InfrastructureAccessibilityError,
         match="finite non-negative",
     ):
-        InfrastructureAccessibilityResult(
+        infrastructure.InfrastructureAccessibilityResult(
             snapshot_id="roads:v1",
             infrastructure_type_code=TYPE_CODE,
             demand_ref=_demand_ref(),
