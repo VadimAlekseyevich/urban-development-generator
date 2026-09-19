@@ -193,9 +193,9 @@ def _pipeline(
         BuildingAggregationRef(
             building_id=subject.building_id,
             block_id=(
-                "block:1"
-                if subject.building_id in {"building:a", "building:b"}
-                else "block:2"
+                "block:res"
+                if subject.building_id == "building:a"
+                else "block:mixed"
             ),
             zone_id=(
                 "zone:res"
