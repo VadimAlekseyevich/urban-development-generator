@@ -85,10 +85,26 @@ def test_spacing_rejection_includes_existing_and_newly_accepted_buildings() -> N
         _existing("building:fixed", box(0, 0, 10, 10)),
     )
     proposals = (
-        _proposal("proposal:bad-fixed", box(5, 0, 15, 10)),
-        _proposal("proposal:one", box(20, 0, 30, 5)),
-        _proposal("proposal:bad-new", box(25, 0, 35, 5)),
-        _proposal("proposal:two", box(40, 0, 50, 5)),
+        _proposal(
+            "proposal:bad-fixed",
+            box(5, 0, 15, 10),
+            priority=4.0,
+        ),
+        _proposal(
+            "proposal:one",
+            box(20, 0, 30, 5),
+            priority=3.0,
+        ),
+        _proposal(
+            "proposal:bad-new",
+            box(25, 0, 35, 5),
+            priority=2.0,
+        ),
+        _proposal(
+            "proposal:two",
+            box(40, 0, 50, 5),
+            priority=1.0,
+        ),
     )
     converger = BuildingPlacementConverger(working_srid=WORKING_SRID)
 
