@@ -89,7 +89,10 @@ def test_accessibility_query_key_keeps_existing_and_candidate_families_distinct(
 )
 def test_accessibility_query_rejects_cross_type_refs(
     demand_ref: infrastructure.InfrastructureDemandRef,
-    facility_site_ref: infrastructure.ExistingInfrastructureFacilityRef | infrastructure.InfrastructureCandidateRef,
+    facility_site_ref: (
+        infrastructure.ExistingInfrastructureFacilityRef
+        | infrastructure.InfrastructureCandidateRef
+    ),
     message: str,
 ) -> None:
     with pytest.raises(infrastructure.InfrastructureAccessibilityError, match=message):
