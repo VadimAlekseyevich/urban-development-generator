@@ -21,7 +21,6 @@ from core.urban_generator.demography import (
 )
 from core.urban_generator.zoning import ZoneClass
 
-
 SCENARIO_FP = "a" * 64
 CONFIG_FP = "b" * 64
 
