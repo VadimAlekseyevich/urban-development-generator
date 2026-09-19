@@ -78,7 +78,7 @@ Exit for each adapter:
 - fixed/generated semantics preserved;
 - unit tests prove the adapter contract.
 
-**State:** IN PROGRESS. evaluate_constraints/suitability/zoning/roads/blocks_and_parcels implemented and CI-green; buildings is current, then demography remains.
+**State:** IN PROGRESS. evaluate_constraints/suitability/zoning/roads/blocks_and_parcels are CI-green; buildings is under CI and demography is the final adapter.
 
 **Scope rule:** while implementing an adapter, fix only gaps required to make the already-declared sprint gate true. Such fixes remain part of this gate; they do not create new M0 initiatives.
 
@@ -228,4 +228,4 @@ This rule is specifically intended to prevent endless stabilization.
 
 Continue **M0-04** only.
 
-Within M0-04 the current deliverable is the `buildings` Stage adapter. After it passes, move to demography. Do not start M0-05 early.
+Within M0-04 finish `buildings`, then the final `demography` Stage adapter. Do not start M0-05 until both are CI-green.

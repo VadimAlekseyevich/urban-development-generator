@@ -37,6 +37,12 @@ from core.urban_generator.stages.constraints import (
     ConstraintMaskStageConfig,
     ConstraintMaskStageInput,
 )
+from core.urban_generator.stages.demography import (
+    DemographyStage,
+    DemographyStageConfig,
+    DemographyStageInput,
+    DemographyStageOutput,
+)
 from core.urban_generator.stages.roads import (
     FixedRoadStageInput,
     RoadStage,
@@ -76,6 +82,10 @@ __all__ = [
     "CANONICAL_STAGE_DEPENDENCIES",
     "CANONICAL_STAGE_ORDER",
     "DEMOGRAPHY_STAGE",
+    "DemographyStage",
+    "DemographyStageConfig",
+    "DemographyStageInput",
+    "DemographyStageOutput",
     "EVALUATE_CONSTRAINTS_STAGE",
     "FINAL_VALIDATION_STAGE",
     "INFRASTRUCTURE_STAGE",

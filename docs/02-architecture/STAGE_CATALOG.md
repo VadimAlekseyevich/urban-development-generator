@@ -191,3 +191,36 @@ snapshot contains fixed-building refs, so generated footprints cannot silently o
 Archetype selection uses the existing `selection_weight` field with a namespaced `RunContext`
 RNG. This closes the S08 integration gap where weights existed in config but were not consumed by a
 coarse execution path.
+
+
+### demography
+
+Input owns:
+- authoritative generated building metrics/attributes from `buildings`;
+- explicit building→block→zone ownership refs and block areas emitted upstream;
+- optional baseline population for EXPANSION;
+- optional typed `PopulationRasterSamplingResult` resolved by the raster adapter.
+
+Config owns the canonical `DemographicScenario`, `EmploymentConfig`, spatial-calibration policy
+and explicit building/block bounds.
+
+Composition:
+
+```text
+building GFA/use
+ -> residential capacity
+ -> population allocation
+ -> age-group allocation
+ -> jobs/workforce estimation
+ -> building→block→zone aggregation
+ -> optional raster-backed spatial calibration
+ -> typed infrastructure demand profile
+ -> demographic raw metrics
+```
+
+No downstream spatial join is required: building ownership and block area are explicit typed outputs
+of the `buildings` stage. Raster IO is not performed inside this stage; optional calibration
+consumes the existing infrastructure-neutral sampling result.
+
+FROM_SCRATCH rejects fixed demographic state and non-zero baseline population. EXPANSION requires
+an explicit baseline population when the snapshot carries fixed demographic refs.
