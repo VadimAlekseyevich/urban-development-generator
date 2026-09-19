@@ -109,4 +109,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Engineering baseline `S00` доведён до воспроизводимой сборки, health/readiness, structured logging, migration discipline и required CI. Следующий архитектурный этап — `S01 Core domain contracts`.
+Текущая точка реализации в `main` — **`S08-T07 — Orientation strategy` включительно**.
+
+- полностью реализованы sprint `S00`–`S07`;
+- в `S08 Buildings и archetypes` завершены `T01`–`T07` из 14;
+- следующий work item — `S08-T08 — Inter-building spacing`;
+- required HEAD CI на текущем checkpoint зелёный: Python, frontend и Docker Compose smoke;
+- по количеству implementation work items выполнено **104 из 210 (≈49,5%)**, осталось **106 из 210 (≈50,5%)**.
+
+Процент выше — только арифметика по атомарным work items из roadmap, без попытки приравнять их по трудоёмкости. После завершения `S08` критический путь продолжается через `S09`–`S15`, затем выполняются release-hardening acceptance gates `R1`–`R10`.
+
+Актуальный состав и границы задач определяет `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
