@@ -30,6 +30,7 @@ from core.urban_generator.domain import (
     RunContext,
     StageDiagnostic,
     StageDiagnosticLevel,
+    StageFingerprint,
     StageResult,
     TerritorySnapshot,
     build_stage_fingerprint,
@@ -266,7 +267,7 @@ def _fingerprint(
     context: RunContext,
     config: BlocksAndParcelsStageConfig,
     output: BlocksAndParcelsStageOutput,
-):
+) -> StageFingerprint:
     parts: list[str | bytes] = [
         BlocksAndParcelsStage.name,
         BlocksAndParcelsStage.version,
