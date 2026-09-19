@@ -1,3 +1,15 @@
+from core.urban_generator.buildings.attributes import (
+    BUILDING_ATTRIBUTE_ASSIGNMENT_VERSION,
+    DEFAULT_MAX_ATTRIBUTE_SUBJECTS,
+    AssignedBuildingAttributes,
+    BuildingAttributeAssigner,
+    BuildingAttributeAssignmentError,
+    BuildingAttributeAssignmentResult,
+    BuildingAttributeConfig,
+    BuildingAttributeRule,
+    BuildingAttributeSubject,
+    BuildingUse,
+)
 from core.urban_generator.buildings.bar_footprint import (
     BarFootprintAxis,
     BarFootprintAxisSource,
@@ -92,6 +104,8 @@ from core.urban_generator.buildings.spacing import (
 )
 
 __all__ = [
+    "BUILDING_ATTRIBUTE_ASSIGNMENT_VERSION",
+    "DEFAULT_MAX_ATTRIBUTE_SUBJECTS",
     "DEFAULT_MAX_CONVERGENCE_ITERATIONS",
     "DEFAULT_MAX_CONVERGENCE_PROPOSALS",
     "DEFAULT_MAX_ENVELOPE_CONSTRAINT_EVALUATIONS",
@@ -102,6 +116,7 @@ __all__ = [
     "DEFAULT_MAX_PLACEMENT_CANDIDATES",
     "DEFAULT_MAX_SPACING_CANDIDATES",
     "DEFAULT_MAX_SPACING_FOOTPRINTS",
+    "AssignedBuildingAttributes",
     "BarFootprintAxis",
     "BarFootprintAxisSource",
     "BarFootprintError",
@@ -111,6 +126,12 @@ __all__ = [
     "BuildableEnvelopeBuilder",
     "BuildingArchetype",
     "BuildingArchetypeConfig",
+    "BuildingAttributeAssigner",
+    "BuildingAttributeAssignmentError",
+    "BuildingAttributeAssignmentResult",
+    "BuildingAttributeConfig",
+    "BuildingAttributeRule",
+    "BuildingAttributeSubject",
     "BuildingConfig",
     "BuildingConfigError",
     "BuildingDevelopableMask",
@@ -154,6 +175,7 @@ __all__ = [
     "BuildingSpacingIndex",
     "BuildingSpacingPolicy",
     "BuildingSpacingSubject",
+    "BuildingUse",
     "EngineBuildingEnvelopeConstraintEvaluator",
     "PerimeterCourtyardFootprintError",
     "PerimeterCourtyardFootprintResult",

@@ -118,6 +118,23 @@ Convergence ведётся одновременно по двум target windows
 
 Поле `planning_floor_area_multiplier` является только provisional planning intensity для FAR convergence. Оно не является назначенной этажностью и не считается финальным GFA. S08-T10 остаётся единственным местом назначения floors/use, а S08-T11 — авторитетного расчёта footprint area/GFA и итоговых coverage/FAR metrics. Если T10/T11 выявляют расхождение с planning target, оно должно быть явно диагностировано, а не скрыто изменением геометрии.
 
+## Building attribute assignment boundary
+
+S08-T10 назначает только geometry-free attributes: canonical `BuildingUse` и положительное
+число `floors`. Правила versioned и задаются точной парой
+`(ZoneClass, BuildingArchetype)`; неявных fallback-правил нет, поэтому неполная
+конфигурация завершается явной domain error вместо скрытой смены типа использования.
+
+Если правило задаёт диапазон этажности, `BuildingAttributeAssigner` использует отдельный
+детерминированный RNG stream на каждый `building_id`, полученный из `RunContext`,
+config fingerprint, zone и archetype. Поэтому результат воспроизводим при одинаковом seed
+и не зависит от порядка входного tuple или добавления несвязанного building subject.
+
+T10 не принимает и не изменяет geometry и не вычисляет footprint area/GFA/FAR. Эти
+метрики остаются S08-T11. Таким образом назначение этажности можно менять и тестировать
+отдельно от placement geometry, а расхождение с provisional FAR target S08-T09 остаётся
+наблюдаемым, а не маскируется повторной геометрической генерацией.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
