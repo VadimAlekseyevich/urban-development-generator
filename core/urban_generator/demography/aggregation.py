@@ -5,10 +5,18 @@ from dataclasses import dataclass
 
 from core.urban_generator.demography.age_allocation import (
     AgeGroupAllocationResult,
+    AgeGroupAllocationTotal,
     AgeGroupPopulation,
+    BuildingAgeGroupAllocation,
 )
-from core.urban_generator.demography.allocation import PopulationAllocationResult
-from core.urban_generator.demography.employment import EmploymentEstimateResult
+from core.urban_generator.demography.allocation import (
+    BuildingPopulationAllocation,
+    PopulationAllocationResult,
+)
+from core.urban_generator.demography.employment import (
+    BuildingJobEstimate,
+    EmploymentEstimateResult,
+)
 from core.urban_generator.zoning import ZoneClass
 
 DEFAULT_MAX_DEMOGRAPHIC_AGGREGATION_BUILDINGS = 100_000
@@ -336,10 +344,10 @@ class DemographicAggregator:
         zone_id: str,
         zone_class: ZoneClass,
         building_ids: tuple[str, ...],
-        population_by_id: dict[str, object],
-        age_by_id: dict[str, object],
-        jobs_by_id: dict[str, object],
-        age_template: tuple[object, ...],
+        population_by_id: dict[str, BuildingPopulationAllocation],
+        age_by_id: dict[str, BuildingAgeGroupAllocation],
+        jobs_by_id: dict[str, BuildingJobEstimate],
+        age_template: tuple[AgeGroupAllocationTotal, ...],
     ) -> BlockDemographicAggregate:
         population, cohorts, jobs = _aggregate_members(
             building_ids=building_ids,
@@ -365,10 +373,10 @@ class DemographicAggregator:
         zone_class: ZoneClass,
         building_ids: tuple[str, ...],
         block_ids: tuple[str, ...],
-        population_by_id: dict[str, object],
-        age_by_id: dict[str, object],
-        jobs_by_id: dict[str, object],
-        age_template: tuple[object, ...],
+        population_by_id: dict[str, BuildingPopulationAllocation],
+        age_by_id: dict[str, BuildingAgeGroupAllocation],
+        jobs_by_id: dict[str, BuildingJobEstimate],
+        age_template: tuple[AgeGroupAllocationTotal, ...],
     ) -> ZoneDemographicAggregate:
         population, cohorts, jobs = _aggregate_members(
             building_ids=building_ids,
@@ -490,10 +498,10 @@ class DemographicAggregator:
 def _aggregate_members(
     *,
     building_ids: tuple[str, ...],
-    population_by_id: dict[str, object],
-    age_by_id: dict[str, object],
-    jobs_by_id: dict[str, object],
-    age_template: tuple[object, ...],
+    population_by_id: dict[str, BuildingPopulationAllocation],
+    age_by_id: dict[str, BuildingAgeGroupAllocation],
+    jobs_by_id: dict[str, BuildingJobEstimate],
+    age_template: tuple[AgeGroupAllocationTotal, ...],
 ) -> tuple[int, tuple[AgeGroupPopulation, ...], float]:
     population = 0
     jobs_values: list[float] = []
@@ -503,9 +511,9 @@ def _aggregate_members(
         population_item = population_by_id[building_id]
         age_item = age_by_id[building_id]
         jobs_item = jobs_by_id[building_id]
-        population += int(getattr(population_item, "residents"))
-        jobs_values.append(float(getattr(jobs_item, "jobs_estimate")))
-        building_groups = tuple(getattr(age_item, "age_groups"))
+        population += population_item.residents
+        jobs_values.append(jobs_item.jobs_estimate)
+        building_groups = age_item.age_groups
         if len(building_groups) != len(age_template):
             raise DemographicAggregationError(
                 "building age groups must match age total count"
@@ -513,20 +521,20 @@ def _aggregate_members(
         for index, group in enumerate(building_groups):
             template = age_template[index]
             if (
-                getattr(group, "code") != getattr(template, "code")
-                or getattr(group, "min_age") != getattr(template, "min_age")
-                or getattr(group, "max_age") != getattr(template, "max_age")
+                group.code != template.code
+                or group.min_age != template.min_age
+                or group.max_age != template.max_age
             ):
                 raise DemographicAggregationError(
                     "building age group metadata must match age totals"
                 )
-            cohort_counts[index] += int(getattr(group, "residents"))
+            cohort_counts[index] += group.residents
 
     cohorts = tuple(
         AgeGroupPopulation(
-            code=str(getattr(template, "code")),
-            min_age=int(getattr(template, "min_age")),
-            max_age=getattr(template, "max_age"),
+            code=template.code,
+            min_age=template.min_age,
+            max_age=template.max_age,
             residents=cohort_counts[index],
         )
         for index, template in enumerate(age_template)
