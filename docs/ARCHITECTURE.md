@@ -261,6 +261,21 @@ canonical age-group order. Zero population даёт нулевые counts/shares
 T04 не выполняет workforce/jobs estimation, block/zone aggregation или raster
 calibration; эти обязанности начинаются с S09-T05.
 
+## Jobs/workforce estimate boundary
+
+S09-T05 хранит job-density assumptions отдельно от demographic scenario в versioned
+`EmploymentConfig`. Для mixed/public/commercial use обязателен явный positive
+`area_per_job_m2`; residential use имеет нулевой jobs estimate. Mixed building использует
+только non-residential GFA `total_gfa × (1 - residential_gfa_share)`, public/commercial —
+полный GFA.
+
+Generated workforce считается отдельно как фактически allocated S09-T03 population ×
+`working_population_ratio`. Requested-but-unallocated residents не создают workforce.
+Jobs и workforce не принудительно балансируются и не связываются worker→workplace.
+
+T05 сохраняет scenario/config provenance и не выполняет block/zone aggregation,
+calibration, persistence или UI; следующий слой — S09-T06.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
