@@ -390,6 +390,22 @@ presets не захардкожены: T01 задаёт schema, а не policy d
 Existing-facility mapping начинается в S10-T02; unmet demand, candidates, accessibility и
 placement остаются последующими слоями и не входят в T01.
 
+## Existing infrastructure adapter boundary
+
+S10-T02 materializes fixed facilities referenced by an immutable `TerritorySnapshot`
+without mutating the snapshot itself. A normalized source record carries snapshot
+`source_ref`, source feature id/use, geometry, working SRID and optional capacity.
+
+`ExistingFacilityMappingRule` maps external facility use to a concrete
+`InfrastructureType.code`. Effective capacity is deterministic: explicit source capacity
+wins, then rule default, then the configured InfrastructureType capacity. Source refs must
+belong to `snapshot.facilities`, SRID must match snapshot settings, and duplicate source
+features/type codes/mapping uses are rejected.
+
+The adapter output preserves geometry and provenance for later S10 network snapping and
+coverage calculation. It does not query the database, calculate unmet demand, generate
+sites or run accessibility; those belong to T03+.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
