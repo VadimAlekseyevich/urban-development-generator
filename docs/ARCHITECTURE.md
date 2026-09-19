@@ -185,6 +185,14 @@ UI позволяет переключать generation run, независим�
 generated rows. T13 использует bounded GeoJSON path; MVT/cache/export/общий layer catalog
 остаются S13 и не внедряются преждевременно.
 
+## Building property/stress boundary
+
+S08-T14 закрепляет building stage как проверяемую capability, а не набор отдельных unit contracts. Property tests проверяют, что accepted footprints после bounded convergence не имеют площадных overlap и соблюдают minimum inter-building gap, а reference pipeline повторно даёт идентичный digest и попадает в coverage/FAR target window при одинаковом seed/config.
+
+Reference benchmark запускает полный T09→T10→T11 путь на синтетической grid fixture. CI выполняет профили 1 000 и 10 000 зданий; benchmark не задаёт performance SLA, но делает алгоритмический drift и внезапный рост стоимости видимыми вместе с machine-independent correctness checks.
+
+T14 не добавляет новые building rules и не меняет persistence/UI semantics. После зелёного T14 sprint S08 закрывается, следующий contract — S09-T01 DemographicScenario.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
