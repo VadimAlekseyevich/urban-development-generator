@@ -6,6 +6,16 @@ from core.urban_generator.infrastructure.config import (
     InfrastructureType,
     InfrastructureTypeError,
 )
+from core.urban_generator.infrastructure.demand import (
+    DEFAULT_MAX_UNMET_DEMAND_ITEMS,
+    BlockInfrastructureDemand,
+    InfrastructureDemandSummary,
+    InfrastructureServedDemand,
+    UnmetDemandCalculator,
+    UnmetDemandDiagnostics,
+    UnmetDemandError,
+    UnmetDemandResult,
+)
 from core.urban_generator.infrastructure.existing import (
     ExistingFacilityMappingRule,
     ExistingFacilitySourceRecord,
@@ -17,6 +27,14 @@ from core.urban_generator.infrastructure.existing import (
 )
 
 __all__ = [
+    "DEFAULT_MAX_UNMET_DEMAND_ITEMS",
+    "BlockInfrastructureDemand",
+    "InfrastructureDemandSummary",
+    "InfrastructureServedDemand",
+    "UnmetDemandCalculator",
+    "UnmetDemandDiagnostics",
+    "UnmetDemandError",
+    "UnmetDemandResult",
     "ExistingFacilityMappingRule",
     "ExistingFacilitySourceRecord",
     "ExistingInfrastructureAdapter",
