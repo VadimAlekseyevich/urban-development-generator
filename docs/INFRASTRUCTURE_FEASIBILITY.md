@@ -44,8 +44,9 @@ reasons are mutually constrained by the result type.
 ## Errors versus infeasibility
 
 Malformed or inconsistent provenance is **not** represented as a feasibility rejection. Invalid
-candidate/type IDs, invalid working CRS, invalid enum values, non-positive/non-finite capacity or
-wrong result-shape combinations raise `InfrastructureFeasibilityError`.
+candidate/type IDs, invalid enum values, non-positive/non-finite capacity or wrong result-shape
+combinations raise `InfrastructureFeasibilityError`; invalid working CRS remains owned by the
+canonical `require_working_crs` guard.
 
 This distinction prevents damaged inputs from being silently treated as an ordinary rejected
 candidate.
