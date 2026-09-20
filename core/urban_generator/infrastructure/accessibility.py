@@ -287,7 +287,16 @@ class InfrastructureAccessibilityBatchResult:
             raise InfrastructureAccessibilityError(
                 "diagnostics must be InfrastructureAccessibilityDiagnostics"
             )
-        for item in (*self.reachable, *self.unavailable):
+        for item in self.reachable:
+            if item.snapshot_id != self.snapshot_id:
+                raise InfrastructureAccessibilityError(
+                    "batch outcome snapshot_id must match batch snapshot_id"
+                )
+            if item.infrastructure_type_code != self.infrastructure_type_code:
+                raise InfrastructureAccessibilityError(
+                    "batch outcome infrastructure type must match batch type"
+                )
+        for item in self.unavailable:
             if item.snapshot_id != self.snapshot_id:
                 raise InfrastructureAccessibilityError(
                     "batch outcome snapshot_id must match batch snapshot_id"
@@ -316,8 +325,12 @@ class InfrastructureAccessibilityBatchResult:
 
         identities = [
             _batch_subject_identity(self.mode, item)
-            for item in (*self.reachable, *self.unavailable)
+            for item in self.reachable
         ]
+        identities.extend(
+            _batch_subject_identity(self.mode, item)
+            for item in self.unavailable
+        )
         if len(identities) != len(set(identities)):
             raise InfrastructureAccessibilityError(
                 "accessibility batch contains duplicate subject outcomes"
