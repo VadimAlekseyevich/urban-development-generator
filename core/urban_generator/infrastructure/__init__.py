@@ -56,6 +56,17 @@ from core.urban_generator.infrastructure.existing import (
     ExistingInfrastructureFacility,
     ExistingInfrastructureResult,
 )
+from core.urban_generator.infrastructure.placement import (
+    MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES,
+    MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS,
+    MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS,
+    InfrastructureAcceptedFacility,
+    InfrastructureCoverageCacheEntry,
+    InfrastructureGreedyPlacementState,
+    InfrastructurePlacementDemandState,
+    InfrastructurePlacementError,
+    initialize_infrastructure_greedy_placement_state,
+)
 from core.urban_generator.infrastructure.network_snap import (
     MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE,
     ExistingInfrastructureFacilityRef,
@@ -113,6 +124,15 @@ __all__ = [
     "compute_candidate_site_accessibility_batch",
     "compute_existing_facility_accessibility",
     "compute_existing_facility_accessibility_batch",
+    "MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES",
+    "MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS",
+    "MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS",
+    "InfrastructureAcceptedFacility",
+    "InfrastructureCoverageCacheEntry",
+    "InfrastructureGreedyPlacementState",
+    "InfrastructurePlacementDemandState",
+    "InfrastructurePlacementError",
+    "initialize_infrastructure_greedy_placement_state",
     "MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE",
     "ExistingInfrastructureFacilityRef",
     "ExistingInfrastructureFacilitySnap",
