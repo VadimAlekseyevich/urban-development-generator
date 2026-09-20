@@ -104,7 +104,6 @@ class InfrastructureAccessibilityResult:
         )
 
 
-
 def compute_existing_facility_accessibility(
     backend: NetworkBackend,
     snap_batch: InfrastructureNetworkSnapBatchResult,
@@ -233,6 +232,7 @@ def compute_existing_facility_accessibility(
             )
 
     return tuple(sorted(results, key=lambda item: item.key))
+
 
 def _validate_common(
     *,
