@@ -13,6 +13,7 @@ from core.urban_generator.infrastructure import (
     ExistingInfrastructureFacilityRef,
     ExistingInfrastructureFacilitySnap,
     ExistingInfrastructureFacilityUnsnapped,
+    InfrastructureAccessibilityError,
     InfrastructureAccessibilityMode,
     InfrastructureAccessibilityUnavailableReason,
     InfrastructureCandidateAccessibilityPolicy,
@@ -385,7 +386,10 @@ def test_candidate_batch_pair_budget_counts_unsnapped_subjects_before_routing() 
         ),
     )
 
-    with pytest.raises(Exception, match="result budget exceeded before routing"):
+    with pytest.raises(
+        InfrastructureAccessibilityError,
+        match="result budget exceeded before routing",
+    ):
         compute_candidate_site_accessibility_batch(
             backend,
             snap_batch,
