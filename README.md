@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая feature-точка — **S10-T09 Capacity/site feasibility**: UG-AI-030 определяет feasibility result/rejection contract поверх завершённого S10-T08.
+Текущая feature-точка — **S10-T09 Capacity/site feasibility**: UG-AI-030..031 реализованы поверх завершённого S10-T08.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
