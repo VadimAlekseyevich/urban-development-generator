@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-Текущая feature-точка — **S10-T09 Capacity/site feasibility**: UG-AI-030..031 реализованы поверх завершённого S10-T08.
+**S10-T09 Capacity/site feasibility завершён**: UG-AI-030..032 реализуют typed feasibility contract, validator и feasibility-aware greedy gate поверх завершённого S10-T08.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-032 / S10-T09`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-033 / S10-T10`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

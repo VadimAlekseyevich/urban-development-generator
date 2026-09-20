@@ -92,17 +92,25 @@ unweighted demand coverage; distance-weighted scoring is not introduced.
 already outside the allowed selection budget.
 
 `select_infrastructure_greedy_candidate()` validates that benefits contain every currently
-unaccepted candidate exactly once and in canonical `candidate_order`. It then applies stop
-conditions in deterministic order:
+unaccepted candidate exactly once and in canonical `candidate_order`.
+
+UG-AI-032 adds an optional immutable tuple of completed S10-T09
+`InfrastructureFeasibilityResult` values. When supplied, it must contain every currently
+unaccepted candidate in the same canonical order, and each result's `proposed_capacity` must
+match the corresponding benefit capacity. Infeasible candidates are excluded before winner
+comparison; no geometry or routing is recomputed inside placement.
+
+Selection then applies stop conditions in deterministic order:
 
 1. facility limit reached;
 2. iteration limit reached;
 3. no unaccepted candidates;
-4. no positive benefit.
+4. no feasible candidates, when a feasibility tuple was supplied;
+5. no positive benefit among feasible candidates.
 
-Otherwise it selects the highest-benefit candidate. Benefits are traversed in canonical order and
-the selected item is replaced only by a **strictly greater** benefit, so exact benefit ties resolve
-to the earliest canonical candidate ref without randomness.
+Otherwise it selects the highest-benefit feasible candidate. Benefits are traversed in canonical
+order and the selected item is replaced only by a **strictly greater** benefit, so exact benefit
+ties resolve to the earliest canonical candidate ref without randomness.
 
 The function returns `InfrastructurePlacementSelection` with a typed
 `InfrastructurePlacementSelectionStatus`; it does not mutate state. UG-AI-028 owns the state
@@ -156,19 +164,18 @@ UG-AI-029 composes the complete T08 path over typed T07 candidate-accessibility 
 - exact-benefit ties select the same canonical candidate under candidate input permutation;
 - a complete T07 matrix with no reachable candidate-demand rows stops without changing demand.
 
-Within this T08 acceptance, "no feasible candidate" means no candidate has positive coverable demand
-from the completed T07 reachability matrix. Site/capacity geometry feasibility remains S10-T09 and
-is deliberately not simulated here.
+UG-AI-032 adds the physical-feasibility acceptance fixtures on top of these T08 cases. They prove
+that a higher-benefit infeasible candidate is skipped, an impossible proposed capacity yields
+`NO_FEASIBLE_CANDIDATES`, and exact capacity/site-area boundaries remain selectable.
 
-## Explicit non-goals after S10-T08
+## Explicit non-goals after S10-T09
 
 This task does not:
 
-- run pathfinding or snapping;
-- perform site/capacity feasibility;
+- run pathfinding or snapping inside placement;
+- regenerate candidate sites or infer host buildings;
 - persist generated facilities.
 
 Ordered follow-up moves to the next capability:
 
-- UG-AI-030 / S10-T09 — define capacity/site/host-building feasibility results and rejection
-  reasons.
+- UG-AI-033 / S10-T10 — add typed generated-infrastructure persistence.

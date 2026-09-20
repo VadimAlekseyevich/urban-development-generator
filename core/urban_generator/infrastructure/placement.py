@@ -15,6 +15,9 @@ from core.urban_generator.infrastructure.accessibility import (
 )
 from core.urban_generator.infrastructure.config import InfrastructureType
 from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
+from core.urban_generator.infrastructure.feasibility import (
+    InfrastructureFeasibilityResult,
+)
 from core.urban_generator.infrastructure.network_snap import (
     InfrastructureCandidateRef,
     InfrastructureDemandRef,
@@ -110,6 +113,7 @@ class InfrastructurePlacementSelectionStatus(StrEnum):
     FACILITY_LIMIT_REACHED = "facility_limit_reached"
     ITERATION_LIMIT_REACHED = "iteration_limit_reached"
     NO_CANDIDATES = "no_candidates"
+    NO_FEASIBLE_CANDIDATES = "no_feasible_candidates"
     NO_POSITIVE_BENEFIT = "no_positive_benefit"
 
 
@@ -621,9 +625,10 @@ def select_infrastructure_greedy_candidate(
     benefits: tuple[InfrastructureCandidateBenefit, ...],
     *,
     iteration_index: int,
+    feasibility_results: tuple[InfrastructureFeasibilityResult, ...] | None = None,
     policy: InfrastructureGreedyPlacementPolicy | None = None,
 ) -> InfrastructurePlacementSelection:
-    """Select the first maximum-benefit candidate under explicit greedy bounds."""
+    """Select the first maximum-benefit feasible candidate under explicit bounds."""
 
     if not isinstance(state, InfrastructureGreedyPlacementState):
         raise InfrastructurePlacementError(
@@ -662,6 +667,48 @@ def select_infrastructure_greedy_candidate(
             "benefits must contain every unaccepted candidate in candidate_order"
         )
 
+    feasible_benefits = benefits
+    if feasibility_results is not None:
+        if not isinstance(feasibility_results, tuple):
+            raise InfrastructurePlacementError(
+                "feasibility_results must be an immutable tuple"
+            )
+        if any(
+            not isinstance(item, InfrastructureFeasibilityResult)
+            for item in feasibility_results
+        ):
+            raise InfrastructurePlacementError(
+                "feasibility_results must contain InfrastructureFeasibilityResult values"
+            )
+        expected_feasibility_keys = tuple(
+            item.key for item in expected_candidate_refs
+        )
+        actual_feasibility_keys = tuple(item.key for item in feasibility_results)
+        if actual_feasibility_keys != expected_feasibility_keys:
+            raise InfrastructurePlacementError(
+                "feasibility_results must contain every unaccepted candidate "
+                "in candidate_order"
+            )
+
+        eligible: list[InfrastructureCandidateBenefit] = []
+        for benefit, feasibility in zip(
+            benefits,
+            feasibility_results,
+            strict=True,
+        ):
+            if not math.isclose(
+                feasibility.proposed_capacity,
+                benefit.capacity,
+                rel_tol=1e-12,
+                abs_tol=1e-9,
+            ):
+                raise InfrastructurePlacementError(
+                    "feasibility proposed capacity must match candidate benefit capacity"
+                )
+            if feasibility.is_feasible:
+                eligible.append(benefit)
+        feasible_benefits = tuple(eligible)
+
     if len(state.accepted_facilities) >= policy.max_facilities:
         return InfrastructurePlacementSelection(
             iteration_index=iteration_index,
@@ -677,9 +724,14 @@ def select_infrastructure_greedy_candidate(
             iteration_index=iteration_index,
             status=InfrastructurePlacementSelectionStatus.NO_CANDIDATES,
         )
+    if feasibility_results is not None and not feasible_benefits:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.NO_FEASIBLE_CANDIDATES,
+        )
 
-    selected = benefits[0]
-    for item in benefits[1:]:
+    selected = feasible_benefits[0]
+    for item in feasible_benefits[1:]:
         if item.benefit > selected.benefit:
             selected = item
 
