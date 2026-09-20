@@ -1,10 +1,10 @@
 # Infrastructure greedy placement contract
 
-> **Status: Implemented through UG-AI-027**
+> **Status: Implemented through UG-AI-028**
 
 S10-T08 consumes the completed S10-T07 accessibility outputs. UG-AI-025 defines the immutable
 state vocabulary; UG-AI-026 adds pure incremental candidate-benefit calculation; UG-AI-027 adds
-bounded deterministic candidate selection. Demand mutation remains the next ordered task.
+bounded deterministic candidate selection; UG-AI-028 applies accepted selections to remaining demand.
 
 ## State ownership
 
@@ -108,6 +108,33 @@ The function returns `InfrastructurePlacementSelection` with a typed
 `InfrastructurePlacementSelectionStatus`; it does not mutate state. UG-AI-028 owns the state
 transition after a `SELECTED` decision.
 
+## Remaining-demand transition
+
+`apply_infrastructure_greedy_selection()` applies only a `SELECTED` decision. It never reruns
+routing and preserves the T07 coverage cache unchanged.
+
+Before changing state, the function verifies that:
+
+- the selected candidate has not already been accepted;
+- the selected capacity matches the canonical `InfrastructureType.capacity`;
+- the selected candidate still has the same current reachable remaining demand and capacity-capped
+  benefit. A decision calculated from an older state is rejected as stale.
+
+Capacity is then consumed only from demand refs present in the selected candidate's successful T07
+cache rows, in canonical demand-ref order. For each demand:
+
+```text
+served = min(current_remaining_demand, remaining_facility_capacity)
+new_remaining_demand = current_remaining_demand - served
+```
+
+Both quantities are clamped by construction at zero. Because every transition uses the **current**
+remaining demand and an already accepted candidate cannot be applied again, overlapping candidates
+cannot double-cover demand. The total reduction is checked against the selected incremental benefit.
+
+The resulting state appends one `InfrastructureAcceptedFacility` with the next contiguous
+acceptance index while retaining the same snapshot, candidate order and coverage cache.
+
 ## Bounds
 
 Placement state reuses the existing T07 hard envelopes:
@@ -119,16 +146,14 @@ Placement state reuses the existing T07 hard envelopes:
 
 No new unbounded N×M path is introduced.
 
-## Explicit non-goals through UG-AI-027
+## Explicit non-goals through UG-AI-028
 
 This task does not:
 
 - run pathfinding or snapping;
-- update remaining demand;
 - perform site/capacity feasibility;
 - persist generated facilities.
 
 Ordered follow-up remains:
 
-- UG-AI-028 — remaining-demand update;
 - UG-AI-029 — greedy acceptance fixtures.
