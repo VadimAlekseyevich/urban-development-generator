@@ -74,13 +74,13 @@ def _seed() -> tuple[uuid.UUID, uuid.UUID]:
             linked = DatasetVersion(
                 dataset_id=dataset.id,
                 version=1,
-                status="ready",
+                status="uploaded",
                 source_metadata={},
             )
             unlinked = DatasetVersion(
                 dataset_id=dataset.id,
                 version=2,
-                status="ready",
+                status="uploaded",
                 source_metadata={},
             )
             session.add_all((linked, unlinked))
@@ -108,6 +108,10 @@ def _seed() -> tuple[uuid.UUID, uuid.UUID]:
                     ),
                 )
             )
+            session.flush()
+            linked.status = "ready"
+            unlinked.status = "ready"
+            session.flush()
 
             run = GenerationRun(
                 project_id=project.id,
