@@ -1,10 +1,11 @@
 # Infrastructure feasibility contract
 
-> **Status: Implemented through UG-AI-031**
+> **Status: Complete through UG-AI-032**
 
 S10-T09 decides whether a generated infrastructure candidate can physically host the proposed
-facility capacity. UG-AI-030 defines the result and rejection vocabulary; UG-AI-031 implements the
-validator over already prepared T05 geometry.
+facility capacity. UG-AI-030 defines the result and rejection vocabulary, UG-AI-031 implements the
+validator over already prepared T05 geometry, and UG-AI-032 gates greedy acceptance with those
+typed results.
 
 ## Contract boundary
 
@@ -84,18 +85,30 @@ Equality at the capacity and minimum-area boundaries is feasible. Malformed geom
 type identity or CRS provenance raises `InfrastructureFeasibilityError` instead of being silently
 converted into ordinary infeasibility.
 
-UG-AI-032 will integrate this completed decision before greedy acceptance.
+## Greedy acceptance gate
 
-## Explicit non-goals through UG-AI-031
+`select_infrastructure_greedy_candidate()` accepts an optional immutable tuple of
+`InfrastructureFeasibilityResult` values for the currently unaccepted candidates. When supplied,
+the tuple must match the canonical candidate order exactly and each result's `proposed_capacity`
+must match the corresponding candidate benefit capacity.
 
-This task does not:
+Hard-infeasible candidates are removed from winner comparison before any greedy acceptance. A
+higher-benefit infeasible candidate therefore cannot displace a lower-benefit feasible candidate.
+If unaccepted candidates remain but every supplied result is infeasible, selection returns
+`NO_FEASIBLE_CANDIDATES`; this is distinct from `NO_POSITIVE_BENEFIT`.
+
+The gate consumes completed T09 results only. It does not regenerate site geometry, resolve another
+host building, rerun snapping/routing, or mutate remaining demand.
+
+## Explicit non-goals after S10-T09
+
+This capability does not:
 
 - regenerate or clip candidate sites;
 - infer a new host building;
-- alter greedy placement state;
 - persist generated infrastructure;
 - define infrastructure metrics.
 
 Ordered follow-up:
 
-- UG-AI-032 — filter greedy acceptance by feasibility and test impossible/edge capacities.
+- UG-AI-033 / S10-T10 — add the typed `GeneratedInfrastructure` persistence schema/migration.
