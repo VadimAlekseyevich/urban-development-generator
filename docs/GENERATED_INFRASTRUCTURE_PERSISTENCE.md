@@ -1,6 +1,6 @@
 # Generated infrastructure persistence
 
-> **Status: Implemented through UG-AI-034 / S10-T10**
+> **Status: Complete through UG-AI-035 / S10-T10**
 
 S10-T10 persists accepted generated facilities in the existing run-scoped
 `generated_infrastructure` table. UG-AI-033 specializes that table with typed columns and a
@@ -98,9 +98,27 @@ The pre-existing generated-layer indexes remain authoritative:
 UG-AI-033 adds only deterministic typed identity indexes. Additional query/index validation belongs
 to UG-AI-035 together with database integration coverage.
 
+## Database integration gate
+
+UG-AI-035 exercises the writer against migrated PostgreSQL/PostGIS and verifies:
+
+- site and host-building rows round-trip with typed capacity/category/network provenance;
+- UUID5 identity survives retry replacement;
+- retry scope preserves rows belonging to another infrastructure type;
+- unresolved host-building refs fail before existing rows are deleted;
+- successful runs are rejected before persistence;
+- the database rejects partial typed rows;
+- the existing `(run_id, id)` B-tree and GiST geometry indexes remain present;
+- the S10 identity indexes `(run_id, candidate_id, infrastructure_type_code)` and
+  `(run_id, infrastructure_type_code, acceptance_index)` are present.
+
+No redundant run/spatial index is introduced: the generic S02 generated-layer indexes already cover
+run-scoped keyset and bbox access, while the S10 acceptance index has the exact `run_id + type`
+prefix used by writer replacement and later typed reads.
+
 ## Explicit non-goals
 
-UG-AI-034 does not:
+S10-T10 does not:
 
 - mutate successful runs;
 - compute infrastructure metrics;
@@ -108,4 +126,4 @@ UG-AI-034 does not:
 
 Ordered follow-up:
 
-- UG-AI-035 — add persistence/database integration tests and required index evidence.
+- UG-AI-036 / S10-T11 — compute canonical infrastructure raw metrics from T07-T10 results without rerunning routing.
