@@ -173,11 +173,14 @@ def validate_infrastructure_candidate_feasibility(
             "candidate site_geometry",
             site_geometry,
         )
-        if site_area_m2 < infrastructure_type.minimum_site_area_m2 and not math.isclose(
-            site_area_m2,
-            infrastructure_type.minimum_site_area_m2,
-            rel_tol=1e-12,
-            abs_tol=1e-6,
+        if (
+            site_area_m2 < infrastructure_type.minimum_site_area_m2
+            and not math.isclose(
+                site_area_m2,
+                infrastructure_type.minimum_site_area_m2,
+                rel_tol=1e-12,
+                abs_tol=1e-6,
+            )
         ):
             reasons.append(
                 InfrastructureFeasibilityRejectionReason.SITE_AREA_BELOW_MINIMUM
@@ -205,11 +208,14 @@ def validate_infrastructure_candidate_feasibility(
                 "host_building_geometry",
                 host_building_geometry,
             )
-            if host_area_m2 < infrastructure_type.minimum_site_area_m2 and not math.isclose(
-                host_area_m2,
-                infrastructure_type.minimum_site_area_m2,
-                rel_tol=1e-12,
-                abs_tol=1e-6,
+            if (
+                host_area_m2 < infrastructure_type.minimum_site_area_m2
+                and not math.isclose(
+                    host_area_m2,
+                    infrastructure_type.minimum_site_area_m2,
+                    rel_tol=1e-12,
+                    abs_tol=1e-6,
+                )
             ):
                 reasons.append(
                     InfrastructureFeasibilityRejectionReason.HOST_BUILDING_AREA_BELOW_MINIMUM
