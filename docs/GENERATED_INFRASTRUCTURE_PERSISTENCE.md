@@ -1,6 +1,6 @@
 # Generated infrastructure persistence
 
-> **Status: Implemented through UG-AI-033 / S10-T10**
+> **Status: Implemented through UG-AI-034 / S10-T10**
 
 S10-T10 persists accepted generated facilities in the existing run-scoped
 `generated_infrastructure` table. UG-AI-033 specializes that table with typed columns and a
@@ -60,6 +60,34 @@ Accepted generated facilities also persist the successful T06 snap provenance:
 These are backend-independent string/network references from the core contract. Persistence does
 not store a NetworkX node object or rerun snapping.
 
+## Retry-safe writer
+
+`SqlAlchemyGeneratedInfrastructureWriter` consumes one completed
+`InfrastructureGreedyPlacementState`, its exact T05
+`InfrastructureCandidateGeometryResult`, the T06 network-snap batch and the canonical
+`InfrastructureType`.
+
+Before deleting any existing rows it:
+
+- locks and loads the target `GenerationRun`;
+- rejects `succeeded` runs;
+- checks run/type/working-CRS/network-snapshot provenance;
+- requires T05 geometry to cover exactly the placement candidate order;
+- requires every accepted candidate to have a successful T06 candidate snap;
+- resolves every host-building string id to a `generated_buildings` row owned by the same run.
+
+Replacement scope is only `(run_id, infrastructure_type_code)`. Retrying one infrastructure type
+therefore cannot delete another type. Inserts are chunked, total accepted rows are bounded by the
+existing placement hard limit, and all validation/ref resolution happens before the destructive
+delete.
+
+Persisted UUID identity is deterministic:
+
+`uuid5(run_id, "generated-infrastructure:<type-code>:<candidate-id>")`.
+
+Site rows reuse the exact prepared T05 polygon. Host-building rows persist the T05 anchor Point and
+the resolved generated-building UUID. The writer never reruns site generation, snapping or routing.
+
 ## Existing spatial access paths
 
 The pre-existing generated-layer indexes remain authoritative:
@@ -72,15 +100,12 @@ to UG-AI-035 together with database integration coverage.
 
 ## Explicit non-goals
 
-UG-AI-033 does not:
+UG-AI-034 does not:
 
-- implement the retry-safe writer;
-- resolve core candidate/host/network refs into persistence rows;
 - mutate successful runs;
 - compute infrastructure metrics;
 - add infrastructure read API or UI.
 
 Ordered follow-up:
 
-- UG-AI-034 — implement the bounded retry-safe writer with deterministic generated identity;
 - UG-AI-035 — add persistence/database integration tests and required index evidence.
