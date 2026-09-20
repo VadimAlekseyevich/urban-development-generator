@@ -1,10 +1,10 @@
 # Infrastructure accessibility contract
 
-> **Status: Implemented — UG-AI-020 contract only**
+> **Status: Implemented through UG-AI-021**
 
-S10-T07 consumes the typed network-snap identities from S10-T06 and defines the stable records used
-by later bounded accessibility executors. This document covers **UG-AI-020** only; routing,
-batching, unreachable semantics and performance acceptance remain UG-AI-021..024.
+S10-T07 consumes the typed network-snap identities from S10-T06 and defines the stable records and
+bounded executors used by infrastructure placement. This document covers **UG-AI-020..021**;
+candidate batching, unreachable semantics and performance acceptance remain UG-AI-022..024.
 
 ## Goal
 
@@ -61,19 +61,43 @@ All distances are metres on the canonical network snapshot. T07 does not create 
 backend and does not expose NetworkX objects. Executors added by later tasks must use the existing
 `NetworkBackend` distance operations over the node refs produced by T06.
 
-## Explicit non-goals for UG-AI-020
+## Existing-facility executor
 
-This task does not:
+`compute_existing_facility_accessibility()` consumes one canonical
+`InfrastructureNetworkSnapBatchResult`, one `InfrastructureType` and the canonical
+`NetworkBackend`.
 
-- call `NetworkBackend.multi_source_distances()` or any other routing method;
-- choose batching or all-pairs materialization policy;
+Before routing it verifies that the snap batch and backend use the same immutable network snapshot
+and working SRID. It selects only successful demand and existing-facility snaps for the requested
+infrastructure type, applies a hard subject bound, and returns no successful rows without making a
+network call when either selected side is empty.
+
+Existing facilities are passed as multi-source nodes and demand nodes as targets in exactly one
+`NetworkBackend.multi_source_distances()` call. The routing cutoff is exactly
+`InfrastructureType.max_network_distance_m`; T06 snap tolerance is never reused as a service
+distance.
+
+Repeated facility or demand node refs are deduplicated before routing. If multiple fixed facilities
+share one network node, the stable facility ref ordering chooses the canonical facility identity for
+that node. A reachable target node is then fanned back out to every demand ref snapped to that node.
+Returned rows are canonically sorted by their accessibility key.
+
+The default hard subject cap is
+`MAX_EXISTING_ACCESSIBILITY_SUBJECTS = MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE`; callers may choose a
+smaller bound but not a larger one.
+
+## Explicit non-goals through UG-AI-021
+
+This implementation does not:
+
+- calculate candidate-site accessibility;
+- materialize candidate×demand all-pairs data;
 - define unreachable/unsnapped result variants;
 - calculate candidate benefit or place facilities;
 - persist accessibility rows.
 
 Those responsibilities remain ordered as:
 
-- UG-AI-021 — existing-facility bounded accessibility;
 - UG-AI-022 — candidate-site bounded batching;
 - UG-AI-023 — explicit unreachable/unsnapped handling;
 - UG-AI-024 — deterministic graph acceptance and search-budget assertions.
