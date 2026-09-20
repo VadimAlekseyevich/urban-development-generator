@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.infrastructure_ui_read_model_writer import (
     InfrastructureUiReadModelImmutableError,
+    InfrastructureUiReadModelPersistenceError,
     SqlAlchemyInfrastructureUiReadModelWriter,
 )
 from backend.app.db.session import SessionLocal, engine
@@ -256,13 +257,12 @@ def _seed(*, status: str = "running") -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
 
             run = GenerationRun(
                 project_id=project.id,
-                status=status,
+                status="running",
                 mode="EXPANSION",
                 seed=44,
                 working_srid=WORKING_SRID,
                 config_json={},
                 config_schema_version="test-v1",
-                commit_sha="b" * 40 if status == "succeeded" else None,
             )
             session.add(run)
             session.flush()
@@ -304,6 +304,10 @@ def _seed(*, status: str = "running") -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
             )
             session.add(generated)
             session.flush()
+            if status == "succeeded":
+                run.commit_sha = "b" * 40
+                run.status = "succeeded"
+                session.flush()
             return run.id, block.id, generated.id
 
 
@@ -425,7 +429,7 @@ def test_writer_requires_persisted_generated_rows_to_match_accepted_facilities()
         session.commit()
 
     with pytest.raises(
-        Exception,
+        InfrastructureUiReadModelPersistenceError,
         match="persisted generated infrastructure must match accepted facilities",
     ):
         _write(run_id)
