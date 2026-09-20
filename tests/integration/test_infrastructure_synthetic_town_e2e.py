@@ -29,7 +29,6 @@ from core.urban_generator.demography import (
 )
 from core.urban_generator.domain import NetworkPoint, WorkingCRS
 from core.urban_generator.infrastructure import (
-    BlockInfrastructureDemand,
     ExistingInfrastructureDiagnostics,
     ExistingInfrastructureFacility,
     ExistingInfrastructureFacilityRef,
