@@ -1017,14 +1017,30 @@ export function InfrastructurePanel({
 
   function changeRun(event: ChangeEvent<HTMLSelectElement>): void {
     const nextRunId = event.target.value
+    viewportAbortRef.current?.abort()
+    metricsAbortRef.current?.abort()
     setRunId(nextRunId)
     setRunSelectionNotice(null)
     setMetrics(null)
     setReadModelStatus(nextRunId ? 'loading' : 'idle')
+    setReadModelMessage(
+      nextRunId
+        ? 'Проверяю persisted infrastructure read model…'
+        : 'Read model будет проверен после выбора run.',
+    )
     setViewportStatus(nextRunId ? 'loading' : 'idle')
+    setViewportMessage(
+      nextRunId
+        ? 'Очищаю предыдущий run и загружаю новый viewport…'
+        : 'Viewport будет загружен после выбора run.',
+    )
     setViewportLayers(emptyViewportLayerStates())
     setSelected(null)
     setSelectedDemand(null)
+    if (map) {
+      setSourceData(map, FACILITY_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+      setSourceData(map, DEMAND_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+    }
     syncRunQuery(nextRunId)
   }
 
