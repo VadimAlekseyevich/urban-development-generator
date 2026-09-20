@@ -62,6 +62,15 @@ from core.urban_generator.infrastructure.feasibility import (
     InfrastructureFeasibilityResult,
     validate_infrastructure_candidate_feasibility,
 )
+from core.urban_generator.infrastructure.metrics import (
+    DEFAULT_MAX_INFRASTRUCTURE_METRIC_TYPES,
+    InfrastructureAgeCoverage,
+    InfrastructureMetricsBuilder,
+    InfrastructureMetricsDiagnostics,
+    InfrastructureMetricsError,
+    InfrastructureMetricsResult,
+    InfrastructureRawMetricValue,
+)
 from core.urban_generator.infrastructure.network_snap import (
     MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE,
     ExistingInfrastructureFacilityRef,
@@ -161,6 +170,13 @@ __all__ = [
     "InfrastructureFeasibilityRejectionReason",
     "InfrastructureFeasibilityResult",
     "validate_infrastructure_candidate_feasibility",
+    "DEFAULT_MAX_INFRASTRUCTURE_METRIC_TYPES",
+    "InfrastructureAgeCoverage",
+    "InfrastructureMetricsBuilder",
+    "InfrastructureMetricsDiagnostics",
+    "InfrastructureMetricsError",
+    "InfrastructureMetricsResult",
+    "InfrastructureRawMetricValue",
     "MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE",
     "ExistingInfrastructureFacilityRef",
     "ExistingInfrastructureFacilitySnap",
