@@ -1,6 +1,6 @@
 # Infrastructure read API
 
-> **Status: S10-T12 read/UI contract implemented through UG-AI-040**
+> **Status: S10-T12 read/UI contract complete through UG-AI-041**
 
 S10-T12 exposes run-scoped infrastructure state for map/API consumers without moving authoritative
 computation into the frontend.
@@ -101,4 +101,4 @@ This read contract does not expose every rejected/unaccepted candidate alternati
 candidate×demand accessibility matrix. Those bounded core structures remain execution inputs, not
 a second browser-side authoritative state.
 
-UG-AI-041 hardens explicit error/truncation/run-selection states; later workspace generalization remains S13 work.
+UG-AI-041 completes explicit error/truncation/run-selection state hardening. S10-T12 is complete; ordered follow-up is UG-AI-042 / S10-T13 synthetic-town end-to-end acceptance. Later workspace generalization remains S13 work.
