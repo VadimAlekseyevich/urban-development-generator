@@ -8,6 +8,7 @@ from core.urban_generator.demography import DemographicDemandCategory
 from core.urban_generator.domain import NetworkNodeRef
 from core.urban_generator.infrastructure import (
     InfrastructureAccessibilityResult,
+    InfrastructureCandidateGeometryKind,
     InfrastructureCandidatePolicy,
     InfrastructureCandidateRef,
     InfrastructureCandidateSource,
@@ -15,6 +16,7 @@ from core.urban_generator.infrastructure import (
     InfrastructureCoverageCacheEntry,
     InfrastructureDemandModel,
     InfrastructureDemandRef,
+    InfrastructureFeasibilityResult,
     InfrastructureGreedyPlacementPolicy,
     InfrastructureGreedyPlacementState,
     InfrastructurePlacementDemandState,
@@ -138,9 +140,21 @@ def _select(
         state,
         infrastructure_type=infrastructure_type,
     )
+    feasibility = tuple(
+        InfrastructureFeasibilityResult(
+            candidate_id=item.candidate_ref.candidate_id,
+            infrastructure_type_code=TYPE_CODE,
+            working_srid=3857,
+            geometry_kind=InfrastructureCandidateGeometryKind.SITE,
+            proposed_capacity=item.capacity,
+            is_feasible=True,
+        )
+        for item in benefits
+    )
     return select_infrastructure_greedy_candidate(
         state,
         benefits,
+        feasibility=feasibility,
         iteration_index=iteration_index,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=2,
