@@ -127,8 +127,9 @@ Typed reasons are:
 - `NO_PATH_WITHIN_MAX_DISTANCE`;
 - `NO_SNAPPED_FACILITY_SITE` for the demand-level existing-facility search.
 
-Snap failures preserve the original `InfrastructureNetworkUnsnappedReason` from T06 in dedicated
-fields. A routing miss after both sides are snapped becomes
+Pair-specific candidate snap failures and demand snap failures preserve the original
+`InfrastructureNetworkUnsnappedReason` from T06 in dedicated fields. A routing miss after both
+sides are snapped becomes
 `NO_PATH_WITHIN_MAX_DISTANCE` and carries no snap reason.
 
 `compute_existing_facility_accessibility_batch()` produces one outcome per demand ref: either the
