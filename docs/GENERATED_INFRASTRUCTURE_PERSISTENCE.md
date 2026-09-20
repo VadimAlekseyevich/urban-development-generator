@@ -1,6 +1,6 @@
 # Generated infrastructure persistence
 
-> **Status: Implemented through UG-AI-033 / S10-T10**
+> **Status: Implemented through UG-AI-034 / S10-T10**
 
 S10-T10 persists accepted generated facilities in the existing run-scoped
 `generated_infrastructure` table. UG-AI-033 specializes that table with typed columns and a
@@ -70,17 +70,42 @@ The pre-existing generated-layer indexes remain authoritative:
 UG-AI-033 adds only deterministic typed identity indexes. Additional query/index validation belongs
 to UG-AI-035 together with database integration coverage.
 
+## Retry-safe writer
+
+UG-AI-034 adds `SqlAlchemyGeneratedInfrastructureWriter`. One replace call owns exactly one
+`run_id + infrastructure_type_code` scope. It locks the GenerationRun, rejects a successful run,
+validates all cross-stage references, resolves host-building ids, and only then deletes/reinserts
+that type's rows in one transaction. Retrying one type therefore cannot erase generated facilities
+of another type.
+
+The writer consumes authoritative outputs rather than recomputing them:
+
+- T01 `InfrastructureType` supplies category/type semantics;
+- T05 `InfrastructureCandidateGeometryResult` supplies site geometry or host anchor/ref;
+- T06 `InfrastructureNetworkSnapBatchResult` supplies snapshot/node/snap-distance provenance;
+- T08 `InfrastructureGreedyPlacementState.accepted_facilities` supplies accepted candidates and
+  contiguous acceptance order;
+- T09 `InfrastructureFeasibilityResult` supplies the accepted proposed capacity and confirms the
+  geometry kind is feasible.
+
+Every accepted candidate must resolve in all relevant inputs and must have a successful candidate
+snap. Validation happens before the first DELETE. Host-building string ids are resolved against
+`GeneratedBuilding.building_key` in the same run. Generated row UUIDs are deterministic UUID5
+values scoped by run, type code and candidate id.
+
+The writer is explicitly bounded by the S10 placement facility hard limit and uses chunked INSERTs.
+An empty accepted set is a valid authoritative replacement and clears only the selected run/type
+scope.
+
 ## Explicit non-goals
 
-UG-AI-033 does not:
+UG-AI-034 does not:
 
-- implement the retry-safe writer;
-- resolve core candidate/host/network refs into persistence rows;
-- mutate successful runs;
+- rerun site generation, feasibility, snapping, routing or greedy placement;
+- add DB integration fixtures for retry/foreign-key/check/index behavior;
 - compute infrastructure metrics;
 - add infrastructure read API or UI.
 
 Ordered follow-up:
 
-- UG-AI-034 — implement the bounded retry-safe writer with deterministic generated identity;
-- UG-AI-035 — add persistence/database integration tests and required index evidence.
+- UG-AI-035 — add persistence/database integration tests and required run/spatial index evidence.
