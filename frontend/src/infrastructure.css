@@ -189,3 +189,122 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+
+.infrastructure-run-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.infrastructure-run-controls .button {
+  min-height: 36px;
+}
+
+.infrastructure-state {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.infrastructure-state strong {
+  font-size: 0.76rem;
+}
+
+.infrastructure-state span {
+  color: var(--muted);
+}
+
+.infrastructure-state .button {
+  justify-self: start;
+  margin-top: 3px;
+}
+
+.infrastructure-state-loading {
+  border-style: dashed;
+}
+
+.infrastructure-state-ready {
+  background: color-mix(in srgb, var(--panel) 92%, #16a34a 8%);
+}
+
+.infrastructure-state-not-ready {
+  background: color-mix(in srgb, var(--panel) 88%, #f59e0b 12%);
+}
+
+.infrastructure-state-error {
+  background: color-mix(in srgb, var(--panel) 88%, #dc2626 12%);
+}
+
+.infrastructure-selection-notice {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.infrastructure-run-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.infrastructure-run-meta div {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.infrastructure-run-meta dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.infrastructure-run-meta dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.load-state-partial {
+  border-color: color-mix(in srgb, var(--border) 65%, #f59e0b 35%);
+  background: color-mix(in srgb, var(--panel) 90%, #f59e0b 10%);
+}
+
+.infrastructure-layer-errors {
+  display: grid;
+  gap: 7px;
+}
+
+.infrastructure-layer-errors > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 65%, #dc2626 35%);
+  border-radius: 9px;
+  font-size: 0.72rem;
+}
+
+.infrastructure-layer-errors strong {
+  font-size: 0.74rem;
+}
+
+.infrastructure-layer-errors span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.infrastructure-layer-errors .button {
+  justify-self: start;
+}
