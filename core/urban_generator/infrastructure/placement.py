@@ -695,6 +695,155 @@ def select_infrastructure_greedy_candidate(
     )
 
 
+def apply_infrastructure_greedy_selection(
+    state: InfrastructureGreedyPlacementState,
+    selection: InfrastructurePlacementSelection,
+    *,
+    infrastructure_type: InfrastructureType,
+) -> InfrastructureGreedyPlacementState:
+    """Apply one selected facility to current remaining demand without recomputing routing."""
+
+    if not isinstance(state, InfrastructureGreedyPlacementState):
+        raise InfrastructurePlacementError(
+            "state must be InfrastructureGreedyPlacementState"
+        )
+    if not isinstance(selection, InfrastructurePlacementSelection):
+        raise InfrastructurePlacementError(
+            "selection must be InfrastructurePlacementSelection"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructurePlacementError(
+            "infrastructure_type must be InfrastructureType"
+        )
+    if infrastructure_type.code != state.infrastructure_type_code:
+        raise InfrastructurePlacementError(
+            "InfrastructureType code must match placement state"
+        )
+    if selection.status is not InfrastructurePlacementSelectionStatus.SELECTED:
+        raise InfrastructurePlacementError(
+            "only a selected placement decision can update remaining demand"
+        )
+    selected = selection.selected
+    assert selected is not None
+    if selected.candidate_ref.infrastructure_type_code != state.infrastructure_type_code:
+        raise InfrastructurePlacementError(
+            "selected candidate infrastructure type must match placement state"
+        )
+    if not math.isclose(
+        selected.capacity,
+        infrastructure_type.capacity,
+        rel_tol=1e-12,
+        abs_tol=1e-9,
+    ):
+        raise InfrastructurePlacementError(
+            "selected candidate capacity must match InfrastructureType capacity"
+        )
+
+    accepted_keys = {
+        item.candidate_ref.key for item in state.accepted_facilities
+    }
+    if selected.candidate_ref.key in accepted_keys:
+        raise InfrastructurePlacementError(
+            "selected candidate has already been accepted"
+        )
+
+    cache_by_key = {
+        item.candidate_ref.key: item for item in state.coverage_cache
+    }
+    cache_entry = cache_by_key.get(selected.candidate_ref.key)
+    if cache_entry is None:
+        raise InfrastructurePlacementError(
+            "selected candidate is outside placement coverage cache"
+        )
+
+    remaining_by_key = {
+        item.demand_ref.key: item for item in state.remaining_demand
+    }
+    current_reachable = _require_non_negative_finite(
+        "reachable_remaining_demand",
+        math.fsum(
+            remaining_by_key[row.demand_ref.key].remaining_demand
+            for row in cache_entry.accessibility
+        ),
+    )
+    current_benefit = min(
+        current_reachable,
+        infrastructure_type.capacity,
+    )
+    if not math.isclose(
+        selected.reachable_remaining_demand,
+        current_reachable,
+        rel_tol=1e-12,
+        abs_tol=1e-9,
+    ) or not math.isclose(
+        selected.benefit,
+        current_benefit,
+        rel_tol=1e-12,
+        abs_tol=1e-9,
+    ):
+        raise InfrastructurePlacementError(
+            "selected candidate benefit is stale for current placement state"
+        )
+
+    capacity_remaining = infrastructure_type.capacity
+    updated_remaining = {
+        item.demand_ref.key: item.remaining_demand
+        for item in state.remaining_demand
+    }
+    served_amounts: list[float] = []
+
+    for row in cache_entry.accessibility:
+        if capacity_remaining <= 0.0:
+            break
+        demand_key = row.demand_ref.key
+        current = updated_remaining[demand_key]
+        served = min(current, capacity_remaining)
+        if served <= 0.0:
+            continue
+        updated_remaining[demand_key] = max(current - served, 0.0)
+        capacity_remaining = max(capacity_remaining - served, 0.0)
+        served_amounts.append(served)
+
+    served_total = _require_non_negative_finite(
+        "served_demand",
+        math.fsum(served_amounts),
+    )
+    if not math.isclose(
+        served_total,
+        selected.benefit,
+        rel_tol=1e-12,
+        abs_tol=1e-9,
+    ):
+        raise InfrastructurePlacementError(
+            "applied served demand must equal selected candidate benefit"
+        )
+
+    remaining_demand = tuple(
+        InfrastructurePlacementDemandState(
+            demand_ref=item.demand_ref,
+            initial_demand=item.initial_demand,
+            remaining_demand=updated_remaining[item.demand_ref.key],
+        )
+        for item in state.remaining_demand
+    )
+    accepted_facilities = (
+        *state.accepted_facilities,
+        InfrastructureAcceptedFacility(
+            candidate_ref=selected.candidate_ref,
+            acceptance_index=len(state.accepted_facilities),
+        ),
+    )
+
+    return InfrastructureGreedyPlacementState(
+        snapshot_id=state.snapshot_id,
+        infrastructure_type_code=state.infrastructure_type_code,
+        remaining_demand=remaining_demand,
+        accepted_facilities=accepted_facilities,
+        coverage_cache=state.coverage_cache,
+        candidate_order=state.candidate_order,
+    )
+
+
 def _candidate_accessibility_pair(
     item: InfrastructureAccessibilityResult | InfrastructureAccessibilityUnavailable,
 ) -> tuple[tuple[str, str], tuple[str, str]]:
