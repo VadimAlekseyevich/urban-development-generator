@@ -5,6 +5,7 @@ from backend.app.api.v1.endpoints import (
     buildings,
     demography,
     health,
+    infrastructure,
     projects,
     roads,
     source_layers,
@@ -16,6 +17,7 @@ from backend.app.api.v1.endpoints import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(projects.router)
+api_router.include_router(infrastructure.router)
 api_router.include_router(roads.router)
 api_router.include_router(blocks_parcels.router)
 api_router.include_router(buildings.router)
