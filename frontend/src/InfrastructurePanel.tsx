@@ -290,7 +290,8 @@ export function InfrastructurePanel({
   const [message, setMessage] = useState('Выберите проект с infrastructure run.')
   const [existingCount, setExistingCount] = useState(0)
   const [generatedCount, setGeneratedCount] = useState(0)
-  const [truncated, setTruncated] = useState(false)
+  const [existingTruncated, setExistingTruncated] = useState(false)
+  const [generatedTruncated, setGeneratedTruncated] = useState(false)
   const [selected, setSelected] = useState<SelectedInfrastructure | null>(null)
 
   const activeRun = useMemo(
@@ -356,7 +357,8 @@ export function InfrastructurePanel({
     setSelected(null)
     setExistingCount(0)
     setGeneratedCount(0)
-    setTruncated(false)
+    setExistingTruncated(false)
+    setGeneratedTruncated(false)
     if (map) setData(map, EMPTY_FEATURE_COLLECTION)
 
     if (!projectId) {
@@ -432,7 +434,7 @@ export function InfrastructurePanel({
     setStatus('loading')
     setMessage('Загружаю infrastructure facilities для viewport…')
 
-    const url =
+    const baseUrl =
       apiBase +
       '/projects/' +
       encodeURIComponent(projectId) +
@@ -443,54 +445,55 @@ export function InfrastructurePanel({
       '&limit=' +
       String(VIEWPORT_LIMIT)
 
-    try {
-      const response = await fetch(url, { signal: controller.signal })
+    const fetchOrigin = async (
+      origin: Origin,
+    ): Promise<InfrastructureResponse> => {
+      const response = await fetch(
+        baseUrl + '&origin=' + encodeURIComponent(origin),
+        { signal: controller.signal },
+      )
       if (!response.ok) {
         throw new Error(
-          'Infrastructure viewport: HTTP ' +
+          'Infrastructure ' +
+            origin +
+            ' viewport: HTTP ' +
             response.status +
             ' ' +
             (await response.text()),
         )
       }
-      const result = (await response.json()) as InfrastructureResponse
+      return (await response.json()) as InfrastructureResponse
+    }
+
+    try {
+      const [existingResult, generatedResult] = await Promise.all([
+        existingVisible
+          ? fetchOrigin('existing')
+          : Promise.resolve<InfrastructureResponse | null>(null),
+        generatedVisible
+          ? fetchOrigin('generated')
+          : Promise.resolve<InfrastructureResponse | null>(null),
+      ])
       if (controller.signal.aborted) return
 
-      const visibleFeatures = result.features.filter((feature) => {
-        const origin = feature.properties.origin
-        if (origin === 'existing') return existingVisible
-        if (origin === 'generated') return generatedVisible
-        return false
-      })
+      const existingFeatures = existingResult?.features ?? []
+      const generatedFeatures = generatedResult?.features ?? []
       setData(map, {
         type: 'FeatureCollection',
-        features: visibleFeatures,
+        features: [...existingFeatures, ...generatedFeatures],
       })
-      setExistingCount(
-        result.features.filter(
-          (feature) => feature.properties.origin === 'existing',
-        ).length,
-      )
-      setGeneratedCount(
-        result.features.filter(
-          (feature) => feature.properties.origin === 'generated',
-        ).length,
-      )
-      setTruncated(result.truncated)
+      setExistingCount(existingFeatures.length)
+      setGeneratedCount(generatedFeatures.length)
+      setExistingTruncated(existingResult?.truncated ?? false)
+      setGeneratedTruncated(generatedResult?.truncated ?? false)
       setStatus('ready')
       setMessage(
         'Viewport: fixed ' +
-          String(
-            result.features.filter(
-              (feature) => feature.properties.origin === 'existing',
-            ).length,
-          ) +
+          String(existingFeatures.length) +
+          (existingResult?.truncated ? '+' : '') +
           ', generated ' +
-          String(
-            result.features.filter(
-              (feature) => feature.properties.origin === 'generated',
-            ).length,
-          ) +
+          String(generatedFeatures.length) +
+          (generatedResult?.truncated ? '+' : '') +
           '.',
       )
     } catch (error: unknown) {
@@ -534,7 +537,7 @@ export function InfrastructurePanel({
         </div>
         <span className="badge">
           {existingCount + generatedCount}
-          {truncated ? '+' : ''}
+          {existingTruncated || generatedTruncated ? '+' : ''}
         </span>
       </div>
 
@@ -594,6 +597,12 @@ export function InfrastructurePanel({
       </button>
 
       <div className={'load-state load-state-' + status}>{message}</div>
+      {(existingTruncated || generatedTruncated) && (
+        <p className="warning-text">
+          Infrastructure viewport достиг limit ({VIEWPORT_LIMIT}) для одного
+          из origins; приблизьте карту.
+        </p>
+      )}
 
       <div className="infrastructure-authority-note">
         <strong>Authoritative read boundary</strong>
