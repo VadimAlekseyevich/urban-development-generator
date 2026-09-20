@@ -108,6 +108,7 @@ class InfrastructureLayerQueryRepository(Protocol):
         working_srid: int,
         bbox: SourceLayerBbox,
         limit: int,
+        origin: InfrastructureOrigin | None = None,
     ) -> list[InfrastructureFeature]: ...
 
 
@@ -133,12 +134,17 @@ class InfrastructureLayerQueryService:
         run_id: uuid.UUID,
         bbox_text: str,
         limit: int = DEFAULT_INFRASTRUCTURE_LAYER_LIMIT,
+        origin: InfrastructureOrigin | None = None,
     ) -> InfrastructureQueryResult:
         if isinstance(limit, bool) or not isinstance(limit, int):
             raise InfrastructureLayerQueryError("limit must be an integer")
         if limit < 1 or limit > MAX_INFRASTRUCTURE_LAYER_LIMIT:
             raise InfrastructureLayerQueryError(
                 f"limit must be between 1 and {MAX_INFRASTRUCTURE_LAYER_LIMIT}"
+            )
+        if origin not in (None, "existing", "generated"):
+            raise InfrastructureLayerQueryError(
+                "origin must be existing or generated"
             )
         try:
             bbox = SourceLayerBbox.parse(bbox_text)
@@ -157,6 +163,7 @@ class InfrastructureLayerQueryService:
             working_srid=context.working_srid,
             bbox=bbox,
             limit=limit + 1,
+            origin=origin,
         )
         truncated = len(features) > limit
         return InfrastructureQueryResult(
