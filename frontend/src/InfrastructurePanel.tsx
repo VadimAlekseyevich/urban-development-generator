@@ -344,7 +344,9 @@ export function InfrastructurePanel({
       if (hit) setSelected(mapFeature(hit))
     }
     map.on('click', handleClick)
-    return () => map.off('click', handleClick)
+    return () => {
+      map.off('click', handleClick)
+    }
   }, [map])
 
   useEffect(() => {
