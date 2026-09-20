@@ -60,6 +60,7 @@ from core.urban_generator.infrastructure.feasibility import (
     InfrastructureFeasibilityError,
     InfrastructureFeasibilityRejectionReason,
     InfrastructureFeasibilityResult,
+    validate_infrastructure_candidate_feasibility,
 )
 from core.urban_generator.infrastructure.network_snap import (
     MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE,
@@ -159,6 +160,7 @@ __all__ = [
     "InfrastructureFeasibilityError",
     "InfrastructureFeasibilityRejectionReason",
     "InfrastructureFeasibilityResult",
+    "validate_infrastructure_candidate_feasibility",
     "MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE",
     "ExistingInfrastructureFacilityRef",
     "ExistingInfrastructureFacilitySnap",

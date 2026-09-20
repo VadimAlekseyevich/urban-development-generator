@@ -1,10 +1,10 @@
 # Infrastructure feasibility contract
 
-> **Status: Implemented through UG-AI-030**
+> **Status: Implemented through UG-AI-031**
 
 S10-T09 decides whether a generated infrastructure candidate can physically host the proposed
-facility capacity. UG-AI-030 defines the result and rejection vocabulary only. The actual validator
-is ordered separately as UG-AI-031.
+facility capacity. UG-AI-030 defines the result and rejection vocabulary; UG-AI-031 implements the
+validator over already prepared T05 geometry.
 
 ## Contract boundary
 
@@ -57,14 +57,39 @@ All area checks in S10-T09 operate in the project working CRS and square metres.
 site creation and host-building identity. S10-T09 consumes those outputs and must not regenerate or
 reshape sites.
 
-UG-AI-031 will resolve explicit site/host geometry and evaluate the rejection reasons. UG-AI-032
-will integrate that result before greedy acceptance.
+## Validator
 
-## Explicit non-goals through UG-AI-030
+`validate_infrastructure_candidate_feasibility()` consumes one already prepared
+`InfrastructureCandidateGeometry`, its owning `InfrastructureType` and a positive proposed
+capacity.
+
+For `SITE` candidates, the validator uses the exact T05 `site_geometry` /
+`site_area_m2` already stored on the candidate. It never calls the candidate geometry builder,
+clips the polygon again or creates a replacement site.
+
+For `HOST_BUILDING` candidates, the caller may supply an explicit polygonal building
+footprint/envelope together with its working SRID. The geometry must be non-empty, valid, 2D,
+positive-area and expressed in the same working CRS as the T05 candidate. If no explicit geometry
+is supplied, the normal feasibility result is
+`HOST_BUILDING_GEOMETRY_UNAVAILABLE`; the validator does not infer or search for another building.
+
+The validator applies all applicable hard checks in one decision:
+
+- proposed capacity greater than `InfrastructureType.capacity`;
+- explicit site area below `minimum_site_area_m2`;
+- host-building geometry unavailable;
+- explicit host-building area below `minimum_site_area_m2`.
+
+Equality at the capacity and minimum-area boundaries is feasible. Malformed geometry, mismatched
+type identity or CRS provenance raises `InfrastructureFeasibilityError` instead of being silently
+converted into ordinary infeasibility.
+
+UG-AI-032 will integrate this completed decision before greedy acceptance.
+
+## Explicit non-goals through UG-AI-031
 
 This task does not:
 
-- calculate feasibility;
 - regenerate or clip candidate sites;
 - infer a new host building;
 - alter greedy placement state;
@@ -73,6 +98,4 @@ This task does not:
 
 Ordered follow-up:
 
-- UG-AI-031 — validate proposed capacity against `InfrastructureType` and explicit site/host
-  geometry without regenerating sites;
 - UG-AI-032 — filter greedy acceptance by feasibility and test impossible/edge capacities.

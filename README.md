@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-031 / S10-T09`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-032 / S10-T09`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

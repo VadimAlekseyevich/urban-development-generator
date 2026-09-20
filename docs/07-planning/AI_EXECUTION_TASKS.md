@@ -64,7 +64,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-028** — **S10-T08** — Update remaining demand after each accepted facility without negative demand or double coverage.
 - [x] **UG-AI-029** — **S10-T08** — Add known-optimum/saturation/tie/no-feasible-candidate tests.
 - [x] **UG-AI-030** — **S10-T09** — Define capacity/site/host-building feasibility result and rejection reasons.
-- [ ] **UG-AI-031** — **S10-T09** — Validate proposed capacity against InfrastructureType and explicit site/host geometry without regenerating sites.
+- [x] **UG-AI-031** — **S10-T09** — Validate proposed capacity against InfrastructureType and explicit site/host geometry without regenerating sites.
 - [ ] **UG-AI-032** — **S10-T09** — Integrate feasibility filter before greedy acceptance and test impossible/edge capacities.
 - [ ] **UG-AI-033** — **S10-T10** — Add typed GeneratedInfrastructure persistence schema/migration with run/category/capacity/site-or-host/network refs.
 - [ ] **UG-AI-034** — **S10-T10** — Implement retry-safe bounded writer preserving successful-run immutability and deterministic generated identity.

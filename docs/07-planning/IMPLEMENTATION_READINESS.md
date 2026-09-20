@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-031 / S10-T09
-Validate proposed capacity against InfrastructureType and explicit site/host geometry without regenerating sites.
+UG-AI-032 / S10-T09
+Integrate feasibility filter before greedy acceptance and test impossible/edge capacities.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
