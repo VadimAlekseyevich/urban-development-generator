@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import Table, func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from backend.app.application.infrastructure_layers import (
     InfrastructureFeature,
@@ -289,7 +290,7 @@ class SqlAlchemyInfrastructureLayerQueryRepository:
     def _working_envelope(
         bbox: SourceLayerBbox,
         working_srid: int,
-    ) -> object:
+    ) -> ColumnElement[Any]:
         wgs84_envelope = func.ST_MakeEnvelope(
             bbox.west,
             bbox.south,
@@ -300,7 +301,7 @@ class SqlAlchemyInfrastructureLayerQueryRepository:
         return func.ST_Transform(wgs84_envelope, working_srid)
 
     @staticmethod
-    def _geometry_geojson(table: Table) -> object:
+    def _geometry_geojson(table: Table) -> ColumnElement[Any]:
         return func.ST_AsGeoJSON(
             func.ST_Transform(table.c.geometry, GEOJSON_SRID),
             9,
