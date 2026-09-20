@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -53,6 +54,10 @@ def get_infrastructure_geojson(
         ge=1,
         le=MAX_INFRASTRUCTURE_LAYER_LIMIT,
     ),
+    origin: Literal["existing", "generated"] | None = Query(
+        default=None,
+        description="optional persisted facility origin filter",
+    ),
 ) -> InfrastructureGeoJSONResponse:
     try:
         result = service.get_facilities(
@@ -60,6 +65,7 @@ def get_infrastructure_geojson(
             run_id=run_id,
             bbox_text=bbox,
             limit=limit,
+            origin=origin,
         )
     except InfrastructureLayerRunNotFoundError as exc:
         raise HTTPException(

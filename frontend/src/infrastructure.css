@@ -1,0 +1,143 @@
+.infrastructure-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.infrastructure-select {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.infrastructure-select select {
+  width: 100%;
+}
+
+.infrastructure-layer-list {
+  display: grid;
+  gap: 5px;
+}
+
+.infrastructure-layer-row {
+  display: grid;
+  grid-template-columns: auto 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  font-size: 0.82rem;
+}
+
+.infrastructure-existing-swatch {
+  background: #475569;
+}
+
+.infrastructure-generated-swatch {
+  background: #7c3aed;
+}
+
+.infrastructure-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.infrastructure-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.infrastructure-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.infra-education {
+  background: #2563eb;
+}
+
+.infra-healthcare {
+  background: #dc2626;
+}
+
+.infra-retail {
+  background: #ca8a04;
+}
+
+.infra-recreation {
+  background: #16a34a;
+}
+
+.infrastructure-authority-note {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 90%, #64748b 10%);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.infrastructure-authority-note strong {
+  font-size: 0.76rem;
+}
+
+.infrastructure-authority-note span {
+  color: var(--muted);
+}
+
+.infrastructure-inspector {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.infrastructure-inspector h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.infrastructure-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.infrastructure-metrics div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.infrastructure-metrics dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.infrastructure-metrics dd {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.infrastructure-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.infrastructure-details .property-grid {
+  margin-top: 10px;
+}

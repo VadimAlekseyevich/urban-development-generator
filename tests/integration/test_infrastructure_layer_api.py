@@ -202,6 +202,34 @@ def test_infrastructure_geojson_is_run_scoped_and_origin_explicit() -> None:
     }
     assert "existing-unlinked" not in all_source_ids
 
+    existing_only = client.get(
+        f"{base}/{run_id}/facilities/geojson",
+        params={
+            "bbox": "-0.2,51.45,0.0,51.6",
+            "limit": 1,
+            "origin": "existing",
+        },
+    )
+    assert existing_only.status_code == 200
+    assert existing_only.json()["truncated"] is False
+    assert [item["origin"] for item in existing_only.json()["features"]] == [
+        "existing"
+    ]
+
+    generated_only = client.get(
+        f"{base}/{run_id}/facilities/geojson",
+        params={
+            "bbox": "-0.2,51.45,0.0,51.6",
+            "limit": 1,
+            "origin": "generated",
+        },
+    )
+    assert generated_only.status_code == 200
+    assert generated_only.json()["truncated"] is False
+    assert [item["origin"] for item in generated_only.json()["features"]] == [
+        "generated"
+    ]
+
 
 def test_infrastructure_geojson_is_bounded_and_validates_run_scope() -> None:
     project_id, run_id = _seed()
@@ -230,3 +258,9 @@ def test_infrastructure_geojson_is_bounded_and_validates_run_scope() -> None:
 
     invalid_bbox = client.get(url, params={"bbox": "bad"})
     assert invalid_bbox.status_code == 422
+
+    invalid_origin = client.get(
+        url,
+        params={"bbox": "-0.2,51.45,0.0,51.6", "origin": "other"},
+    )
+    assert invalid_origin.status_code == 422
