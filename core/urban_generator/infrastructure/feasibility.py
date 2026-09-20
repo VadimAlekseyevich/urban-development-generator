@@ -4,8 +4,11 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from core.urban_generator.buildings.area_metrics import BuildingAreaSubject
 from core.urban_generator.domain import require_working_crs
+from core.urban_generator.infrastructure.config import InfrastructureType
 from core.urban_generator.infrastructure.site_geometry import (
+    InfrastructureCandidateGeometry,
     InfrastructureCandidateGeometryKind,
 )
 
@@ -30,6 +33,8 @@ _HOST_BUILDING_ONLY_REASONS = {
     InfrastructureFeasibilityRejectionReason.HOST_BUILDING_GEOMETRY_UNAVAILABLE,
     InfrastructureFeasibilityRejectionReason.HOST_BUILDING_AREA_BELOW_MINIMUM,
 }
+_CAPACITY_ABS_TOLERANCE = 1e-9
+_AREA_ABS_TOLERANCE_M2 = 1e-6
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +118,131 @@ class InfrastructureFeasibilityResult:
     @property
     def key(self) -> tuple[str, str]:
         return self.candidate_id, self.infrastructure_type_code
+
+
+def evaluate_infrastructure_feasibility(
+    candidate: InfrastructureCandidateGeometry,
+    *,
+    infrastructure_type: InfrastructureType,
+    proposed_capacity: float,
+    host_building: BuildingAreaSubject | None = None,
+) -> InfrastructureFeasibilityResult:
+    """Evaluate one T05 candidate without regenerating site or host geometry."""
+
+    if not isinstance(candidate, InfrastructureCandidateGeometry):
+        raise InfrastructureFeasibilityError(
+            "candidate must be InfrastructureCandidateGeometry"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructureFeasibilityError(
+            "infrastructure_type must be InfrastructureType"
+        )
+    if candidate.infrastructure_type_code != infrastructure_type.code:
+        raise InfrastructureFeasibilityError(
+            "candidate infrastructure type must match InfrastructureType"
+        )
+    capacity = _require_positive_finite(
+        "proposed_capacity",
+        proposed_capacity,
+    )
+
+    reasons: list[InfrastructureFeasibilityRejectionReason] = []
+    if _greater_than_with_tolerance(
+        capacity,
+        infrastructure_type.capacity,
+        abs_tol=_CAPACITY_ABS_TOLERANCE,
+    ):
+        reasons.append(
+            InfrastructureFeasibilityRejectionReason.
+            CAPACITY_EXCEEDS_TYPE_CAPACITY
+        )
+
+    if candidate.kind is InfrastructureCandidateGeometryKind.SITE:
+        if host_building is not None:
+            raise InfrastructureFeasibilityError(
+                "site candidate must not receive host_building geometry"
+            )
+        site_area = candidate.site_area_m2
+        if site_area is None:
+            raise InfrastructureFeasibilityError(
+                "site candidate requires explicit site_area_m2"
+            )
+        if _less_than_with_tolerance(
+            site_area,
+            infrastructure_type.minimum_site_area_m2,
+            abs_tol=_AREA_ABS_TOLERANCE_M2,
+        ):
+            reasons.append(
+                InfrastructureFeasibilityRejectionReason.
+                SITE_AREA_BELOW_MINIMUM
+            )
+    else:
+        if host_building is None:
+            reasons.append(
+                InfrastructureFeasibilityRejectionReason.
+                HOST_BUILDING_GEOMETRY_UNAVAILABLE
+            )
+        else:
+            if not isinstance(host_building, BuildingAreaSubject):
+                raise InfrastructureFeasibilityError(
+                    "host_building must be BuildingAreaSubject or None"
+                )
+            if host_building.building_id != candidate.host_building_id:
+                raise InfrastructureFeasibilityError(
+                    "host_building id must match candidate host_building_id"
+                )
+            if host_building.working_srid != candidate.working_srid:
+                raise InfrastructureFeasibilityError(
+                    "host_building working_srid must match candidate working_srid"
+                )
+            host_area = float(host_building.geometry.area)
+            if _less_than_with_tolerance(
+                host_area,
+                infrastructure_type.minimum_site_area_m2,
+                abs_tol=_AREA_ABS_TOLERANCE_M2,
+            ):
+                reasons.append(
+                    InfrastructureFeasibilityRejectionReason.
+                    HOST_BUILDING_AREA_BELOW_MINIMUM
+                )
+
+    return InfrastructureFeasibilityResult(
+        candidate_id=candidate.candidate_id,
+        infrastructure_type_code=candidate.infrastructure_type_code,
+        working_srid=candidate.working_srid,
+        geometry_kind=candidate.kind,
+        proposed_capacity=capacity,
+        is_feasible=not reasons,
+        rejection_reasons=tuple(reasons),
+    )
+
+
+def _greater_than_with_tolerance(
+    value: float,
+    limit: float,
+    *,
+    abs_tol: float,
+) -> bool:
+    return value > limit and not math.isclose(
+        value,
+        limit,
+        rel_tol=1e-12,
+        abs_tol=abs_tol,
+    )
+
+
+def _less_than_with_tolerance(
+    value: float,
+    limit: float,
+    *,
+    abs_tol: float,
+) -> bool:
+    return value < limit and not math.isclose(
+        value,
+        limit,
+        rel_tol=1e-12,
+        abs_tol=abs_tol,
+    )
 
 
 def _require_id(field_name: str, value: str) -> None:
