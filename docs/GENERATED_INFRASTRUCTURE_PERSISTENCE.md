@@ -1,6 +1,6 @@
 # Generated infrastructure persistence
 
-> **Status: Implemented through UG-AI-034 / S10-T10**
+> **Status: Complete through UG-AI-035 / S10-T10**
 
 S10-T10 persists accepted generated facilities in the existing run-scoped
 `generated_infrastructure` table. UG-AI-033 specializes that table with typed columns and a
@@ -98,14 +98,34 @@ The pre-existing generated-layer indexes remain authoritative:
 UG-AI-033 adds only deterministic typed identity indexes. Additional query/index validation belongs
 to UG-AI-035 together with database integration coverage.
 
-## Explicit non-goals
+## Database integration evidence
 
-UG-AI-034 does not:
+UG-AI-035 exercises the writer against migrated PostgreSQL/PostGIS rather than only ORM metadata.
+The integration fixture proves that:
 
-- mutate successful runs;
-- compute infrastructure metrics;
-- add infrastructure read API or UI.
+- site and host-building rows persist their typed capacity/geometry/network provenance;
+- host-building refs resolve to generated buildings owned by the same run;
+- retry replaces only the target `run_id + infrastructure_type_code` scope;
+- deterministic UUID identity survives replacement;
+- invalid host refs fail before existing rows are deleted;
+- successful-run writes are rejected;
+- the database rejects partial typed rows and site/host geometry-shape mismatches;
+- `generated_infrastructure` retains the canonical `(run_id, id)` B-tree and GiST geometry
+  index, while the typed `(run_id, infrastructure_type_code, acceptance_index)` unique index
+  covers the writer/read scope prefix.
+
+No extra speculative index is added: the required run/type prefix is already provided by the typed
+acceptance index and spatial predicates remain covered by the existing GiST index.
+
+## Explicit non-goals after S10-T10
+
+Persistence does not:
+
+- recompute infrastructure metrics;
+- add infrastructure read API or UI;
+- rerun routing, site generation, feasibility or placement.
 
 Ordered follow-up:
 
-- UG-AI-035 — add persistence/database integration tests and required index evidence.
+- UG-AI-036 / S10-T11 — compute canonical infrastructure raw metrics from T07-T10 results without
+  rerunning routing.
