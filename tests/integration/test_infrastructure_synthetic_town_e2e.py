@@ -314,17 +314,18 @@ def _snap_inputs(
         )
         for demand in gross_demand.demands
     ]
-    inputs.extend(
-        ExistingInfrastructureFacilitySnapInput(
-            ref=ExistingInfrastructureFacilityRef.from_facility(facility),
-            point=NetworkPoint(
-                x_m=float(facility.geometry.x),
-                y_m=float(facility.geometry.y),
-            ),
-            working_srid=WORKING_SRID,
+    for facility in existing.facilities:
+        assert isinstance(facility.geometry, Point)
+        inputs.append(
+            ExistingInfrastructureFacilitySnapInput(
+                ref=ExistingInfrastructureFacilityRef.from_facility(facility),
+                point=NetworkPoint(
+                    x_m=float(facility.geometry.x),
+                    y_m=float(facility.geometry.y),
+                ),
+                working_srid=WORKING_SRID,
+            )
         )
-        for facility in existing.facilities
-    )
     inputs.extend(
         InfrastructureCandidateSnapInput(
             ref=InfrastructureCandidateRef.from_candidate(candidate),
