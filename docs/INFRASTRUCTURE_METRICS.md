@@ -1,6 +1,6 @@
 # Infrastructure raw metrics
 
-> **Status: Implemented through UG-AI-037 / S10-T11**
+> **Status: S10-T11 complete through UG-AI-038**
 
 S10-T11 derives the canonical infrastructure `RawMetricId` values from already computed S10
 results. The metric layer is pure core logic: it receives no `NetworkBackend`, performs no snap,
@@ -96,11 +96,20 @@ The builder has an explicit infrastructure-type bound and inherits bounded deman
 inputs from T03/T07/T08. Diagnostics record type count, demand count, accepted generated facility
 count and existing/generated distance sample counts.
 
+UG-AI-038 adds numeric/property hardening over the full metric contract:
+
+- population and age-specific coverage remain finite inside `0..1`;
+- zero-population cohorts remain finite with coverage `0`;
+- served-demand-weighted p50/p90 are permutation invariant and satisfy `p50 <= p90`;
+- positive served demand requires positive total existing/generated capacity;
+- capacity utilization remains finite inside `0..1`.
+
+These tests do not rerun routing and exercise only already materialized distance/service inputs.
+
 ## Explicit non-goals
 
-UG-AI-037 does not:
+UG-AI-038 does not:
 
-- add numeric/property hardening beyond the explicit edge fixtures;
 - persist raw metrics;
 - extend the S11 metric registry metadata;
 - rerun snapping/routing or recompute candidate accessibility;
@@ -108,4 +117,4 @@ UG-AI-037 does not:
 
 Ordered follow-up:
 
-- UG-AI-038 — add numeric/property tests for bounds, percentiles and capacity conservation.
+- UG-AI-039 / S10-T12 — add the run-scoped infrastructure read service/repository API.
