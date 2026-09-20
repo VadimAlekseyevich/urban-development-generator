@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T09 are complete; the current ordered task is **UG-AI-033 / S10-T10**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T09 are complete; S10-T10 schema is implemented through UG-AI-033 and the current ordered task is **UG-AI-034 / S10-T10**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-033 / S10-T10
-Add typed GeneratedInfrastructure persistence schema/migration with run/category/capacity/site-or-host/network refs.
+UG-AI-034 / S10-T10
+Implement retry-safe bounded writer preserving successful-run immutability and deterministic generated identity.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
