@@ -1,0 +1,501 @@
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+from core.urban_generator.infrastructure.accessibility import (
+    MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES,
+    MAX_CANDIDATE_ACCESSIBILITY_DEMANDS,
+    MAX_CANDIDATE_ACCESSIBILITY_RESULTS,
+    InfrastructureAccessibilityBatchResult,
+    InfrastructureAccessibilityMode,
+    InfrastructureAccessibilityResult,
+    InfrastructureAccessibilityUnavailable,
+)
+from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
+from core.urban_generator.infrastructure.network_snap import (
+    InfrastructureCandidateRef,
+    InfrastructureDemandRef,
+)
+
+MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES = MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES
+MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS = MAX_CANDIDATE_ACCESSIBILITY_DEMANDS
+MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS = MAX_CANDIDATE_ACCESSIBILITY_RESULTS
+
+
+class InfrastructurePlacementError(ValueError):
+    """Raised when S10-T08 greedy placement state violates its contract."""
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructurePlacementDemandState:
+    """Immutable demand amount tracked by one greedy placement state version."""
+
+    demand_ref: InfrastructureDemandRef
+    initial_demand: float
+    remaining_demand: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.demand_ref, InfrastructureDemandRef):
+            raise InfrastructurePlacementError(
+                "demand_ref must be InfrastructureDemandRef"
+            )
+        initial = _require_non_negative_finite("initial_demand", self.initial_demand)
+        remaining = _require_non_negative_finite(
+            "remaining_demand",
+            self.remaining_demand,
+        )
+        if remaining > initial and not math.isclose(
+            remaining,
+            initial,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        ):
+            raise InfrastructurePlacementError(
+                "remaining_demand cannot exceed initial_demand"
+            )
+        object.__setattr__(self, "initial_demand", initial)
+        object.__setattr__(self, "remaining_demand", min(remaining, initial))
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return self.demand_ref.key
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructureAcceptedFacility:
+    """One accepted candidate site in greedy selection order."""
+
+    candidate_ref: InfrastructureCandidateRef
+    acceptance_index: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.candidate_ref, InfrastructureCandidateRef):
+            raise InfrastructurePlacementError(
+                "candidate_ref must be InfrastructureCandidateRef"
+            )
+        _require_non_negative_int("acceptance_index", self.acceptance_index)
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructureCoverageCacheEntry:
+    """Reachable T07 rows cached for one candidate without rerunning routing."""
+
+    snapshot_id: str
+    infrastructure_type_code: str
+    candidate_ref: InfrastructureCandidateRef
+    accessibility: tuple[InfrastructureAccessibilityResult, ...]
+
+    def __post_init__(self) -> None:
+        _require_id("snapshot_id", self.snapshot_id)
+        _require_id("infrastructure_type_code", self.infrastructure_type_code)
+        if not isinstance(self.candidate_ref, InfrastructureCandidateRef):
+            raise InfrastructurePlacementError(
+                "candidate_ref must be InfrastructureCandidateRef"
+            )
+        if (
+            self.candidate_ref.infrastructure_type_code
+            != self.infrastructure_type_code
+        ):
+            raise InfrastructurePlacementError(
+                "candidate_ref infrastructure type must match cache entry"
+            )
+        if not isinstance(self.accessibility, tuple):
+            raise InfrastructurePlacementError(
+                "accessibility must be an immutable tuple"
+            )
+        if any(
+            not isinstance(item, InfrastructureAccessibilityResult)
+            for item in self.accessibility
+        ):
+            raise InfrastructurePlacementError(
+                "accessibility must contain InfrastructureAccessibilityResult values"
+            )
+
+        demand_keys: list[tuple[str, str]] = []
+        for item in self.accessibility:
+            if item.snapshot_id != self.snapshot_id:
+                raise InfrastructurePlacementError(
+                    "cached accessibility snapshot_id must match cache entry"
+                )
+            if item.infrastructure_type_code != self.infrastructure_type_code:
+                raise InfrastructurePlacementError(
+                    "cached accessibility infrastructure type must match cache entry"
+                )
+            if not isinstance(item.facility_site_ref, InfrastructureCandidateRef):
+                raise InfrastructurePlacementError(
+                    "coverage cache accepts only candidate accessibility rows"
+                )
+            if item.facility_site_ref != self.candidate_ref:
+                raise InfrastructurePlacementError(
+                    "cached accessibility candidate ref must match cache entry"
+                )
+            demand_keys.append(item.demand_ref.key)
+
+        if demand_keys != sorted(demand_keys) or len(demand_keys) != len(
+            set(demand_keys)
+        ):
+            raise InfrastructurePlacementError(
+                "cached accessibility must be sorted and unique by demand ref"
+            )
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return self.candidate_ref.key
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructureGreedyPlacementState:
+    """Immutable state consumed by the ordered S10-T08 greedy placement tasks."""
+
+    snapshot_id: str
+    infrastructure_type_code: str
+    remaining_demand: tuple[InfrastructurePlacementDemandState, ...]
+    accepted_facilities: tuple[InfrastructureAcceptedFacility, ...]
+    coverage_cache: tuple[InfrastructureCoverageCacheEntry, ...]
+    candidate_order: tuple[InfrastructureCandidateRef, ...]
+
+    def __post_init__(self) -> None:
+        _require_id("snapshot_id", self.snapshot_id)
+        _require_id("infrastructure_type_code", self.infrastructure_type_code)
+
+        if not isinstance(self.remaining_demand, tuple):
+            raise InfrastructurePlacementError(
+                "remaining_demand must be an immutable tuple"
+            )
+        if not isinstance(self.accepted_facilities, tuple):
+            raise InfrastructurePlacementError(
+                "accepted_facilities must be an immutable tuple"
+            )
+        if not isinstance(self.coverage_cache, tuple):
+            raise InfrastructurePlacementError(
+                "coverage_cache must be an immutable tuple"
+            )
+        if not isinstance(self.candidate_order, tuple):
+            raise InfrastructurePlacementError(
+                "candidate_order must be an immutable tuple"
+            )
+
+        if any(
+            not isinstance(item, InfrastructurePlacementDemandState)
+            for item in self.remaining_demand
+        ):
+            raise InfrastructurePlacementError(
+                "remaining_demand must contain InfrastructurePlacementDemandState values"
+            )
+        if any(
+            not isinstance(item, InfrastructureAcceptedFacility)
+            for item in self.accepted_facilities
+        ):
+            raise InfrastructurePlacementError(
+                "accepted_facilities must contain InfrastructureAcceptedFacility values"
+            )
+        if any(
+            not isinstance(item, InfrastructureCoverageCacheEntry)
+            for item in self.coverage_cache
+        ):
+            raise InfrastructurePlacementError(
+                "coverage_cache must contain InfrastructureCoverageCacheEntry values"
+            )
+        if any(
+            not isinstance(item, InfrastructureCandidateRef)
+            for item in self.candidate_order
+        ):
+            raise InfrastructurePlacementError(
+                "candidate_order must contain InfrastructureCandidateRef values"
+            )
+
+        demand_keys = tuple(item.key for item in self.remaining_demand)
+        if demand_keys != tuple(sorted(demand_keys)) or len(demand_keys) != len(
+            set(demand_keys)
+        ):
+            raise InfrastructurePlacementError(
+                "remaining_demand must be canonically sorted and unique"
+            )
+        candidate_keys = tuple(item.key for item in self.candidate_order)
+        if candidate_keys != tuple(sorted(candidate_keys)) or len(
+            candidate_keys
+        ) != len(set(candidate_keys)):
+            raise InfrastructurePlacementError(
+                "candidate_order must be canonically sorted and unique"
+            )
+        if len(self.remaining_demand) > MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS:
+            raise InfrastructurePlacementError(
+                "placement demand limit exceeded"
+            )
+        if len(self.candidate_order) > MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES:
+            raise InfrastructurePlacementError(
+                "placement candidate limit exceeded"
+            )
+
+        if any(
+            item.demand_ref.infrastructure_type_code
+            != self.infrastructure_type_code
+            for item in self.remaining_demand
+        ):
+            raise InfrastructurePlacementError(
+                "remaining demand infrastructure type must match placement state"
+            )
+        if any(
+            item.infrastructure_type_code != self.infrastructure_type_code
+            or item.snapshot_id != self.snapshot_id
+            for item in self.coverage_cache
+        ):
+            raise InfrastructurePlacementError(
+                "coverage cache provenance must match placement state"
+            )
+        if any(
+            item.infrastructure_type_code != self.infrastructure_type_code
+            for item in self.candidate_order
+        ):
+            raise InfrastructurePlacementError(
+                "candidate order infrastructure type must match placement state"
+            )
+
+        cache_keys = tuple(item.key for item in self.coverage_cache)
+        if cache_keys != candidate_keys:
+            raise InfrastructurePlacementError(
+                "coverage_cache must contain exactly one ordered entry per candidate"
+            )
+
+        demand_key_set = set(demand_keys)
+        cached_row_count = 0
+        for cache_entry in self.coverage_cache:
+            cached_row_count += len(cache_entry.accessibility)
+            for row in cache_entry.accessibility:
+                if row.demand_ref.key not in demand_key_set:
+                    raise InfrastructurePlacementError(
+                        "coverage cache references demand outside placement state"
+                    )
+        if cached_row_count > MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS:
+            raise InfrastructurePlacementError(
+                "placement coverage cache row limit exceeded"
+            )
+
+        accepted_indices = tuple(
+            item.acceptance_index for item in self.accepted_facilities
+        )
+        if accepted_indices != tuple(range(len(self.accepted_facilities))):
+            raise InfrastructurePlacementError(
+                "accepted facility indices must be contiguous from zero"
+            )
+        accepted_keys = tuple(
+            item.candidate_ref.key for item in self.accepted_facilities
+        )
+        if len(accepted_keys) != len(set(accepted_keys)):
+            raise InfrastructurePlacementError(
+                "accepted facilities must reference unique candidates"
+            )
+        candidate_key_set = set(candidate_keys)
+        if any(key not in candidate_key_set for key in accepted_keys):
+            raise InfrastructurePlacementError(
+                "accepted facility must reference candidate_order"
+            )
+        if any(
+            item.candidate_ref.infrastructure_type_code
+            != self.infrastructure_type_code
+            for item in self.accepted_facilities
+        ):
+            raise InfrastructurePlacementError(
+                "accepted facility infrastructure type must match placement state"
+            )
+
+
+def initialize_infrastructure_greedy_placement_state(
+    demands: tuple[BlockInfrastructureDemand, ...],
+    candidate_refs: tuple[InfrastructureCandidateRef, ...],
+    *,
+    candidate_accessibility: InfrastructureAccessibilityBatchResult,
+) -> InfrastructureGreedyPlacementState:
+    """Build canonical greedy state from T03 demand and complete T07 candidate outcomes."""
+
+    if not isinstance(demands, tuple):
+        raise InfrastructurePlacementError(
+            "demands must be an immutable tuple"
+        )
+    if not isinstance(candidate_refs, tuple):
+        raise InfrastructurePlacementError(
+            "candidate_refs must be an immutable tuple"
+        )
+    if not isinstance(
+        candidate_accessibility,
+        InfrastructureAccessibilityBatchResult,
+    ):
+        raise InfrastructurePlacementError(
+            "candidate_accessibility must be InfrastructureAccessibilityBatchResult"
+        )
+    if candidate_accessibility.mode is not InfrastructureAccessibilityMode.CANDIDATE_SITE:
+        raise InfrastructurePlacementError(
+            "candidate_accessibility must use candidate_site mode"
+        )
+    if any(not isinstance(item, BlockInfrastructureDemand) for item in demands):
+        raise InfrastructurePlacementError(
+            "demands must contain BlockInfrastructureDemand values"
+        )
+    if any(
+        not isinstance(item, InfrastructureCandidateRef)
+        for item in candidate_refs
+    ):
+        raise InfrastructurePlacementError(
+            "candidate_refs must contain InfrastructureCandidateRef values"
+        )
+
+    type_code = candidate_accessibility.infrastructure_type_code
+    if any(item.infrastructure_type_code != type_code for item in demands):
+        raise InfrastructurePlacementError(
+            "all demands must match candidate accessibility infrastructure type"
+        )
+    if any(
+        item.infrastructure_type_code != type_code for item in candidate_refs
+    ):
+        raise InfrastructurePlacementError(
+            "all candidate refs must match candidate accessibility infrastructure type"
+        )
+
+    ordered_demands = tuple(sorted(demands, key=lambda item: item.key))
+    demand_keys = tuple(item.key for item in ordered_demands)
+    if len(demand_keys) != len(set(demand_keys)):
+        raise InfrastructurePlacementError(
+            "demands must have unique block/type identities"
+        )
+
+    ordered_candidates = tuple(
+        sorted(candidate_refs, key=lambda item: item.key)
+    )
+    candidate_keys = tuple(item.key for item in ordered_candidates)
+    if len(candidate_keys) != len(set(candidate_keys)):
+        raise InfrastructurePlacementError(
+            "candidate_refs must have unique candidate/type identities"
+        )
+    if len(ordered_demands) > MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS:
+        raise InfrastructurePlacementError(
+            "placement demand limit exceeded"
+        )
+    if len(ordered_candidates) > MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES:
+        raise InfrastructurePlacementError(
+            "placement candidate limit exceeded"
+        )
+
+    expected_subject_count = len(ordered_demands) * len(ordered_candidates)
+    if expected_subject_count > MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS:
+        raise InfrastructurePlacementError(
+            "placement candidate-demand subject limit exceeded"
+        )
+    if (
+        candidate_accessibility.diagnostics.subject_count
+        != expected_subject_count
+    ):
+        raise InfrastructurePlacementError(
+            "candidate accessibility must cover the complete candidate-demand matrix"
+        )
+
+    expected_pairs = {
+        (demand.key, candidate.key)
+        for demand in ordered_demands
+        for candidate in ordered_candidates
+    }
+    actual_pairs = {
+        _candidate_accessibility_pair(item)
+        for item in candidate_accessibility.reachable
+    }
+    actual_pairs.update(
+        _candidate_accessibility_pair(item)
+        for item in candidate_accessibility.unavailable
+    )
+    if actual_pairs != expected_pairs:
+        raise InfrastructurePlacementError(
+            "candidate accessibility outcomes must match placement subjects exactly"
+        )
+
+    demand_state = tuple(
+        InfrastructurePlacementDemandState(
+            demand_ref=InfrastructureDemandRef(
+                block_id=item.block_id,
+                infrastructure_type_code=item.infrastructure_type_code,
+            ),
+            initial_demand=item.unmet_demand,
+            remaining_demand=item.unmet_demand,
+        )
+        for item in ordered_demands
+    )
+
+    reachable_by_candidate: dict[
+        tuple[str, str],
+        list[InfrastructureAccessibilityResult],
+    ] = {candidate.key: [] for candidate in ordered_candidates}
+    for row in candidate_accessibility.reachable:
+        candidate_ref = _require_candidate_ref(row)
+        reachable_by_candidate[candidate_ref.key].append(row)
+
+    coverage_cache = tuple(
+        InfrastructureCoverageCacheEntry(
+            snapshot_id=candidate_accessibility.snapshot_id,
+            infrastructure_type_code=type_code,
+            candidate_ref=candidate,
+            accessibility=tuple(
+                sorted(
+                    reachable_by_candidate[candidate.key],
+                    key=lambda item: item.demand_ref.key,
+                )
+            ),
+        )
+        for candidate in ordered_candidates
+    )
+
+    return InfrastructureGreedyPlacementState(
+        snapshot_id=candidate_accessibility.snapshot_id,
+        infrastructure_type_code=type_code,
+        remaining_demand=demand_state,
+        accepted_facilities=(),
+        coverage_cache=coverage_cache,
+        candidate_order=ordered_candidates,
+    )
+
+
+def _candidate_accessibility_pair(
+    item: InfrastructureAccessibilityResult | InfrastructureAccessibilityUnavailable,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    candidate_ref = _require_candidate_ref(item)
+    return item.demand_ref.key, candidate_ref.key
+
+
+def _require_candidate_ref(
+    item: InfrastructureAccessibilityResult | InfrastructureAccessibilityUnavailable,
+) -> InfrastructureCandidateRef:
+    ref = item.facility_site_ref
+    if not isinstance(ref, InfrastructureCandidateRef):
+        raise InfrastructurePlacementError(
+            "candidate accessibility outcome must reference InfrastructureCandidateRef"
+        )
+    return ref
+
+
+def _require_id(field_name: str, value: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise InfrastructurePlacementError(
+            f"{field_name} must be a non-empty string"
+        )
+    if "\n" in value or "\r" in value:
+        raise InfrastructurePlacementError(
+            f"{field_name} must not contain line breaks"
+        )
+
+
+def _require_non_negative_finite(field_name: str, value: float) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0.0
+    ):
+        raise InfrastructurePlacementError(
+            f"{field_name} must be a finite non-negative number"
+        )
+    return float(value)
+
+
+def _require_non_negative_int(field_name: str, value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise InfrastructurePlacementError(
+            f"{field_name} must be a non-negative integer"
+        )

@@ -58,7 +58,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-022** — **S10-T07** — Implement candidate-site accessibility in batches without all-pairs materialization beyond configured bounds.
 - [x] **UG-AI-023** — **S10-T07** — Define unreachable/unsnapped handling without treating missing paths as zero/infinite numeric values.
 - [x] **UG-AI-024** — **S10-T07** — Add deterministic synthetic graph tests and path-search budget/performance assertions.
-- [ ] **UG-AI-025** — **S10-T08** — Define greedy placement state: remaining demand, accepted facilities, coverage cache and deterministic candidate ordering.
+- [x] **UG-AI-025** — **S10-T08** — Define greedy placement state: remaining demand, accepted facilities, coverage cache and deterministic candidate ordering.
 - [ ] **UG-AI-026** — **S10-T08** — Implement incremental candidate benefit calculation from T07 results; no pathfinding inside placement loop.
 - [ ] **UG-AI-027** — **S10-T08** — Implement bounded facility count/iterations and deterministic tie-breaking.
 - [ ] **UG-AI-028** — **S10-T08** — Update remaining demand after each accepted facility without negative demand or double coverage.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..024 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-025. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..025 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-026. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
