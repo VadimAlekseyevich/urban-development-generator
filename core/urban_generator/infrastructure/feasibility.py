@@ -4,8 +4,13 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry.base import BaseGeometry
+
 from core.urban_generator.domain import require_working_crs
+from core.urban_generator.infrastructure.config import InfrastructureType
 from core.urban_generator.infrastructure.site_geometry import (
+    InfrastructureCandidateGeometry,
     InfrastructureCandidateGeometryKind,
 )
 
@@ -113,6 +118,138 @@ class InfrastructureFeasibilityResult:
     @property
     def key(self) -> tuple[str, str]:
         return self.candidate_id, self.infrastructure_type_code
+
+
+def validate_infrastructure_candidate_feasibility(
+    candidate: InfrastructureCandidateGeometry,
+    *,
+    infrastructure_type: InfrastructureType,
+    proposed_capacity: float,
+    host_building_geometry: BaseGeometry | None = None,
+    host_building_working_srid: int | None = None,
+) -> InfrastructureFeasibilityResult:
+    """Validate one prepared T05 candidate without regenerating site geometry."""
+
+    if not isinstance(candidate, InfrastructureCandidateGeometry):
+        raise InfrastructureFeasibilityError(
+            "candidate must be InfrastructureCandidateGeometry"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructureFeasibilityError(
+            "infrastructure_type must be InfrastructureType"
+        )
+    if candidate.infrastructure_type_code != infrastructure_type.code:
+        raise InfrastructureFeasibilityError(
+            "candidate infrastructure type must match InfrastructureType code"
+        )
+
+    capacity = _require_positive_finite(
+        "proposed_capacity",
+        proposed_capacity,
+    )
+    reasons: list[InfrastructureFeasibilityRejectionReason] = []
+    if capacity > infrastructure_type.capacity and not math.isclose(
+        capacity,
+        infrastructure_type.capacity,
+        rel_tol=1e-12,
+        abs_tol=1e-9,
+    ):
+        reasons.append(
+            InfrastructureFeasibilityRejectionReason.CAPACITY_EXCEEDS_TYPE_CAPACITY
+        )
+
+    if candidate.kind is InfrastructureCandidateGeometryKind.SITE:
+        if host_building_geometry is not None or host_building_working_srid is not None:
+            raise InfrastructureFeasibilityError(
+                "site candidate must not receive host-building geometry inputs"
+            )
+        site_geometry = candidate.site_geometry
+        site_area_m2 = candidate.site_area_m2
+        if site_geometry is None or site_area_m2 is None:
+            raise InfrastructureFeasibilityError(
+                "site candidate must carry explicit T05 site geometry"
+            )
+        _require_polygonal_geometry(
+            "candidate site_geometry",
+            site_geometry,
+        )
+        if (
+            site_area_m2 < infrastructure_type.minimum_site_area_m2
+            and not math.isclose(
+                site_area_m2,
+                infrastructure_type.minimum_site_area_m2,
+                rel_tol=1e-12,
+                abs_tol=1e-6,
+            )
+        ):
+            reasons.append(
+                InfrastructureFeasibilityRejectionReason.SITE_AREA_BELOW_MINIMUM
+            )
+    else:
+        if host_building_geometry is None:
+            if host_building_working_srid is not None:
+                raise InfrastructureFeasibilityError(
+                    "host_building_working_srid requires host_building_geometry"
+                )
+            reasons.append(
+                InfrastructureFeasibilityRejectionReason.HOST_BUILDING_GEOMETRY_UNAVAILABLE
+            )
+        else:
+            if host_building_working_srid is None:
+                raise InfrastructureFeasibilityError(
+                    "host_building_geometry requires host_building_working_srid"
+                )
+            require_working_crs(host_building_working_srid)
+            if host_building_working_srid != candidate.working_srid:
+                raise InfrastructureFeasibilityError(
+                    "host-building working SRID must match candidate working SRID"
+                )
+            host_area_m2 = _require_polygonal_geometry(
+                "host_building_geometry",
+                host_building_geometry,
+            )
+            if (
+                host_area_m2 < infrastructure_type.minimum_site_area_m2
+                and not math.isclose(
+                    host_area_m2,
+                    infrastructure_type.minimum_site_area_m2,
+                    rel_tol=1e-12,
+                    abs_tol=1e-6,
+                )
+            ):
+                reasons.append(
+                    InfrastructureFeasibilityRejectionReason.HOST_BUILDING_AREA_BELOW_MINIMUM
+                )
+
+    return InfrastructureFeasibilityResult(
+        candidate_id=candidate.candidate_id,
+        infrastructure_type_code=candidate.infrastructure_type_code,
+        working_srid=candidate.working_srid,
+        geometry_kind=candidate.kind,
+        proposed_capacity=capacity,
+        is_feasible=not reasons,
+        rejection_reasons=tuple(reasons),
+    )
+
+
+def _require_polygonal_geometry(
+    field_name: str,
+    geometry: BaseGeometry,
+) -> float:
+    if not isinstance(geometry, (Polygon, MultiPolygon)):
+        raise InfrastructureFeasibilityError(
+            f"{field_name} must be Polygon or MultiPolygon"
+        )
+    if geometry.is_empty or not geometry.is_valid or geometry.has_z:
+        raise InfrastructureFeasibilityError(
+            f"{field_name} must be non-empty, valid and 2D"
+        )
+    area_m2 = float(geometry.area)
+    if not math.isfinite(area_m2) or area_m2 <= 0.0:
+        raise InfrastructureFeasibilityError(
+            f"{field_name} must have positive finite area"
+        )
+    return area_m2
 
 
 def _require_id(field_name: str, value: str) -> None:
