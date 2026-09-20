@@ -364,6 +364,10 @@ class InfrastructureMetricsBuilder:
             if population_total > 0.0
             else 0.0
         )
+        if total_capacity <= 0.0 and total_served > 0.0:
+            raise InfrastructureMetricsError(
+                "served demand requires positive existing + generated capacity"
+            )
         utilization = (
             total_served / total_capacity
             if total_capacity > 0.0
@@ -384,7 +388,11 @@ class InfrastructureMetricsBuilder:
                 demographic_group=group,
                 population=population,
                 covered_population=covered,
-                coverage_ratio=covered / population,
+                coverage_ratio=(
+                    covered / population
+                    if population > 0.0
+                    else 0.0
+                ),
             )
             for group, (population, covered) in sorted(age_totals.items())
         )
