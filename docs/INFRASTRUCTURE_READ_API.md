@@ -77,10 +77,28 @@ The S10 Infrastructure panel:
 The browser never calls `NetworkBackend`, reconstructs candidate×demand matrices, reruns greedy
 placement or derives canonical metrics from map features.
 
+## UI state semantics
+
+UG-AI-041 keeps delivery failures and readiness states explicit instead of hiding them behind
+client-side fallback computation:
+
+- **run list** has independent idle/loading/ready/error state and an explicit refresh action;
+- selected `infrastructure_run_id` is persisted in the URL. A stale/missing requested run is
+  replaced deterministically with an available project run and the URL is corrected;
+- **read model** has independent loading/ready/not-ready/error state. HTTP 409 is rendered as
+  `not-ready`: fixed/generated facilities remain available while demand/metrics stay disabled;
+- **viewport** uses independent per-layer reads. One failed layer does not discard successful
+  fixed/generated/demand layers; the panel reports partial success and offers a viewport retry;
+- truncation is reported by exact layer name rather than as one ambiguous panel-level flag;
+- retries only repeat reads. They never execute snapping, routing, placement or metrics in React.
+
+These states preserve the backend as the only authority while making incomplete/stale UI data
+visible to the operator.
+
 ## Explicit non-goals
 
 This read contract does not expose every rejected/unaccepted candidate alternative or a full
 candidate×demand accessibility matrix. Those bounded core structures remain execution inputs, not
 a second browser-side authoritative state.
 
-UG-AI-041 owns the follow-up UX hardening for explicit error/truncation/run-selection states.
+UG-AI-041 hardens explicit error/truncation/run-selection states; later workspace generalization remains S13 work.
