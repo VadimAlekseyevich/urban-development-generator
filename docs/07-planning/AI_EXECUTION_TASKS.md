@@ -69,7 +69,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-033** — **S10-T10** — Add typed GeneratedInfrastructure persistence schema/migration with run/category/capacity/site-or-host/network refs.
 - [x] **UG-AI-034** — **S10-T10** — Implement retry-safe bounded writer preserving successful-run immutability and deterministic generated identity.
 - [x] **UG-AI-035** — **S10-T10** — Add persistence/database integration tests and required run/spatial indexes.
-- [ ] **UG-AI-036** — **S10-T11** — Compute canonical infrastructure RawMetricId values from T07-T10 results without rerunning routing.
+- [x] **UG-AI-036** — **S10-T11** — Compute canonical infrastructure RawMetricId values from T07-T10 results without rerunning routing.
 - [ ] **UG-AI-037** — **S10-T11** — Define percentile/unmet/utilization empty-data and unreachable policies.
 - [ ] **UG-AI-038** — **S10-T11** — Add numeric/property tests for coverage bounds, percentiles and capacity conservation.
 - [ ] **UG-AI-039** — **S10-T12** — Add run-scoped infrastructure read service/repository API with bounded bbox access and existing/generated distinction.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..035 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-036. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..036 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-037. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
