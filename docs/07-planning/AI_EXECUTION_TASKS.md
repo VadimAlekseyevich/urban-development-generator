@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..030 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-031. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..031 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-032. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
