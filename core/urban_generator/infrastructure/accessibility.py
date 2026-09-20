@@ -296,12 +296,15 @@ class InfrastructureAccessibilityBatchResult:
                 raise InfrastructureAccessibilityError(
                     "batch outcome infrastructure type must match batch type"
                 )
-        for item in self.unavailable:
-            if item.snapshot_id != self.snapshot_id:
+        for unavailable_item in self.unavailable:
+            if unavailable_item.snapshot_id != self.snapshot_id:
                 raise InfrastructureAccessibilityError(
                     "batch outcome snapshot_id must match batch snapshot_id"
                 )
-            if item.infrastructure_type_code != self.infrastructure_type_code:
+            if (
+                unavailable_item.infrastructure_type_code
+                != self.infrastructure_type_code
+            ):
                 raise InfrastructureAccessibilityError(
                     "batch outcome infrastructure type must match batch type"
                 )
