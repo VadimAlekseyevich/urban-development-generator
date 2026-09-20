@@ -81,6 +81,16 @@ S02-T10 добавляет каждому generated layer составной B-t
 заполняют полный typed набор. Run/source/use/archetype access paths имеют отдельные
 B-tree indexes, а существующий GiST по geometry остаётся spatial index слоя.
 
+Начиная с S10-T10 `generated_infrastructure` специализируется typed полями
+`candidate_id`, `infrastructure_type_code`, `category`, `capacity`,
+`acceptance_index`, `geometry_kind`, optional `host_building_id`/`site_area_m2` и
+network provenance (`network_snapshot_id`, `network_node_id`,
+`network_snap_distance_m`). Site rows хранят подготовленный T05 Polygon/MultiPolygon;
+host-building rows хранят anchor Point и UUID-ссылку на `generated_buildings`, не
+копируя footprint. Partial typed shape запрещён; полностью null semantic columns остаются
+допустимы только для legacy rows, существовавших до migration 0018. Подробный contract:
+`docs/GENERATED_INFRASTRUCTURE_PERSISTENCE.md`.
+
 ## Canonical source layers
 
 Нормализованные исходные векторные данные не складываются в одну EAV/feature-таблицу. S02-T09 вводит отдельные таблицы `source_roads`, `source_buildings`, `source_landuse`, `source_water`, `source_facilities` и `source_constraints`.
