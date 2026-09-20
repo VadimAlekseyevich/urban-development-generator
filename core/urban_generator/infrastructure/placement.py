@@ -63,7 +63,6 @@ class InfrastructurePlacementDemandState:
         return self.demand_ref.key
 
 
-
 @dataclass(frozen=True, slots=True)
 class InfrastructureCandidateBenefit:
     """Incremental coverable demand for one unaccepted candidate."""
@@ -101,6 +100,7 @@ class InfrastructureCandidateBenefit:
     @property
     def key(self) -> tuple[str, str]:
         return self.candidate_ref.key
+
 
 @dataclass(frozen=True, slots=True)
 class InfrastructureAcceptedFacility:
