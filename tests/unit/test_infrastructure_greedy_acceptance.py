@@ -10,12 +10,15 @@ from core.urban_generator.infrastructure import (
     InfrastructureAccessibilityResult,
     InfrastructureAccessibilityUnavailable,
     InfrastructureAccessibilityUnavailableReason,
+    InfrastructureCandidateBenefit,
+    InfrastructureCandidateGeometryKind,
     InfrastructureCandidatePolicy,
     InfrastructureCandidateRef,
     InfrastructureCandidateSource,
     InfrastructureCategory,
     InfrastructureDemandModel,
     InfrastructureDemandRef,
+    InfrastructureFeasibilityResult,
     InfrastructureGreedyPlacementPolicy,
     InfrastructureGreedyPlacementState,
     InfrastructurePlacementSelection,
@@ -150,6 +153,22 @@ def _accessibility(
     )
 
 
+def _feasibility_for_benefits(
+    benefits: tuple[InfrastructureCandidateBenefit, ...],
+) -> tuple[InfrastructureFeasibilityResult, ...]:
+    return tuple(
+        InfrastructureFeasibilityResult(
+            candidate_id=item.candidate_ref.candidate_id,
+            infrastructure_type_code=TYPE_CODE,
+            working_srid=3857,
+            geometry_kind=InfrastructureCandidateGeometryKind.SITE,
+            proposed_capacity=item.capacity,
+            is_feasible=True,
+        )
+        for item in benefits
+    )
+
+
 def _run_greedy(
     demands: tuple[BlockInfrastructureDemand, ...],
     candidates: tuple[InfrastructureCandidateRef, ...],
@@ -176,6 +195,7 @@ def _run_greedy(
         selection = select_infrastructure_greedy_candidate(
             state,
             benefits,
+            feasibility=_feasibility_for_benefits(benefits),
             iteration_index=iteration_index,
             policy=policy,
         )
@@ -194,6 +214,7 @@ def _run_greedy(
     return state, select_infrastructure_greedy_candidate(
         state,
         benefits,
+        feasibility=_feasibility_for_benefits(benefits),
         iteration_index=policy.max_iterations,
         policy=policy,
     )
