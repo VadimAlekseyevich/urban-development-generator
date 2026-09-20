@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**S10-T10 GeneratedInfrastructure persistence завершён**; **S10-T11 infrastructure metrics завершён**: UG-AI-036..038 вычисляют canonical RawMetricId, задают empty/unreachable policy и закрепляют numeric/property invariants без rerouting.
+**S10-T10 persistence и S10-T11 metrics завершены**; **S10-T12 backend read slice начат**: UG-AI-039 добавляет run-scoped bounded infrastructure GeoJSON API с явным existing/generated origin.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-039 / S10-T12`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-040 / S10-T12`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

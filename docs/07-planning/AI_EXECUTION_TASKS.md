@@ -72,7 +72,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-036** — **S10-T11** — Compute canonical infrastructure RawMetricId values from T07-T10 results without rerunning routing.
 - [x] **UG-AI-037** — **S10-T11** — Define percentile/unmet/utilization empty-data and unreachable policies.
 - [x] **UG-AI-038** — **S10-T11** — Add numeric/property tests for coverage bounds, percentiles and capacity conservation.
-- [ ] **UG-AI-039** — **S10-T12** — Add run-scoped infrastructure read service/repository API with bounded bbox access and existing/generated distinction.
+- [x] **UG-AI-039** — **S10-T12** — Add run-scoped infrastructure read service/repository API with bounded bbox access and existing/generated distinction.
 - [ ] **UG-AI-040** — **S10-T12** — Add frontend infrastructure panel/layers for facilities, candidates/generated sites, unmet demand and selected accessibility detail.
 - [ ] **UG-AI-041** — **S10-T12** — Keep authoritative computation on backend and add UI error/truncation/run-selection states.
 - [ ] **UG-AI-042** — **S10-T13** — Build one synthetic-town end-to-end fixture from demography demand through network snap/accessibility/placement/persistence/metrics.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..038 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-039. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..039 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-040. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

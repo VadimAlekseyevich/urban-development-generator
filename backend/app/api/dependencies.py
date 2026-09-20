@@ -7,6 +7,7 @@ from backend.app.adapters import LocalArtifactStore
 from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
 from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
+from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
@@ -23,6 +24,9 @@ from backend.app.db.building_layer_query_repository import (
 )
 from backend.app.db.demography_layer_query_repository import (
     SqlAlchemyDemographyLayerQueryRepository,
+)
+from backend.app.db.infrastructure_layer_query_repository import (
+    SqlAlchemyInfrastructureLayerQueryRepository,
 )
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
@@ -117,6 +121,22 @@ def get_demography_layer_query_service(
 DemographyLayerQueryServiceDep = Annotated[
     DemographyLayerQueryService,
     Depends(get_demography_layer_query_service),
+]
+
+
+def get_infrastructure_layer_query_service(
+    db: DbSession,
+) -> InfrastructureLayerQueryService:
+    """Compose the S10 run-scoped infrastructure viewport query service."""
+
+    return InfrastructureLayerQueryService(
+        SqlAlchemyInfrastructureLayerQueryRepository(db)
+    )
+
+
+InfrastructureLayerQueryServiceDep = Annotated[
+    InfrastructureLayerQueryService,
+    Depends(get_infrastructure_layer_query_service),
 ]
 
 
