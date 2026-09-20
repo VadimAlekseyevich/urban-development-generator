@@ -1,6 +1,6 @@
-from backend.app.models.generated_entity import GeneratedInfrastructure
 from sqlalchemy import CheckConstraint
 
+from backend.app.models.generated_entity import GeneratedInfrastructure
 
 TYPED_COLUMNS = {
     "candidate_id",
