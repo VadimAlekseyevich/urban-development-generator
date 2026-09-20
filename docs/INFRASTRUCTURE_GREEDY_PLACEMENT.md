@@ -1,10 +1,10 @@
 # Infrastructure greedy placement contract
 
-> **Status: Implemented through UG-AI-026**
+> **Status: Implemented through UG-AI-027**
 
 S10-T08 consumes the completed S10-T07 accessibility outputs. UG-AI-025 defines the immutable
-state vocabulary; UG-AI-026 adds pure incremental candidate-benefit calculation. Candidate
-acceptance, demand mutation and placement termination remain ordered follow-up tasks.
+state vocabulary; UG-AI-026 adds pure incremental candidate-benefit calculation; UG-AI-027 adds
+bounded deterministic candidate selection. Demand mutation remains the next ordered task.
 
 ## State ownership
 
@@ -84,6 +84,30 @@ UG-AI-027 to apply deterministic winner/tie rules without recomputing reachabili
 Network distance is used only to establish T07 reachability. Once a row is in the cache, benefit is
 unweighted demand coverage; distance-weighted scoring is not introduced.
 
+## Bounded deterministic selection
+
+`InfrastructureGreedyPlacementPolicy` defines explicit positive `max_facilities` and
+`max_iterations`. Both are capped by the existing placement candidate hard limit. The
+`iteration_index` passed to selection is zero-based: an index equal to `max_iterations` is
+already outside the allowed selection budget.
+
+`select_infrastructure_greedy_candidate()` validates that benefits contain every currently
+unaccepted candidate exactly once and in canonical `candidate_order`. It then applies stop
+conditions in deterministic order:
+
+1. facility limit reached;
+2. iteration limit reached;
+3. no unaccepted candidates;
+4. no positive benefit.
+
+Otherwise it selects the highest-benefit candidate. Benefits are traversed in canonical order and
+the selected item is replaced only by a **strictly greater** benefit, so exact benefit ties resolve
+to the earliest canonical candidate ref without randomness.
+
+The function returns `InfrastructurePlacementSelection` with a typed
+`InfrastructurePlacementSelectionStatus`; it does not mutate state. UG-AI-028 owns the state
+transition after a `SELECTED` decision.
+
 ## Bounds
 
 Placement state reuses the existing T07 hard envelopes:
@@ -95,19 +119,16 @@ Placement state reuses the existing T07 hard envelopes:
 
 No new unbounded N×M path is introduced.
 
-## Explicit non-goals through UG-AI-026
+## Explicit non-goals through UG-AI-027
 
 This task does not:
 
 - run pathfinding or snapping;
-- accept a candidate automatically;
 - update remaining demand;
-- impose facility/iteration stopping limits;
 - perform site/capacity feasibility;
 - persist generated facilities.
 
 Ordered follow-up remains:
 
-- UG-AI-027 — bounded facilities/iterations and deterministic tie-breaking;
 - UG-AI-028 — remaining-demand update;
 - UG-AI-029 — greedy acceptance fixtures.

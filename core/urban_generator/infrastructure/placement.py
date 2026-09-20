@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import StrEnum
 
 from core.urban_generator.infrastructure.accessibility import (
     MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES,
@@ -22,6 +23,8 @@ from core.urban_generator.infrastructure.network_snap import (
 MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES = MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES
 MAX_INFRASTRUCTURE_PLACEMENT_DEMANDS = MAX_CANDIDATE_ACCESSIBILITY_DEMANDS
 MAX_INFRASTRUCTURE_PLACEMENT_COVERAGE_ROWS = MAX_CANDIDATE_ACCESSIBILITY_RESULTS
+MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES = MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES
+MAX_INFRASTRUCTURE_PLACEMENT_ITERATIONS = MAX_INFRASTRUCTURE_PLACEMENT_CANDIDATES
 
 
 class InfrastructurePlacementError(ValueError):
@@ -100,6 +103,67 @@ class InfrastructureCandidateBenefit:
     @property
     def key(self) -> tuple[str, str]:
         return self.candidate_ref.key
+
+
+class InfrastructurePlacementSelectionStatus(StrEnum):
+    SELECTED = "selected"
+    FACILITY_LIMIT_REACHED = "facility_limit_reached"
+    ITERATION_LIMIT_REACHED = "iteration_limit_reached"
+    NO_CANDIDATES = "no_candidates"
+    NO_POSITIVE_BENEFIT = "no_positive_benefit"
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructureGreedyPlacementPolicy:
+    """Explicit hard bounds for greedy facility selection."""
+
+    max_facilities: int = 10_000
+    max_iterations: int = 10_000
+
+    def __post_init__(self) -> None:
+        _require_positive_int("max_facilities", self.max_facilities)
+        _require_positive_int("max_iterations", self.max_iterations)
+        if self.max_facilities > MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES:
+            raise InfrastructurePlacementError(
+                "max_facilities exceeds placement hard limit: "
+                f"{self.max_facilities} > "
+                f"{MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES}"
+            )
+        if self.max_iterations > MAX_INFRASTRUCTURE_PLACEMENT_ITERATIONS:
+            raise InfrastructurePlacementError(
+                "max_iterations exceeds placement hard limit: "
+                f"{self.max_iterations} > "
+                f"{MAX_INFRASTRUCTURE_PLACEMENT_ITERATIONS}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructurePlacementSelection:
+    """One deterministic greedy selection decision without mutating placement state."""
+
+    iteration_index: int
+    status: InfrastructurePlacementSelectionStatus
+    selected: InfrastructureCandidateBenefit | None = None
+
+    def __post_init__(self) -> None:
+        _require_non_negative_int("iteration_index", self.iteration_index)
+        if not isinstance(self.status, InfrastructurePlacementSelectionStatus):
+            raise InfrastructurePlacementError(
+                "status must be InfrastructurePlacementSelectionStatus"
+            )
+        if self.status is InfrastructurePlacementSelectionStatus.SELECTED:
+            if not isinstance(self.selected, InfrastructureCandidateBenefit):
+                raise InfrastructurePlacementError(
+                    "selected status requires InfrastructureCandidateBenefit"
+                )
+            if self.selected.benefit <= 0.0:
+                raise InfrastructurePlacementError(
+                    "selected candidate must have positive benefit"
+                )
+        elif self.selected is not None:
+            raise InfrastructurePlacementError(
+                "non-selected status must not carry a selected candidate"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -551,6 +615,86 @@ def calculate_infrastructure_candidate_benefits(
 
     return tuple(benefits)
 
+
+def select_infrastructure_greedy_candidate(
+    state: InfrastructureGreedyPlacementState,
+    benefits: tuple[InfrastructureCandidateBenefit, ...],
+    *,
+    iteration_index: int,
+    policy: InfrastructureGreedyPlacementPolicy | None = None,
+) -> InfrastructurePlacementSelection:
+    """Select the first maximum-benefit candidate under explicit greedy bounds."""
+
+    if not isinstance(state, InfrastructureGreedyPlacementState):
+        raise InfrastructurePlacementError(
+            "state must be InfrastructureGreedyPlacementState"
+        )
+    if not isinstance(benefits, tuple):
+        raise InfrastructurePlacementError(
+            "benefits must be an immutable tuple"
+        )
+    if any(
+        not isinstance(item, InfrastructureCandidateBenefit)
+        for item in benefits
+    ):
+        raise InfrastructurePlacementError(
+            "benefits must contain InfrastructureCandidateBenefit values"
+        )
+    _require_non_negative_int("iteration_index", iteration_index)
+    if policy is None:
+        policy = InfrastructureGreedyPlacementPolicy()
+    if not isinstance(policy, InfrastructureGreedyPlacementPolicy):
+        raise InfrastructurePlacementError(
+            "policy must be InfrastructureGreedyPlacementPolicy"
+        )
+
+    accepted_keys = {
+        item.candidate_ref.key for item in state.accepted_facilities
+    }
+    expected_candidate_refs = tuple(
+        candidate
+        for candidate in state.candidate_order
+        if candidate.key not in accepted_keys
+    )
+    actual_candidate_refs = tuple(item.candidate_ref for item in benefits)
+    if actual_candidate_refs != expected_candidate_refs:
+        raise InfrastructurePlacementError(
+            "benefits must contain every unaccepted candidate in candidate_order"
+        )
+
+    if len(state.accepted_facilities) >= policy.max_facilities:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.FACILITY_LIMIT_REACHED,
+        )
+    if iteration_index >= policy.max_iterations:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.ITERATION_LIMIT_REACHED,
+        )
+    if not benefits:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.NO_CANDIDATES,
+        )
+
+    selected = benefits[0]
+    for item in benefits[1:]:
+        if item.benefit > selected.benefit:
+            selected = item
+
+    if selected.benefit <= 0.0:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.NO_POSITIVE_BENEFIT,
+        )
+    return InfrastructurePlacementSelection(
+        iteration_index=iteration_index,
+        status=InfrastructurePlacementSelectionStatus.SELECTED,
+        selected=selected,
+    )
+
+
 def _candidate_accessibility_pair(
     item: InfrastructureAccessibilityResult | InfrastructureAccessibilityUnavailable,
 ) -> tuple[tuple[str, str], tuple[str, str]]:
@@ -600,6 +744,13 @@ def _require_positive_finite(field_name: str, value: float) -> float:
             f"{field_name} must be a finite positive number"
         )
     return number
+
+
+def _require_positive_int(field_name: str, value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise InfrastructurePlacementError(
+            f"{field_name} must be a positive integer"
+        )
 
 
 def _require_non_negative_int(field_name: str, value: int) -> None:
