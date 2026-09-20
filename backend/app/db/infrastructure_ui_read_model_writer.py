@@ -338,7 +338,6 @@ def _existing_accessibility_summaries(
             "farthest_distance_m": None,
         }
 
-    snapshot_ids: set[str] = set()
     distances_by_facility: dict[str, list[float]] = {
         key: [] for key in summaries
     }
@@ -347,7 +346,6 @@ def _existing_accessibility_summaries(
             raise InfrastructureUiReadModelPersistenceError(
                 "existing accessibility batch must use existing_facility mode"
             )
-        snapshot_ids.add(batch.snapshot_id)
         for item in batch.reachable:
             ref = item.facility_site_ref
             if not isinstance(ref, ExistingInfrastructureFacilityRef):
@@ -365,11 +363,6 @@ def _existing_accessibility_summaries(
                     "existing accessibility facility type mismatch"
                 )
             distances_by_facility[ref.facility_id].append(item.distance_m)
-
-    if snapshot_ids and snapshot_ids != {existing.snapshot_id}:
-        raise InfrastructureUiReadModelPersistenceError(
-            "existing infrastructure and accessibility snapshot ids must match"
-        )
 
     for facility_id, distances in distances_by_facility.items():
         summary = summaries[facility_id]
