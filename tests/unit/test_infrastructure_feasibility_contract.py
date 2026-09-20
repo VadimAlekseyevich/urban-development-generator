@@ -57,8 +57,7 @@ def test_rejections_are_canonical_and_unique() -> None:
         (
             True,
             (
-                InfrastructureFeasibilityRejectionReason.
-                CAPACITY_EXCEEDS_TYPE_CAPACITY,
+                InfrastructureFeasibilityRejectionReason.CAPACITY_EXCEEDS_TYPE_CAPACITY,
             ),
         ),
         (False, ()),
@@ -96,8 +95,7 @@ def test_site_result_rejects_host_building_reason() -> None:
             proposed_capacity=500.0,
             is_feasible=False,
             rejection_reasons=(
-                InfrastructureFeasibilityRejectionReason.
-                HOST_BUILDING_GEOMETRY_UNAVAILABLE,
+                InfrastructureFeasibilityRejectionReason.HOST_BUILDING_GEOMETRY_UNAVAILABLE,
             ),
         )
 
@@ -129,10 +127,8 @@ def test_host_building_result_accepts_host_specific_rejections() -> None:
         proposed_capacity=500.0,
         is_feasible=False,
         rejection_reasons=(
-            InfrastructureFeasibilityRejectionReason.
-            HOST_BUILDING_GEOMETRY_UNAVAILABLE,
-            InfrastructureFeasibilityRejectionReason.
-            HOST_BUILDING_AREA_BELOW_MINIMUM,
+            InfrastructureFeasibilityRejectionReason.HOST_BUILDING_GEOMETRY_UNAVAILABLE,
+            InfrastructureFeasibilityRejectionReason.HOST_BUILDING_AREA_BELOW_MINIMUM,
         ),
     )
 
