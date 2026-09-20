@@ -1,10 +1,10 @@
 # Infrastructure accessibility contract
 
-> **Status: Implemented through UG-AI-021**
+> **Status: Implemented through UG-AI-022**
 
 S10-T07 consumes the typed network-snap identities from S10-T06 and defines the stable records and
-bounded executors used by infrastructure placement. This document covers **UG-AI-020..021**;
-candidate batching, unreachable semantics and performance acceptance remain UG-AI-022..024.
+bounded executors used by infrastructure placement. This document covers **UG-AI-020..022**;
+unreachable semantics and performance acceptance remain UG-AI-023..024.
 
 ## Goal
 
@@ -86,18 +86,45 @@ The default hard subject cap is
 `MAX_EXISTING_ACCESSIBILITY_SUBJECTS = MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE`; callers may choose a
 smaller bound but not a larger one.
 
-## Explicit non-goals through UG-AI-021
+## Candidate-site executor
+
+`compute_candidate_site_accessibility()` preserves one accessibility row per reachable
+candidate-demand relationship, so it cannot use multiple candidates as sources in one
+`multi_source_distances()` call: that port intentionally returns only the nearest source per
+target.
+
+Instead, the executor groups candidate refs and demand refs by snapped network node. For each
+unique candidate node it performs bounded demand-target batches with exactly one source node. This
+reuses one graph search across many demand targets while still preserving per-candidate
+accessibility. Candidate refs sharing a node reuse the same searches and fan the successful
+distances back out to their stable refs.
+
+`InfrastructureCandidateAccessibilityPolicy` bounds:
+
+- selected candidate refs;
+- selected demand refs;
+- demand nodes per backend call;
+- total projected routing calls;
+- maximum possible/materialized candidate-demand result rows.
+
+The pair-result and routing-call budgets are checked before the first backend call. This prevents a
+configuration from silently materializing or executing an unbounded candidate×demand workload.
+Every backend call uses exactly `InfrastructureType.max_network_distance_m`, and final successful
+rows are canonically sorted.
+
+Missing backend target results remain absent in UG-AI-022; explicit unreachable and unsnapped
+records belong to UG-AI-023.
+
+## Explicit non-goals through UG-AI-022
 
 This implementation does not:
 
-- calculate candidate-site accessibility;
-- materialize candidate×demand all-pairs data;
+- materialize candidate×demand data beyond the configured result budget;
 - define unreachable/unsnapped result variants;
 - calculate candidate benefit or place facilities;
 - persist accessibility rows.
 
 Those responsibilities remain ordered as:
 
-- UG-AI-022 — candidate-site bounded batching;
 - UG-AI-023 — explicit unreachable/unsnapped handling;
 - UG-AI-024 — deterministic graph acceptance and search-budget assertions.

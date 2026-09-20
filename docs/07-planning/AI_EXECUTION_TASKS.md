@@ -55,7 +55,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-019** — **S10-T06** — Document T06 boundary and explicitly prohibit direct NetworkX/SpatialSnapIndex use from infrastructure.
 - [x] **UG-AI-020** — **S10-T07** — Define accessibility query/result contract keyed by infrastructure type, demand ref and facility/site ref.
 - [x] **UG-AI-021** — **S10-T07** — Implement bounded existing-facility accessibility using NetworkBackend multi-source distance operations and type max-distance cutoffs.
-- [ ] **UG-AI-022** — **S10-T07** — Implement candidate-site accessibility in batches without all-pairs materialization beyond configured bounds.
+- [x] **UG-AI-022** — **S10-T07** — Implement candidate-site accessibility in batches without all-pairs materialization beyond configured bounds.
 - [ ] **UG-AI-023** — **S10-T07** — Define unreachable/unsnapped handling without treating missing paths as zero/infinite numeric values.
 - [ ] **UG-AI-024** — **S10-T07** — Add deterministic synthetic graph tests and path-search budget/performance assertions.
 - [ ] **UG-AI-025** — **S10-T08** — Define greedy placement state: remaining demand, accepted facilities, coverage cache and deterministic candidate ordering.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..021 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-022. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..022 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-023. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

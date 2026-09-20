@@ -1,9 +1,16 @@
 from core.urban_generator.infrastructure.accessibility import (
+    MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES,
+    MAX_CANDIDATE_ACCESSIBILITY_DEMAND_BATCH_SIZE,
+    MAX_CANDIDATE_ACCESSIBILITY_DEMANDS,
+    MAX_CANDIDATE_ACCESSIBILITY_RESULTS,
+    MAX_CANDIDATE_ACCESSIBILITY_ROUTING_CALLS,
     MAX_EXISTING_ACCESSIBILITY_SUBJECTS,
     InfrastructureAccessibilityError,
     InfrastructureAccessibilityFacilitySiteRef,
     InfrastructureAccessibilityQuery,
     InfrastructureAccessibilityResult,
+    InfrastructureCandidateAccessibilityPolicy,
+    compute_candidate_site_accessibility,
     compute_existing_facility_accessibility,
 )
 from core.urban_generator.infrastructure.candidates import (
@@ -79,11 +86,18 @@ from core.urban_generator.infrastructure.site_geometry import (
 )
 
 __all__ = [
+    "MAX_CANDIDATE_ACCESSIBILITY_CANDIDATES",
+    "MAX_CANDIDATE_ACCESSIBILITY_DEMAND_BATCH_SIZE",
+    "MAX_CANDIDATE_ACCESSIBILITY_DEMANDS",
+    "MAX_CANDIDATE_ACCESSIBILITY_RESULTS",
+    "MAX_CANDIDATE_ACCESSIBILITY_ROUTING_CALLS",
     "MAX_EXISTING_ACCESSIBILITY_SUBJECTS",
     "InfrastructureAccessibilityError",
     "InfrastructureAccessibilityFacilitySiteRef",
     "InfrastructureAccessibilityQuery",
     "InfrastructureAccessibilityResult",
+    "InfrastructureCandidateAccessibilityPolicy",
+    "compute_candidate_site_accessibility",
     "compute_existing_facility_accessibility",
     "MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE",
     "ExistingInfrastructureFacilityRef",
