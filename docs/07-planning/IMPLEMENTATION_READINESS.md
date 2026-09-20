@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 is complete; the current ordered task is **UG-AI-022 / S10-T07**.
+The repository is architecture-ready for S10 feature development. S10-T06 is complete; the current ordered task is **UG-AI-023 / S10-T07**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-022 / S10-T07
-Implement candidate-site accessibility in bounded batches without unbounded all-pairs materialization.
+UG-AI-023 / S10-T07
+Define unreachable/unsnapped handling without treating missing paths as zero/infinite numeric values.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
