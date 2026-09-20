@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06, S10-T07 and S10-T08 are complete; the current ordered task is **UG-AI-031 / S10-T09**.
+The repository is architecture-ready for S10 feature development. S10-T06, S10-T07 and S10-T08 are complete; the current ordered task is **UG-AI-032 / S10-T09**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
