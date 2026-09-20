@@ -318,9 +318,11 @@ class GeneratedInfrastructure(GeneratedEntityMixin, Base):
             unique=True,
         ),
         Index(
-            "ix_generated_infrastructure_run_category",
+            "uq_generated_infrastructure_run_type_acceptance",
             "run_id",
-            "category",
+            "infrastructure_type_code",
+            "acceptance_index",
+            unique=True,
         ),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
@@ -368,6 +370,13 @@ class GeneratedInfrastructure(GeneratedEntityMixin, Base):
         CheckConstraint(
             "network_snap_distance_m IS NULL OR network_snap_distance_m >= 0",
             name="ck_generated_infrastructure_snap_distance_nonnegative",
+        ),
+        CheckConstraint(
+            "geometry_kind IS NULL OR "
+            "(geometry_kind = 'site' AND GeometryType(geometry) IN "
+            "('POLYGON', 'MULTIPOLYGON')) OR "
+            "(geometry_kind = 'host_building' AND GeometryType(geometry) = 'POINT')",
+            name="ck_generated_infrastructure_geometry_shape",
         ),
         CheckConstraint(
             "("
@@ -420,7 +429,7 @@ class GeneratedInfrastructure(GeneratedEntityMixin, Base):
     geometry_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     host_building_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("generated_buildings.id", ondelete="CASCADE"),
+        ForeignKey("generated_buildings.id", ondelete="RESTRICT"),
         nullable=True,
     )
     site_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
