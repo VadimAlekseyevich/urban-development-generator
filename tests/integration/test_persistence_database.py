@@ -121,7 +121,7 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
         )
     }
 
-    assert revision == "0017_stage_output_fingerprint"
+    assert revision == "0018_infra_persistence"
     assert isinstance(postgis_version, str) and postgis_version
     assert {
         "projects",
