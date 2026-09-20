@@ -4,7 +4,6 @@ import pytest
 
 from core.urban_generator import domain, infrastructure
 
-
 TYPE_CODE = "school.general"
 
 
