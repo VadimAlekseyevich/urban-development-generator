@@ -199,9 +199,9 @@ def compute_existing_facility_accessibility(
             )
         source_id = distance.source.node_id
         target_id = distance.target.node_id
-        facility = facility_by_node.get(source_id)
+        source_facility = facility_by_node.get(source_id)
         target_demands = demands_by_node.get(target_id)
-        if facility is None:
+        if source_facility is None:
             raise InfrastructureAccessibilityError(
                 "NetworkBackend returned a source outside the requested facility nodes"
             )
@@ -221,9 +221,9 @@ def compute_existing_facility_accessibility(
                     snapshot_id=snapshot.snapshot_id,
                     infrastructure_type_code=type_code,
                     demand_ref=demand.ref,
-                    facility_site_ref=facility.ref,
+                    facility_site_ref=source_facility.ref,
                     demand_node=demand.node,
-                    facility_site_node=facility.node,
+                    facility_site_node=source_facility.node,
                     max_network_distance_m=(
                         infrastructure_type.max_network_distance_m
                     ),
