@@ -8,23 +8,22 @@ from core.urban_generator.demography import DemographicDemandCategory
 from core.urban_generator.domain import NetworkNodeRef
 from core.urban_generator.infrastructure import (
     BlockInfrastructureDemand,
+    InfrastructureAcceptedFacility,
     InfrastructureAccessibilityBatchResult,
     InfrastructureAccessibilityDiagnostics,
     InfrastructureAccessibilityMode,
     InfrastructureAccessibilityResult,
     InfrastructureAccessibilityUnavailable,
     InfrastructureAccessibilityUnavailableReason,
-    InfrastructureAcceptedFacility,
     InfrastructureCandidateRef,
     InfrastructureCategory,
     InfrastructureCoverageCacheEntry,
     InfrastructureDemandRef,
     InfrastructureGreedyPlacementState,
     InfrastructurePlacementError,
-    InfrastructureType,
-    ZoneClass,
     initialize_infrastructure_greedy_placement_state,
 )
+from core.urban_generator.zoning import ZoneClass
 
 SNAPSHOT_ID = "roads:placement-v1"
 TYPE_CODE = "school.general"
