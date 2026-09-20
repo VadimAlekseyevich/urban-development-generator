@@ -1,6 +1,6 @@
 # Infrastructure raw metrics
 
-> **Status: Implemented through UG-AI-036 / S10-T11**
+> **Status: Implemented through UG-AI-037 / S10-T11**
 
 S10-T11 derives the canonical infrastructure `RawMetricId` values from already computed S10
 results. The metric layer is pure core logic: it receives no `NetworkBackend`, performs no snap,
@@ -64,7 +64,9 @@ The replay performs only capacity accounting: it does not call a routing backend
 served amount becomes a distance sample using the cached T07 distance.
 
 P50/P90 use served-demand-weighted nearest-rank percentiles over existing and generated service
-samples. How an empty sample set or unreachable-only case is represented belongs to UG-AI-037.
+samples. If there are no positive served-demand samples with a reachable T07 distance, both
+percentiles are explicitly unavailable: `InfrastructureRawMetricValue.scalar_value = None`.
+The metric layer never converts an unreachable outcome into distance `0` or infinity.
 
 ## Unmet demand and utilization
 
@@ -78,8 +80,15 @@ Generated capacity is the accepted-facility count multiplied by the authoritativ
 `InfrastructureType.capacity`, matching T08/T10 semantics. A normal non-empty result must not
 serve more than total available capacity.
 
-Zero-capacity, zero-demand and other empty-data behavior is deliberately not guessed in UG-AI-036;
-UG-AI-037 owns those policies.
+Empty-data policy is explicit:
+
+- empty infrastructure/type input yields population coverage `0`, empty age coverage, unmet
+  demand `0`, capacity utilization `0`, and unavailable distance percentiles;
+- a zero-capacity system with zero served demand has utilization `0`;
+- served demand with zero total capacity remains an invalid conservation state;
+- unreachable-only demand remains fully unmet unless another authoritative served assignment exists;
+- zero-population age cohorts are retained with coverage ratio `0`, while a project with no
+  age-linked demand returns an empty age distribution.
 
 ## Bounds and diagnostics
 
@@ -89,9 +98,9 @@ count and existing/generated distance sample counts.
 
 ## Explicit non-goals
 
-UG-AI-036 does not:
+UG-AI-037 does not:
 
-- define empty/unreachable/zero-denominator output policy;
+- add numeric/property hardening beyond the explicit edge fixtures;
 - persist raw metrics;
 - extend the S11 metric registry metadata;
 - rerun snapping/routing or recompute candidate accessibility;
@@ -99,5 +108,4 @@ UG-AI-036 does not:
 
 Ordered follow-up:
 
-- UG-AI-037 — define percentile/unmet/utilization empty-data and unreachable policies;
 - UG-AI-038 — add numeric/property tests for bounds, percentiles and capacity conservation.

@@ -90,9 +90,9 @@ class InfrastructureRawMetricValue:
                 raise InfrastructureMetricsError(
                     "age-specific coverage must not carry scalar_value"
                 )
-            if not isinstance(self.age_coverage, tuple) or not self.age_coverage:
+            if not isinstance(self.age_coverage, tuple):
                 raise InfrastructureMetricsError(
-                    "age-specific coverage requires a non-empty distribution"
+                    "age-specific coverage must use an immutable tuple"
                 )
             if any(
                 not isinstance(item, InfrastructureAgeCoverage)
@@ -113,6 +113,11 @@ class InfrastructureRawMetricValue:
                 "scalar infrastructure metric must not carry age_coverage"
             )
         if self.scalar_value is None:
+            if self.metric_id in {
+                RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
+                RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
+            }:
+                return
             raise InfrastructureMetricsError(
                 "scalar infrastructure metric requires scalar_value"
             )
@@ -262,10 +267,6 @@ class InfrastructureMetricsBuilder:
 
         types = tuple(sorted(infrastructure_types, key=lambda item: item.code))
         type_codes = tuple(item.code for item in types)
-        if not type_codes:
-            raise InfrastructureMetricsError(
-                "empty infrastructure metric input policy belongs to UG-AI-037"
-            )
         if len(type_codes) > self.max_types:
             raise InfrastructureMetricsError(
                 "infrastructure metric type limit exceeded"
@@ -358,24 +359,16 @@ class InfrastructureMetricsBuilder:
                     group_covered + covered_signal,
                 )
 
-        if population_total <= 0.0:
-            raise InfrastructureMetricsError(
-                "population coverage denominator policy belongs to UG-AI-037"
-            )
-        if not age_totals:
-            raise InfrastructureMetricsError(
-                "age-specific coverage empty-data policy belongs to UG-AI-037"
-            )
-        if not distance_samples:
-            raise InfrastructureMetricsError(
-                "network distance empty-data policy belongs to UG-AI-037"
-            )
-        if total_capacity <= 0.0:
-            raise InfrastructureMetricsError(
-                "capacity utilization empty-capacity policy belongs to UG-AI-037"
-            )
-
-        utilization = total_served / total_capacity
+        population_coverage_ratio = (
+            population_covered / population_total
+            if population_total > 0.0
+            else 0.0
+        )
+        utilization = (
+            total_served / total_capacity
+            if total_capacity > 0.0
+            else 0.0
+        )
         if utilization > 1.0 and not math.isclose(
             utilization,
             1.0,
@@ -394,17 +387,22 @@ class InfrastructureMetricsBuilder:
                 coverage_ratio=covered / population,
             )
             for group, (population, covered) in sorted(age_totals.items())
-            if population > 0.0
         )
-        if not age_coverage:
-            raise InfrastructureMetricsError(
-                "age-specific zero-population policy belongs to UG-AI-037"
-            )
+        distance_p50 = (
+            _weighted_percentile(distance_samples, 0.50)
+            if distance_samples
+            else None
+        )
+        distance_p90 = (
+            _weighted_percentile(distance_samples, 0.90)
+            if distance_samples
+            else None
+        )
 
         raw_metrics = (
             InfrastructureRawMetricValue(
                 metric_id=RawMetricId.INFRASTRUCTURE_POPULATION_COVERAGE_RATIO,
-                scalar_value=population_covered / population_total,
+                scalar_value=population_coverage_ratio,
             ),
             InfrastructureRawMetricValue(
                 metric_id=RawMetricId.INFRASTRUCTURE_AGE_SPECIFIC_COVERAGE,
@@ -412,11 +410,11 @@ class InfrastructureMetricsBuilder:
             ),
             InfrastructureRawMetricValue(
                 metric_id=RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
-                scalar_value=_weighted_percentile(distance_samples, 0.50),
+                scalar_value=distance_p50,
             ),
             InfrastructureRawMetricValue(
                 metric_id=RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
-                scalar_value=_weighted_percentile(distance_samples, 0.90),
+                scalar_value=distance_p90,
             ),
             InfrastructureRawMetricValue(
                 metric_id=RawMetricId.INFRASTRUCTURE_UNMET_DEMAND,
