@@ -15,6 +15,9 @@ from core.urban_generator.infrastructure.accessibility import (
 )
 from core.urban_generator.infrastructure.config import InfrastructureType
 from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
+from core.urban_generator.infrastructure.feasibility import (
+    InfrastructureFeasibilityResult,
+)
 from core.urban_generator.infrastructure.network_snap import (
     InfrastructureCandidateRef,
     InfrastructureDemandRef,
@@ -110,6 +113,7 @@ class InfrastructurePlacementSelectionStatus(StrEnum):
     FACILITY_LIMIT_REACHED = "facility_limit_reached"
     ITERATION_LIMIT_REACHED = "iteration_limit_reached"
     NO_CANDIDATES = "no_candidates"
+    NO_FEASIBLE_CANDIDATE = "no_feasible_candidate"
     NO_POSITIVE_BENEFIT = "no_positive_benefit"
 
 
@@ -144,6 +148,7 @@ class InfrastructurePlacementSelection:
     iteration_index: int
     status: InfrastructurePlacementSelectionStatus
     selected: InfrastructureCandidateBenefit | None = None
+    selected_feasibility: InfrastructureFeasibilityResult | None = None
 
     def __post_init__(self) -> None:
         _require_non_negative_int("iteration_index", self.iteration_index)
@@ -160,9 +165,33 @@ class InfrastructurePlacementSelection:
                 raise InfrastructurePlacementError(
                     "selected candidate must have positive benefit"
                 )
-        elif self.selected is not None:
+            if not isinstance(
+                self.selected_feasibility,
+                InfrastructureFeasibilityResult,
+            ):
+                raise InfrastructurePlacementError(
+                    "selected status requires InfrastructureFeasibilityResult"
+                )
+            if not self.selected_feasibility.is_feasible:
+                raise InfrastructurePlacementError(
+                    "selected feasibility result must be feasible"
+                )
+            if self.selected_feasibility.key != self.selected.candidate_ref.key:
+                raise InfrastructurePlacementError(
+                    "selected feasibility must match selected candidate"
+                )
+            if not math.isclose(
+                self.selected_feasibility.proposed_capacity,
+                self.selected.capacity,
+                rel_tol=1e-12,
+                abs_tol=1e-9,
+            ):
+                raise InfrastructurePlacementError(
+                    "selected feasibility capacity must match selected benefit capacity"
+                )
+        elif self.selected is not None or self.selected_feasibility is not None:
             raise InfrastructurePlacementError(
-                "non-selected status must not carry a selected candidate"
+                "non-selected status must not carry selected candidate or feasibility"
             )
 
 
@@ -620,6 +649,7 @@ def select_infrastructure_greedy_candidate(
     state: InfrastructureGreedyPlacementState,
     benefits: tuple[InfrastructureCandidateBenefit, ...],
     *,
+    feasibility: tuple[InfrastructureFeasibilityResult, ...],
     iteration_index: int,
     policy: InfrastructureGreedyPlacementPolicy | None = None,
 ) -> InfrastructurePlacementSelection:
@@ -639,6 +669,17 @@ def select_infrastructure_greedy_candidate(
     ):
         raise InfrastructurePlacementError(
             "benefits must contain InfrastructureCandidateBenefit values"
+        )
+    if not isinstance(feasibility, tuple):
+        raise InfrastructurePlacementError(
+            "feasibility must be an immutable tuple"
+        )
+    if any(
+        not isinstance(item, InfrastructureFeasibilityResult)
+        for item in feasibility
+    ):
+        raise InfrastructurePlacementError(
+            "feasibility must contain InfrastructureFeasibilityResult values"
         )
     _require_non_negative_int("iteration_index", iteration_index)
     if policy is None:
@@ -661,6 +702,30 @@ def select_infrastructure_greedy_candidate(
         raise InfrastructurePlacementError(
             "benefits must contain every unaccepted candidate in candidate_order"
         )
+    expected_keys = tuple(item.key for item in expected_candidate_refs)
+    feasibility_keys = tuple(item.key for item in feasibility)
+    if feasibility_keys != expected_keys:
+        raise InfrastructurePlacementError(
+            "feasibility must contain every unaccepted candidate in candidate_order"
+        )
+    for benefit, feasibility_result in zip(
+        benefits,
+        feasibility,
+        strict=True,
+    ):
+        if feasibility_result.infrastructure_type_code != state.infrastructure_type_code:
+            raise InfrastructurePlacementError(
+                "feasibility infrastructure type must match placement state"
+            )
+        if not math.isclose(
+            feasibility_result.proposed_capacity,
+            benefit.capacity,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        ):
+            raise InfrastructurePlacementError(
+                "feasibility proposed capacity must match candidate benefit capacity"
+            )
 
     if len(state.accepted_facilities) >= policy.max_facilities:
         return InfrastructurePlacementSelection(
@@ -678,10 +743,26 @@ def select_infrastructure_greedy_candidate(
             status=InfrastructurePlacementSelectionStatus.NO_CANDIDATES,
         )
 
-    selected = benefits[0]
-    for item in benefits[1:]:
-        if item.benefit > selected.benefit:
-            selected = item
+    feasible_pairs = tuple(
+        (benefit, feasibility_result)
+        for benefit, feasibility_result in zip(
+            benefits,
+            feasibility,
+            strict=True,
+        )
+        if feasibility_result.is_feasible
+    )
+    if not feasible_pairs:
+        return InfrastructurePlacementSelection(
+            iteration_index=iteration_index,
+            status=InfrastructurePlacementSelectionStatus.NO_FEASIBLE_CANDIDATE,
+        )
+
+    selected, selected_feasibility = feasible_pairs[0]
+    for benefit, feasibility_result in feasible_pairs[1:]:
+        if benefit.benefit > selected.benefit:
+            selected = benefit
+            selected_feasibility = feasibility_result
 
     if selected.benefit <= 0.0:
         return InfrastructurePlacementSelection(
@@ -692,6 +773,7 @@ def select_infrastructure_greedy_candidate(
         iteration_index=iteration_index,
         status=InfrastructurePlacementSelectionStatus.SELECTED,
         selected=selected,
+        selected_feasibility=selected_feasibility,
     )
 
 
