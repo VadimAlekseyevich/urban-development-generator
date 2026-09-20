@@ -1,10 +1,10 @@
 # Infrastructure accessibility contract
 
-> **Status: Implemented through UG-AI-022**
+> **Status: Implemented through UG-AI-023**
 
 S10-T07 consumes the typed network-snap identities from S10-T06 and defines the stable records and
-bounded executors used by infrastructure placement. This document covers **UG-AI-020..022**;
-unreachable semantics and performance acceptance remain UG-AI-023..024.
+bounded executors used by infrastructure placement. This document covers **UG-AI-020..023**;
+real-graph/performance acceptance remains UG-AI-024.
 
 ## Goal
 
@@ -112,19 +112,43 @@ configuration from silently materializing or executing an unbounded candidate×d
 Every backend call uses exactly `InfrastructureType.max_network_distance_m`, and final successful
 rows are canonically sorted.
 
-Missing backend target results remain absent in UG-AI-022; explicit unreachable and unsnapped
-records belong to UG-AI-023.
+## Unavailable outcomes
 
-## Explicit non-goals through UG-AI-022
+UG-AI-023 adds `InfrastructureAccessibilityUnavailable` and
+`InfrastructureAccessibilityBatchResult`. An unavailable outcome has **no `distance_m` field**.
+Missing accessibility is therefore never represented by zero, infinity, NaN or another numeric
+sentinel.
+
+Typed reasons are:
+
+- `DEMAND_UNSNAPPED`;
+- `FACILITY_SITE_UNSNAPPED`;
+- `BOTH_UNSNAPPED`;
+- `NO_PATH_WITHIN_MAX_DISTANCE`;
+- `NO_SNAPPED_FACILITY_SITE` for the demand-level existing-facility search.
+
+Snap failures preserve the original `InfrastructureNetworkUnsnappedReason` from T06 in dedicated
+fields. A routing miss after both sides are snapped becomes
+`NO_PATH_WITHIN_MAX_DISTANCE` and carries no snap reason.
+
+`compute_existing_facility_accessibility_batch()` produces one outcome per demand ref: either the
+nearest reachable existing facility or a demand-level unavailable record.
+
+`compute_candidate_site_accessibility_batch()` produces exactly one outcome per bounded
+candidate-demand pair. Its pair budget includes snapped **and unsnapped** refs before routing, so
+explicit unavailable materialization cannot bypass the UG-AI-022 result bound.
+
+Both batch results expose typed diagnostics whose reachable and unavailable counts conserve the
+number of logical accessibility subjects.
+
+## Explicit non-goals through UG-AI-023
 
 This implementation does not:
 
 - materialize candidate×demand data beyond the configured result budget;
-- define unreachable/unsnapped result variants;
 - calculate candidate benefit or place facilities;
 - persist accessibility rows.
 
 Those responsibilities remain ordered as:
 
-- UG-AI-023 — explicit unreachable/unsnapped handling;
 - UG-AI-024 — deterministic graph acceptance and search-budget assertions.
