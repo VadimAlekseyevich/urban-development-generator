@@ -1,10 +1,10 @@
 # Infrastructure greedy placement contract
 
-> **Status: Implemented through UG-AI-025**
+> **Status: Implemented through UG-AI-026**
 
 S10-T08 consumes the completed S10-T07 accessibility outputs. UG-AI-025 defines the immutable
-state vocabulary only; benefit calculation, candidate acceptance, demand mutation and placement
-termination remain ordered follow-up tasks.
+state vocabulary; UG-AI-026 adds pure incremental candidate-benefit calculation. Candidate
+acceptance, demand mutation and placement termination remain ordered follow-up tasks.
 
 ## State ownership
 
@@ -56,8 +56,33 @@ batch", not "not computed".
 `candidate_order` is the ascending canonical `InfrastructureCandidateRef.key` order. Input tuple
 permutation therefore cannot change the fallback ordering used by later greedy tie-breaking.
 
-The ordering is intentionally independent of benefit. UG-AI-026 computes benefit from cached T07
-results, and UG-AI-027 defines bounded iteration and benefit-tie resolution using this stable order.
+The ordering is intentionally independent of benefit. UG-AI-026 returns benefits in this order,
+and UG-AI-027 defines bounded iteration and benefit-tie resolution using the same stable order.
+
+## Incremental candidate benefit
+
+`calculate_infrastructure_candidate_benefits()` is a pure transformation over the current
+`InfrastructureGreedyPlacementState` and canonical `InfrastructureType`. It performs no snapping,
+routing or spatial search.
+
+For each **unaccepted** candidate, it sums current `remaining_demand` only for demand refs present
+in that candidate's T07 successful coverage-cache rows:
+
+```text
+reachable_remaining_demand = sum(current remaining demand for cached reachable demand refs)
+benefit = min(InfrastructureType.capacity, reachable_remaining_demand)
+```
+
+The configured type capacity is the nominal maximum service contribution of one proposed facility.
+S10-T09 still owns whether that capacity is spatially/site feasible; UG-AI-026 does not perform that
+feasibility decision.
+
+Every unaccepted candidate receives one `InfrastructureCandidateBenefit`, including zero-benefit
+candidates. Already accepted candidates are omitted. Results preserve `candidate_order`, allowing
+UG-AI-027 to apply deterministic winner/tie rules without recomputing reachability.
+
+Network distance is used only to establish T07 reachability. Once a row is in the cache, benefit is
+unweighted demand coverage; distance-weighted scoring is not introduced.
 
 ## Bounds
 
@@ -70,11 +95,10 @@ Placement state reuses the existing T07 hard envelopes:
 
 No new unbounded N×M path is introduced.
 
-## Explicit non-goals through UG-AI-025
+## Explicit non-goals through UG-AI-026
 
 This task does not:
 
-- calculate candidate benefit;
 - run pathfinding or snapping;
 - accept a candidate automatically;
 - update remaining demand;
@@ -84,7 +108,6 @@ This task does not:
 
 Ordered follow-up remains:
 
-- UG-AI-026 — incremental candidate benefit from the T07 cache;
 - UG-AI-027 — bounded facilities/iterations and deterministic tie-breaking;
 - UG-AI-028 — remaining-demand update;
 - UG-AI-029 — greedy acceptance fixtures.

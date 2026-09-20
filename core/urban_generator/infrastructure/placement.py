@@ -12,6 +12,7 @@ from core.urban_generator.infrastructure.accessibility import (
     InfrastructureAccessibilityResult,
     InfrastructureAccessibilityUnavailable,
 )
+from core.urban_generator.infrastructure.config import InfrastructureType
 from core.urban_generator.infrastructure.demand import BlockInfrastructureDemand
 from core.urban_generator.infrastructure.network_snap import (
     InfrastructureCandidateRef,
@@ -60,6 +61,45 @@ class InfrastructurePlacementDemandState:
     @property
     def key(self) -> tuple[str, str]:
         return self.demand_ref.key
+
+
+@dataclass(frozen=True, slots=True)
+class InfrastructureCandidateBenefit:
+    """Incremental coverable demand for one unaccepted candidate."""
+
+    candidate_ref: InfrastructureCandidateRef
+    reachable_remaining_demand: float
+    capacity: float
+    benefit: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.candidate_ref, InfrastructureCandidateRef):
+            raise InfrastructurePlacementError(
+                "candidate_ref must be InfrastructureCandidateRef"
+            )
+        reachable = _require_non_negative_finite(
+            "reachable_remaining_demand",
+            self.reachable_remaining_demand,
+        )
+        capacity = _require_positive_finite("capacity", self.capacity)
+        benefit = _require_non_negative_finite("benefit", self.benefit)
+        expected = min(reachable, capacity)
+        if not math.isclose(
+            benefit,
+            expected,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        ):
+            raise InfrastructurePlacementError(
+                "benefit must equal min(reachable_remaining_demand, capacity)"
+            )
+        object.__setattr__(self, "reachable_remaining_demand", reachable)
+        object.__setattr__(self, "capacity", capacity)
+        object.__setattr__(self, "benefit", expected)
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return self.candidate_ref.key
 
 
 @dataclass(frozen=True, slots=True)
@@ -452,6 +492,65 @@ def initialize_infrastructure_greedy_placement_state(
     )
 
 
+
+def calculate_infrastructure_candidate_benefits(
+    state: InfrastructureGreedyPlacementState,
+    *,
+    infrastructure_type: InfrastructureType,
+) -> tuple[InfrastructureCandidateBenefit, ...]:
+    """Calculate current capacity-capped benefit from the cached T07 reachability rows."""
+
+    if not isinstance(state, InfrastructureGreedyPlacementState):
+        raise InfrastructurePlacementError(
+            "state must be InfrastructureGreedyPlacementState"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructurePlacementError(
+            "infrastructure_type must be InfrastructureType"
+        )
+    if infrastructure_type.code != state.infrastructure_type_code:
+        raise InfrastructurePlacementError(
+            "InfrastructureType code must match placement state"
+        )
+
+    remaining_by_key = {
+        item.demand_ref.key: item.remaining_demand
+        for item in state.remaining_demand
+    }
+    accepted_keys = {
+        item.candidate_ref.key for item in state.accepted_facilities
+    }
+
+    benefits: list[InfrastructureCandidateBenefit] = []
+    for candidate_ref, cache_entry in zip(
+        state.candidate_order,
+        state.coverage_cache,
+        strict=True,
+    ):
+        if candidate_ref.key in accepted_keys:
+            continue
+
+        reachable_remaining = _require_non_negative_finite(
+            "reachable_remaining_demand",
+            math.fsum(
+                remaining_by_key[row.demand_ref.key]
+                for row in cache_entry.accessibility
+            ),
+        )
+        benefits.append(
+            InfrastructureCandidateBenefit(
+                candidate_ref=candidate_ref,
+                reachable_remaining_demand=reachable_remaining,
+                capacity=infrastructure_type.capacity,
+                benefit=min(
+                    reachable_remaining,
+                    infrastructure_type.capacity,
+                ),
+            )
+        )
+
+    return tuple(benefits)
+
 def _candidate_accessibility_pair(
     item: InfrastructureAccessibilityResult | InfrastructureAccessibilityUnavailable,
 ) -> tuple[tuple[str, str], tuple[str, str]]:
@@ -492,6 +591,15 @@ def _require_non_negative_finite(field_name: str, value: float) -> float:
             f"{field_name} must be a finite non-negative number"
         )
     return float(value)
+
+
+def _require_positive_finite(field_name: str, value: float) -> float:
+    number = _require_non_negative_finite(field_name, value)
+    if number <= 0.0:
+        raise InfrastructurePlacementError(
+            f"{field_name} must be a finite positive number"
+        )
+    return number
 
 
 def _require_non_negative_int(field_name: str, value: int) -> None:

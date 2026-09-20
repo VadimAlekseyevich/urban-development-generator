@@ -90,6 +90,32 @@ def _forbidden_infrastructure_network_imports(path: Path) -> set[str]:
     return violations
 
 
+def test_infrastructure_placement_does_not_perform_network_routing() -> None:
+    path = INFRASTRUCTURE_ROOT / "placement.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    routing_calls = {
+        "snap",
+        "shortest_path",
+        "multi_source_shortest_path",
+        "multi_source_distances",
+    }
+    violations: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            violations.extend(
+                alias.name
+                for alias in node.names
+                if alias.name == "NetworkBackend"
+            )
+        elif isinstance(node, ast.Call):
+            function = node.func
+            if isinstance(function, ast.Attribute) and function.attr in routing_calls:
+                violations.append(function.attr)
+
+    assert violations == []
+
+
 def test_infrastructure_network_snap_does_not_bypass_network_backend() -> None:
     violations: list[str] = []
 
