@@ -1,10 +1,10 @@
 # Infrastructure accessibility contract
 
-> **Status: Implemented through UG-AI-023**
+> **Status: Implemented through UG-AI-024**
 
 S10-T07 consumes the typed network-snap identities from S10-T06 and defines the stable records and
-bounded executors used by infrastructure placement. This document covers **UG-AI-020..023**;
-real-graph/performance acceptance remains UG-AI-024.
+bounded executors used by infrastructure placement. This document covers **UG-AI-020..024** and
+closes S10-T07.
 
 ## Goal
 
@@ -142,7 +142,26 @@ explicit unavailable materialization cannot bypass the UG-AI-022 result bound.
 Both batch results expose typed diagnostics whose reachable and unavailable counts conserve the
 number of logical accessibility subjects.
 
-## Explicit non-goals through UG-AI-023
+## Synthetic graph and search-budget acceptance
+
+UG-AI-024 exercises T07 through the production `NetworkXBackend` adapter on small in-memory
+synthetic graphs whose coordinates and edge lengths are in metres in EPSG:3857.
+
+Acceptance proves three properties:
+
+- equivalent graphs built with opposite node/edge insertion order produce identical existing- and
+  candidate-accessibility batch results, including deterministic equal-distance facility ties;
+- candidate accessibility performs the expected bounded number of real
+  `multi_source_distances()` searches: unique candidate nodes multiplied by bounded demand
+  batches, while preserving the configured service-distance cutoff on every call;
+- the adapter-level `max_routing_visited_nodes` guard is exercised through the real T07 call path:
+  a fixture passes at the documented five-node search envelope and fails fast when reduced to four.
+
+These are structural performance assertions rather than wall-clock thresholds. Machine-dependent
+reference timing and larger candidate×demand benchmark envelopes remain S10-T14 / UG-AI-044..045,
+so unit CI does not acquire a flaky timing gate.
+
+## Explicit non-goals through UG-AI-024
 
 This implementation does not:
 
@@ -150,6 +169,7 @@ This implementation does not:
 - calculate candidate benefit or place facilities;
 - persist accessibility rows.
 
-Those responsibilities remain ordered as:
+Those responsibilities now move to the next capability:
 
-- UG-AI-024 — deterministic graph acceptance and search-budget assertions.
+- UG-AI-025 / S10-T08 — define greedy placement state over the completed T07 accessibility
+  results; no pathfinding is added inside placement.
