@@ -1,10 +1,10 @@
 # Infrastructure greedy placement contract
 
-> **Status: Implemented through UG-AI-028**
+> **Status: S10-T08 complete through UG-AI-029**
 
 S10-T08 consumes the completed S10-T07 accessibility outputs. UG-AI-025 defines the immutable
 state vocabulary; UG-AI-026 adds pure incremental candidate-benefit calculation; UG-AI-027 adds
-bounded deterministic candidate selection; UG-AI-028 applies accepted selections to remaining demand.
+bounded deterministic candidate selection; UG-AI-028 applies accepted selections to remaining demand. UG-AI-029 closes the capability with deterministic acceptance fixtures.
 
 ## State ownership
 
@@ -146,7 +146,21 @@ Placement state reuses the existing T07 hard envelopes:
 
 No new unbounded N×M path is introduced.
 
-## Explicit non-goals through UG-AI-028
+## Greedy acceptance fixtures
+
+UG-AI-029 composes the complete T08 path over typed T07 candidate-accessibility batches and asserts:
+
+- a small known-optimum matrix selects the expected two facilities and reduces total remaining
+  demand to zero;
+- demand saturation stops with `NO_POSITIVE_BENEFIT` before a redundant candidate is accepted;
+- exact-benefit ties select the same canonical candidate under candidate input permutation;
+- a complete T07 matrix with no reachable candidate-demand rows stops without changing demand.
+
+Within this T08 acceptance, "no feasible candidate" means no candidate has positive coverable demand
+from the completed T07 reachability matrix. Site/capacity geometry feasibility remains S10-T09 and
+is deliberately not simulated here.
+
+## Explicit non-goals after S10-T08
 
 This task does not:
 
@@ -154,6 +168,7 @@ This task does not:
 - perform site/capacity feasibility;
 - persist generated facilities.
 
-Ordered follow-up remains:
+Ordered follow-up moves to the next capability:
 
-- UG-AI-029 — greedy acceptance fixtures.
+- UG-AI-030 / S10-T09 — define capacity/site/host-building feasibility results and rejection
+  reasons.
