@@ -5,11 +5,11 @@ from core.urban_generator.domain import NetworkNodeRef, RawMetricId
 from core.urban_generator.infrastructure import (
     BlockInfrastructureDemand,
     ExistingInfrastructureFacilityRef,
+    InfrastructureAcceptedFacility,
     InfrastructureAccessibilityBatchResult,
     InfrastructureAccessibilityDiagnostics,
     InfrastructureAccessibilityMode,
     InfrastructureAccessibilityResult,
-    InfrastructureAcceptedFacility,
     InfrastructureCandidatePolicy,
     InfrastructureCandidateRef,
     InfrastructureCandidateSource,
