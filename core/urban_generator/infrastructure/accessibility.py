@@ -406,6 +406,16 @@ def compute_existing_facility_accessibility(
         raise InfrastructureAccessibilityError(
             "infrastructure_type must be InfrastructureType"
         )
+    if not isinstance(backend, NetworkBackend):
+        raise InfrastructureAccessibilityError("backend must satisfy NetworkBackend")
+    if not isinstance(snap_batch, InfrastructureNetworkSnapBatchResult):
+        raise InfrastructureAccessibilityError(
+            "snap_batch must be InfrastructureNetworkSnapBatchResult"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructureAccessibilityError(
+            "infrastructure_type must be InfrastructureType"
+        )
     _require_positive_int("max_subjects", max_subjects)
     if max_subjects > MAX_EXISTING_ACCESSIBILITY_SUBJECTS:
         raise InfrastructureAccessibilityError(
@@ -795,6 +805,16 @@ def compute_candidate_site_accessibility_batch(
 
     if policy is None:
         policy = InfrastructureCandidateAccessibilityPolicy()
+    if not isinstance(backend, NetworkBackend):
+        raise InfrastructureAccessibilityError("backend must satisfy NetworkBackend")
+    if not isinstance(snap_batch, InfrastructureNetworkSnapBatchResult):
+        raise InfrastructureAccessibilityError(
+            "snap_batch must be InfrastructureNetworkSnapBatchResult"
+        )
+    if not isinstance(infrastructure_type, InfrastructureType):
+        raise InfrastructureAccessibilityError(
+            "infrastructure_type must be InfrastructureType"
+        )
     if not isinstance(policy, InfrastructureCandidateAccessibilityPolicy):
         raise InfrastructureAccessibilityError(
             "policy must be InfrastructureCandidateAccessibilityPolicy"
