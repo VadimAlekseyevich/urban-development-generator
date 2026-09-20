@@ -352,13 +352,16 @@ def _existing_accessibility_summaries(
                 raise InfrastructureUiReadModelPersistenceError(
                     "existing accessibility result must reference existing facility"
                 )
-            facility = facilities.get(ref.facility_id)
-            if facility is None:
+            matched_facility = facilities.get(ref.facility_id)
+            if matched_facility is None:
                 raise InfrastructureUiReadModelPersistenceError(
                     "existing accessibility references unknown facility: "
                     f"{ref.facility_id}"
                 )
-            if facility.infrastructure_type_code != batch.infrastructure_type_code:
+            if (
+                matched_facility.infrastructure_type_code
+                != batch.infrastructure_type_code
+            ):
                 raise InfrastructureUiReadModelPersistenceError(
                     "existing accessibility facility type mismatch"
                 )
