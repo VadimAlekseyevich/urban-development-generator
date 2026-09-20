@@ -138,6 +138,6 @@ typed subject/ref records
  -> enforced NetworkBackend-only boundary
 ```
 
-The next ordered capability is **UG-AI-020 / S10-T07**, which defines the accessibility
-query/result contract. T07 may consume T06 snap results but must not move pathfinding into the
-placement loop.
+S10-T07 consumes these snap results through the typed contract in
+`docs/INFRASTRUCTURE_ACCESSIBILITY.md`. Routing remains behind `NetworkBackend`, and pathfinding
+must not move into the later placement loop.

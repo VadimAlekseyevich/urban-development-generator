@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import pytest
+
+from core.urban_generator import domain, infrastructure
+
+TYPE_CODE = "school.general"
+
+
+def _demand_ref(*, type_code: str = TYPE_CODE) -> infrastructure.InfrastructureDemandRef:
+    return infrastructure.InfrastructureDemandRef(
+        block_id="block-1",
+        infrastructure_type_code=type_code,
+    )
+
+
+def _facility_ref(
+    *,
+    facility_id: str = "site-1",
+    type_code: str = TYPE_CODE,
+) -> infrastructure.ExistingInfrastructureFacilityRef:
+    return infrastructure.ExistingInfrastructureFacilityRef(
+        facility_id=facility_id,
+        infrastructure_type_code=type_code,
+    )
+
+
+def _candidate_ref(
+    *,
+    candidate_id: str = "site-1",
+    type_code: str = TYPE_CODE,
+) -> infrastructure.InfrastructureCandidateRef:
+    return infrastructure.InfrastructureCandidateRef(
+        candidate_id=candidate_id,
+        infrastructure_type_code=type_code,
+    )
+
+
+def test_accessibility_query_key_keeps_existing_and_candidate_families_distinct() -> None:
+    common = {
+        "snapshot_id": "roads:v1",
+        "infrastructure_type_code": TYPE_CODE,
+        "demand_ref": _demand_ref(),
+        "demand_node": domain.NetworkNodeRef(node_id="demand-node"),
+        "facility_site_node": domain.NetworkNodeRef(node_id="site-node"),
+        "max_network_distance_m": 1500.0,
+    }
+
+    existing = infrastructure.InfrastructureAccessibilityQuery(
+        facility_site_ref=_facility_ref(),
+        **common,
+    )
+    candidate = infrastructure.InfrastructureAccessibilityQuery(
+        facility_site_ref=_candidate_ref(),
+        **common,
+    )
+
+    assert existing.key == (
+        TYPE_CODE,
+        "block-1",
+        "existing_facility",
+        "site-1",
+    )
+    assert candidate.key == (
+        TYPE_CODE,
+        "block-1",
+        "candidate_site",
+        "site-1",
+    )
+    assert existing.key != candidate.key
+
+
+@pytest.mark.parametrize(
+    ("demand_ref", "facility_site_ref", "message"),
+    [
+        (
+            _demand_ref(type_code="clinic.general"),
+            _facility_ref(),
+            "demand_ref infrastructure type",
+        ),
+        (
+            _demand_ref(),
+            _candidate_ref(type_code="clinic.general"),
+            "facility_site_ref infrastructure type",
+        ),
+    ],
+)
+def test_accessibility_query_rejects_cross_type_refs(
+    demand_ref: infrastructure.InfrastructureDemandRef,
+    facility_site_ref: (
+        infrastructure.ExistingInfrastructureFacilityRef
+        | infrastructure.InfrastructureCandidateRef
+    ),
+    message: str,
+) -> None:
+    with pytest.raises(infrastructure.InfrastructureAccessibilityError, match=message):
+        infrastructure.InfrastructureAccessibilityQuery(
+            snapshot_id="roads:v1",
+            infrastructure_type_code=TYPE_CODE,
+            demand_ref=demand_ref,
+            facility_site_ref=facility_site_ref,
+            demand_node=domain.NetworkNodeRef(node_id="demand-node"),
+            facility_site_node=domain.NetworkNodeRef(node_id="site-node"),
+            max_network_distance_m=1500.0,
+        )
+
+
+@pytest.mark.parametrize(
+    "max_distance_m",
+    [0.0, -1.0, float("inf"), float("nan")],
+)
+def test_accessibility_query_requires_positive_finite_service_cutoff(
+    max_distance_m: float,
+) -> None:
+    with pytest.raises(infrastructure.InfrastructureAccessibilityError):
+        infrastructure.InfrastructureAccessibilityQuery(
+            snapshot_id="roads:v1",
+            infrastructure_type_code=TYPE_CODE,
+            demand_ref=_demand_ref(),
+            facility_site_ref=_facility_ref(),
+            demand_node=domain.NetworkNodeRef(node_id="demand-node"),
+            facility_site_node=domain.NetworkNodeRef(node_id="site-node"),
+            max_network_distance_m=max_distance_m,
+        )
+
+
+def test_accessibility_result_preserves_query_identity_and_network_provenance() -> None:
+    result = infrastructure.InfrastructureAccessibilityResult(
+        snapshot_id="roads:v1",
+        infrastructure_type_code=TYPE_CODE,
+        demand_ref=_demand_ref(),
+        facility_site_ref=_candidate_ref(candidate_id="candidate-7"),
+        demand_node=domain.NetworkNodeRef(node_id="demand-node"),
+        facility_site_node=domain.NetworkNodeRef(node_id="candidate-node"),
+        max_network_distance_m=1500.0,
+        distance_m=725.5,
+    )
+
+    assert result.key == (
+        TYPE_CODE,
+        "block-1",
+        "candidate_site",
+        "candidate-7",
+    )
+    assert result.snapshot_id == "roads:v1"
+    assert result.demand_node == domain.NetworkNodeRef(node_id="demand-node")
+    assert result.facility_site_node == domain.NetworkNodeRef(node_id="candidate-node")
+    assert result.distance_m == pytest.approx(725.5)
+
+
+def test_accessibility_result_rejects_distance_beyond_query_cutoff() -> None:
+    with pytest.raises(
+        infrastructure.InfrastructureAccessibilityError,
+        match="must not exceed",
+    ):
+        infrastructure.InfrastructureAccessibilityResult(
+            snapshot_id="roads:v1",
+            infrastructure_type_code=TYPE_CODE,
+            demand_ref=_demand_ref(),
+            facility_site_ref=_facility_ref(),
+            demand_node=domain.NetworkNodeRef(node_id="demand-node"),
+            facility_site_node=domain.NetworkNodeRef(node_id="facility-node"),
+            max_network_distance_m=1000.0,
+            distance_m=1000.1,
+        )
+
+
+@pytest.mark.parametrize(
+    "distance_m",
+    [-1.0, float("inf"), float("nan")],
+)
+def test_accessibility_result_distance_is_finite_and_non_negative(
+    distance_m: float,
+) -> None:
+    with pytest.raises(
+        infrastructure.InfrastructureAccessibilityError,
+        match="finite non-negative",
+    ):
+        infrastructure.InfrastructureAccessibilityResult(
+            snapshot_id="roads:v1",
+            infrastructure_type_code=TYPE_CODE,
+            demand_ref=_demand_ref(),
+            facility_site_ref=_facility_ref(),
+            demand_node=domain.NetworkNodeRef(node_id="demand-node"),
+            facility_site_node=domain.NetworkNodeRef(node_id="facility-node"),
+            max_network_distance_m=1000.0,
+            distance_m=distance_m,
+        )
