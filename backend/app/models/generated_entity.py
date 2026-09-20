@@ -310,13 +310,126 @@ class GeneratedInfrastructure(GeneratedEntityMixin, Base):
     __tablename__ = "generated_infrastructure"
     __table_args__ = (
         *_generated_access_indexes("generated_infrastructure"),
+        Index(
+            "uq_generated_infrastructure_run_candidate_type",
+            "run_id",
+            "candidate_id",
+            "infrastructure_type_code",
+            unique=True,
+        ),
+        Index(
+            "ix_generated_infrastructure_run_category",
+            "run_id",
+            "category",
+        ),
         CheckConstraint(
             "jsonb_typeof(attributes_json) = 'object'",
             name="ck_generated_infrastructure_attributes_object",
+        ),
+        CheckConstraint(
+            "candidate_id IS NULL OR length(btrim(candidate_id)) > 0",
+            name="ck_generated_infrastructure_candidate_id_nonempty",
+        ),
+        CheckConstraint(
+            "infrastructure_type_code IS NULL OR "
+            "length(btrim(infrastructure_type_code)) > 0",
+            name="ck_generated_infrastructure_type_code_nonempty",
+        ),
+        CheckConstraint(
+            "category IS NULL OR category IN "
+            "('education', 'healthcare', 'retail', 'recreation')",
+            name="ck_generated_infrastructure_category",
+        ),
+        CheckConstraint(
+            "capacity IS NULL OR capacity > 0",
+            name="ck_generated_infrastructure_capacity_positive",
+        ),
+        CheckConstraint(
+            "acceptance_index IS NULL OR acceptance_index >= 0",
+            name="ck_generated_infrastructure_acceptance_index_nonnegative",
+        ),
+        CheckConstraint(
+            "geometry_kind IS NULL OR geometry_kind IN ('site', 'host_building')",
+            name="ck_generated_infrastructure_geometry_kind",
+        ),
+        CheckConstraint(
+            "site_area_m2 IS NULL OR site_area_m2 > 0",
+            name="ck_generated_infrastructure_site_area_positive",
+        ),
+        CheckConstraint(
+            "network_snapshot_id IS NULL OR "
+            "length(btrim(network_snapshot_id)) > 0",
+            name="ck_generated_infrastructure_network_snapshot_nonempty",
+        ),
+        CheckConstraint(
+            "network_node_id IS NULL OR length(btrim(network_node_id)) > 0",
+            name="ck_generated_infrastructure_network_node_nonempty",
+        ),
+        CheckConstraint(
+            "network_snap_distance_m IS NULL OR network_snap_distance_m >= 0",
+            name="ck_generated_infrastructure_snap_distance_nonnegative",
+        ),
+        CheckConstraint(
+            "("
+            "candidate_id IS NULL "
+            "AND infrastructure_type_code IS NULL "
+            "AND category IS NULL "
+            "AND capacity IS NULL "
+            "AND acceptance_index IS NULL "
+            "AND geometry_kind IS NULL "
+            "AND host_building_id IS NULL "
+            "AND site_area_m2 IS NULL "
+            "AND network_snapshot_id IS NULL "
+            "AND network_node_id IS NULL "
+            "AND network_snap_distance_m IS NULL"
+            ") OR ("
+            "candidate_id IS NOT NULL "
+            "AND infrastructure_type_code IS NOT NULL "
+            "AND category IS NOT NULL "
+            "AND capacity IS NOT NULL "
+            "AND acceptance_index IS NOT NULL "
+            "AND geometry_kind IS NOT NULL "
+            "AND network_snapshot_id IS NOT NULL "
+            "AND network_node_id IS NOT NULL "
+            "AND network_snap_distance_m IS NOT NULL "
+            "AND ("
+            "(geometry_kind = 'site' "
+            "AND host_building_id IS NULL "
+            "AND site_area_m2 IS NOT NULL) "
+            "OR (geometry_kind = 'host_building' "
+            "AND host_building_id IS NOT NULL "
+            "AND site_area_m2 IS NULL)"
+            ")"
+            ")",
+            name="ck_generated_infrastructure_typed_shape",
         ),
     )
 
     geometry: Mapped[WKBElement] = mapped_column(
         Geometry(geometry_type="GEOMETRY", srid=-1, spatial_index=False),
         nullable=False,
+    )
+    candidate_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    infrastructure_type_code: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    capacity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    acceptance_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    geometry_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    host_building_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("generated_buildings.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    site_area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    network_snapshot_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    network_node_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    network_snap_distance_m: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
     )
