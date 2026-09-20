@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**S10-T09 Capacity/site feasibility завершён**; **S10-T10 persistence реализован через writer**: UG-AI-033..034 добавляют typed GeneratedInfrastructure schema/migration и retry-safe bounded persistence writer.
+**S10-T10 GeneratedInfrastructure persistence завершён**: UG-AI-033..035 добавляют typed schema/migration, retry-safe bounded writer и PostgreSQL/PostGIS integration/index gate.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-035 / S10-T10`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-036 / S10-T11`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
