@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T09 are complete; S10-T10 schema/writer are implemented through UG-AI-034 and the current ordered task is **UG-AI-035 / S10-T10**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T09 are complete; S10-T10 persistence is complete through UG-AI-035 and the current ordered task is **UG-AI-036 / S10-T11**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-035 / S10-T10
-Add persistence/database integration tests and required run/spatial indexes.
+UG-AI-036 / S10-T11
+Compute canonical infrastructure RawMetricId values from T07-T10 results without rerunning routing.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
