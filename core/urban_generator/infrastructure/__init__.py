@@ -56,6 +56,11 @@ from core.urban_generator.infrastructure.existing import (
     ExistingInfrastructureFacility,
     ExistingInfrastructureResult,
 )
+from core.urban_generator.infrastructure.feasibility import (
+    InfrastructureFeasibilityError,
+    InfrastructureFeasibilityRejectionReason,
+    InfrastructureFeasibilityResult,
+)
 from core.urban_generator.infrastructure.network_snap import (
     MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE,
     ExistingInfrastructureFacilityRef,
@@ -151,6 +156,9 @@ __all__ = [
     "calculate_infrastructure_candidate_benefits",
     "initialize_infrastructure_greedy_placement_state",
     "select_infrastructure_greedy_candidate",
+    "InfrastructureFeasibilityError",
+    "InfrastructureFeasibilityRejectionReason",
+    "InfrastructureFeasibilityResult",
     "MAX_INFRASTRUCTURE_SNAP_BATCH_SIZE",
     "ExistingInfrastructureFacilityRef",
     "ExistingInfrastructureFacilitySnap",
