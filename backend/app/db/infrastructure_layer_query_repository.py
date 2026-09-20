@@ -10,6 +10,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from backend.app.application.infrastructure_layers import (
     InfrastructureFeature,
+    InfrastructureOrigin,
     InfrastructureRunContext,
     InfrastructureRunSummary,
 )
@@ -139,7 +140,23 @@ class SqlAlchemyInfrastructureLayerQueryRepository:
         working_srid: int,
         bbox: SourceLayerBbox,
         limit: int,
+        origin: InfrastructureOrigin | None = None,
     ) -> list[InfrastructureFeature]:
+        if origin == "existing":
+            return self._list_existing(
+                run_id=run_id,
+                working_srid=working_srid,
+                bbox=bbox,
+                limit=limit,
+            )
+        if origin == "generated":
+            return self._list_generated(
+                run_id=run_id,
+                working_srid=working_srid,
+                bbox=bbox,
+                limit=limit,
+            )
+
         existing = self._list_existing(
             run_id=run_id,
             working_srid=working_srid,
