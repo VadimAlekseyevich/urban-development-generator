@@ -5,7 +5,7 @@ from alembic import command
 from alembic.config import Config
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point, box
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.app.db.infrastructure_ui_read_model_writer import (
