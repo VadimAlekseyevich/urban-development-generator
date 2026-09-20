@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T10 are complete; S10-T11 raw metric computation and edge policies are implemented through UG-AI-037 and the current ordered task is **UG-AI-038 / S10-T11**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T10 are complete; S10-T11 raw metrics and numeric hardening are complete through UG-AI-038; the current ordered task is **UG-AI-039 / S10-T12**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-038 / S10-T11
-Add numeric/property tests for coverage bounds, percentiles and capacity conservation.
+UG-AI-039 / S10-T12
+Add run-scoped infrastructure read service/repository API with bounded bbox access and existing/generated distinction.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
