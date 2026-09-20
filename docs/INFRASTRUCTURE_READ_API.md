@@ -25,15 +25,20 @@ classes or geometry.
 - `GET /api/v1/projects/{project_id}/infrastructure-runs`
   lists project runs with existing/generated facility counts.
 - `GET /api/v1/projects/{project_id}/infrastructure-runs/{run_id}/facilities/geojson`
-  returns a bounded EPSG:4326 FeatureCollection for a required viewport bbox.
+  returns a bounded EPSG:4326 FeatureCollection for a required viewport bbox. An optional
+  `origin=existing|generated` query filter lets map clients bound the two persisted origins
+  independently so a dense fixed-facility viewport cannot starve generated facilities from the
+  response.
 
 The viewport endpoint follows the existing generated-layer contract: bbox is supplied as
 `west,south,east,north` in EPSG:4326, transformed to the run working SRID for PostGIS filtering,
 and output geometry is transformed back to EPSG:4326.
 
-Default limit is 1500 and hard API limit is 5000. The repository reads at most the requested bound
-from each origin, merges deterministically with existing facilities before generated facilities,
-and the application service requests one extra row to set `truncated`.
+Default limit is 1500 and hard API limit is 5000. Without an `origin` filter the repository
+preserves the original deterministic combined ordering. With an `origin` filter, the requested
+origin receives the full bound independently; the application service still requests one extra row
+to set `truncated`. The S10 infrastructure panel uses separate bounded reads for existing and
+generated origins.
 
 ## Properties
 
