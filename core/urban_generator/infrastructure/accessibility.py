@@ -275,18 +275,17 @@ def compute_existing_facility_accessibility(
     return tuple(sorted(results, key=lambda item: item.key))
 
 
-
 def compute_candidate_site_accessibility(
     backend: NetworkBackend,
     snap_batch: InfrastructureNetworkSnapBatchResult,
     *,
     infrastructure_type: InfrastructureType,
-    policy: InfrastructureCandidateAccessibilityPolicy = (
-        InfrastructureCandidateAccessibilityPolicy()
-    ),
+    policy: InfrastructureCandidateAccessibilityPolicy | None = None,
 ) -> tuple[InfrastructureAccessibilityResult, ...]:
     """Return bounded candidate-to-demand accessibility rows in deterministic batches."""
 
+    if policy is None:
+        policy = InfrastructureCandidateAccessibilityPolicy()
     if not isinstance(backend, NetworkBackend):
         raise InfrastructureAccessibilityError("backend must satisfy NetworkBackend")
     if not isinstance(snap_batch, InfrastructureNetworkSnapBatchResult):
