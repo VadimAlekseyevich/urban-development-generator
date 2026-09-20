@@ -1,13 +1,13 @@
 # Infrastructure read API
 
-> **Status: Implemented through UG-AI-039 / S10-T12**
+> **Status: S10-T12 read/UI contract implemented through UG-AI-040**
 
 S10-T12 exposes run-scoped infrastructure state for map/API consumers without moving authoritative
 computation into the frontend.
 
 ## Run-scoped fixed/generated view
 
-A selected `GenerationRun` defines both halves of the infrastructure view:
+A selected `GenerationRun` defines both halves of the facility view:
 
 - **existing** facilities are rows from `source_facilities` whose `dataset_version_id` belongs
   to the run's immutable `generation_run_dataset_versions` set;
@@ -16,67 +16,71 @@ A selected `GenerationRun` defines both halves of the infrastructure view:
 The API never reads every source facility in a project and never guesses which dataset version was
 active. An unlinked source dataset version is invisible to that run.
 
-Every GeoJSON feature carries explicit `origin = existing | generated` both as a typed top-level
-field and in properties. Consumers therefore do not infer fixed/generated ownership from ids,
-classes or geometry.
+Every facility GeoJSON feature carries explicit `origin = existing | generated`. Consumers do not
+infer fixed/generated ownership from ids, classes or geometry.
+
+## Authoritative S10 presentation read-model
+
+UG-AI-040 materializes already-computed T03/T07/T08/T11 outputs into existing run-scoped JSON
+extension points. It does not introduce a second infrastructure domain model and performs no
+routing during reads.
+
+`SqlAlchemyInfrastructureUiReadModelWriter` writes, before a run reaches `succeeded`:
+
+- `GeneratedBlock.attributes_json.infrastructure` — gross, served and final unmet demand,
+  aggregate coverage ratio and per-infrastructure-type demand rows;
+- `GeneratedInfrastructure.attributes_json.accessibility` — T07 reachability summary for an
+  accepted generated facility: reachable demand count plus nearest/farthest cached network
+  distance and authoritative max network distance;
+- `GenerationRun.metrics_json.infrastructure` — canonical T11 `RawMetricId` values,
+  diagnostics and existing/generated facility accessibility summaries.
+
+The writer validates T03/T07/T08 alignment through the existing `InfrastructureMetricsBuilder`,
+locks the run-scoped rows it mutates, preserves other JSON namespaces, is retry-safe for identical
+inputs and rejects a successful run before persistence mutation.
+
+Existing source facilities remain immutable. Their T07 accessibility summaries live only in the
+run-level read-model and are joined by stable source identity in the client.
 
 ## Endpoints
 
 - `GET /api/v1/projects/{project_id}/infrastructure-runs`
   lists project runs with existing/generated facility counts.
 - `GET /api/v1/projects/{project_id}/infrastructure-runs/{run_id}/facilities/geojson`
-  returns a bounded EPSG:4326 FeatureCollection for a required viewport bbox. An optional
-  `origin=existing|generated` query filter lets map clients bound the two persisted origins
-  independently so a dense fixed-facility viewport cannot starve generated facilities from the
-  response.
+  returns a bounded EPSG:4326 FeatureCollection for a required viewport bbox. Optional
+  `origin=existing|generated` gives each origin its own bound.
+- `GET /api/v1/projects/{project_id}/infrastructure-runs/{run_id}/metrics`
+  returns the persisted S10 T11 raw metrics, diagnostics and facility reachability summaries.
+- `GET /api/v1/projects/{project_id}/infrastructure-runs/{run_id}/demand/geojson`
+  returns bounded generated-block geometry with persisted final demand/coverage properties.
 
-The viewport endpoint follows the existing generated-layer contract: bbox is supplied as
-`west,south,east,north` in EPSG:4326, transformed to the run working SRID for PostGIS filtering,
-and output geometry is transformed back to EPSG:4326.
+The two read-model endpoints return HTTP 409 when the run exists but its S10 presentation
+read-model has not yet been materialized. A run/project mismatch remains HTTP 404.
 
-Default limit is 1500 and hard API limit is 5000. Without an `origin` filter the repository
-preserves the original deterministic combined ordering. With an `origin` filter, the requested
-origin receives the full bound independently; the application service still requests one extra row
-to set `truncated`. The S10 infrastructure panel uses separate bounded reads for existing and
-generated origins.
+Spatial endpoints accept `bbox=west,south,east,north` in EPSG:4326, transform the envelope to the
+run working SRID for PostGIS filtering, and transform output geometry back to EPSG:4326. Default
+limit is 1500 and hard API limit is 5000.
 
-## Properties
+## Frontend contract
 
-Existing features expose normalized source semantics:
+The S10 Infrastructure panel:
 
-- source dataset-version id and source feature id;
-- facility class and name;
-- optional source capacity;
-- normalized source attributes.
+- selects a persisted infrastructure run;
+- reads fixed and generated facilities independently so one origin cannot starve the other under
+  truncation;
+- styles generated accepted sites/host anchors by infrastructure category;
+- renders final unmet demand as a block choropleth;
+- shows canonical population coverage, unmet demand, p50/p90 network distance and capacity
+  utilization from the persisted T11 read-model;
+- shows selected-facility network snap provenance and persisted T07 reachability summary.
 
-Generated features expose the S10-T10 typed persistence contract:
-
-- candidate id and infrastructure type code;
-- category and capacity;
-- greedy acceptance index;
-- site/host geometry kind, host reference or site area;
-- network snapshot/node/snap distance provenance;
-- generated provenance attributes.
-
-No routing, feasibility, placement or metrics are recomputed on reads.
-
-## Ownership boundary
-
-The application layer owns request validation, project/run lookup semantics, bbox/limit policy and
-truncation. The SQLAlchemy repository owns PostGIS transforms, spatial predicates and persistence
-joins. FastAPI controllers only map typed results/errors to HTTP schemas/status codes.
+The browser never calls `NetworkBackend`, reconstructs candidate×demand matrices, reruns greedy
+placement or derives canonical metrics from map features.
 
 ## Explicit non-goals
 
-UG-AI-039 does not:
+This read contract does not expose every rejected/unaccepted candidate alternative or a full
+candidate×demand accessibility matrix. Those bounded core structures remain execution inputs, not
+a second browser-side authoritative state.
 
-- implement infrastructure map controls or styling;
-- add frontend run selection/error/truncation UX;
-- recompute infrastructure metrics;
-- expose candidate alternatives or demand/accessibility detail beyond persisted facilities.
-
-Ordered follow-up:
-
-- UG-AI-040 — add frontend infrastructure panel/layers;
-- UG-AI-041 — add UI error/truncation/run-selection states while keeping computation authoritative
-  on the backend.
+UG-AI-041 owns the follow-up UX hardening for explicit error/truncation/run-selection states.
