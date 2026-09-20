@@ -336,7 +336,7 @@ class InfrastructureMetricsBuilder:
             total_served += served
 
             if demand.demographic_signal not in {
-                DemographicDemandCategory.TOTAL_POPULATION,
+                DemographicDemandCategory.POPULATION,
                 DemographicDemandCategory.AGE_GROUP,
             }:
                 continue
