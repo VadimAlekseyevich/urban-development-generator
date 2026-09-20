@@ -22,7 +22,6 @@ from core.urban_generator.infrastructure import (
     InfrastructureCandidateGeometry,
     InfrastructureCandidateGeometryKind,
     InfrastructureCandidateGeometryResult,
-    InfrastructureCandidateRef,
     InfrastructureCandidateSnap,
     InfrastructureCandidateUnsnapped,
     InfrastructureGreedyPlacementState,
