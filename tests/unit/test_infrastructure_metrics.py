@@ -12,6 +12,7 @@ from core.urban_generator.infrastructure import (
     InfrastructureAcceptedFacility,
     InfrastructureCandidatePolicy,
     InfrastructureCandidateRef,
+    InfrastructureCandidateSource,
     InfrastructureCategory,
     InfrastructureCoverageCacheEntry,
     InfrastructureDemandModel,
@@ -47,7 +48,7 @@ def _type() -> InfrastructureType:
         minimum_site_area_m2=100.0,
         target_site_area_m2=200.0,
         candidate_policy=InfrastructureCandidatePolicy(
-            sources=(),
+            sources=(InfrastructureCandidateSource.PARCEL,),
         ),
     )
 
