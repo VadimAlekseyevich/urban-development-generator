@@ -46,8 +46,18 @@ const FACILITY_LAYER_IDS = [
   GENERATED_LINE_ID,
 ] as const
 
-type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+type LoadStatus = 'idle' | 'loading' | 'ready' | 'partial' | 'error'
+type ReadModelStatus = 'idle' | 'loading' | 'ready' | 'not-ready' | 'error'
 type Origin = 'existing' | 'generated'
+type ViewportLayerKey = 'existing' | 'generated' | 'demand'
+
+type ViewportLayerState = {
+  count: number
+  truncated: boolean
+  error: string | null
+}
+
+type ViewportLayerStates = Record<ViewportLayerKey, ViewportLayerState>
 
 type InfrastructureRunSummary = {
   id: string
@@ -81,6 +91,10 @@ type InfrastructureDemandResponse = GeoJsonFeatureCollection & {
   limit: number
   truncated: boolean
 }
+
+type BoundedInfrastructureResponse =
+  | InfrastructureResponse
+  | InfrastructureDemandResponse
 
 type InfrastructureAgeCoverage = {
   demographic_group: string
@@ -160,6 +174,20 @@ const DEMAND_FILL_COLOR: ExpressionSpecification = [
   50,
   '#dc2626',
 ]
+
+const VIEWPORT_LABELS: Record<ViewportLayerKey, string> = {
+  existing: 'fixed facilities',
+  generated: 'generated facilities',
+  demand: 'final unmet demand',
+}
+
+function emptyViewportLayerStates(): ViewportLayerStates {
+  return {
+    existing: { count: 0, truncated: false, error: null },
+    generated: { count: 0, truncated: false, error: null },
+    demand: { count: 0, truncated: false, error: null },
+  }
+}
 
 function originFilter(origin: Origin): ExpressionSpecification {
   return ['==', ['get', 'origin'], origin] as ExpressionSpecification
@@ -403,6 +431,60 @@ function scalarMetric(
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function syncRunQuery(runId: string): void {
+  const url = new URL(window.location.href)
+  if (runId) {
+    url.searchParams.set('infrastructure_run_id', runId)
+  } else {
+    url.searchParams.delete('infrastructure_run_id')
+  }
+  window.history.replaceState({}, '', url)
+}
+
+function chooseRun(
+  runs: InfrastructureRunSummary[],
+  requestedRunId: string,
+): { runId: string; notice: string | null } {
+  if (requestedRunId) {
+    const requested = runs.find((run) => run.id === requestedRunId)
+    if (requested) return { runId: requested.id, notice: null }
+  }
+
+  const preferred =
+    runs.find(
+      (run) =>
+        run.existing_facility_count > 0 ||
+        run.generated_facility_count > 0,
+    ) ??
+    runs[0] ??
+    null
+  if (!preferred) return { runId: '', notice: null }
+
+  return {
+    runId: preferred.id,
+    notice: requestedRunId
+      ? 'Requested run ' +
+        requestedRunId.slice(0, 8) +
+        ' is unavailable; selected ' +
+        preferred.id.slice(0, 8) +
+        '.'
+      : null,
+  }
+}
+
+function layerCount(
+  state: ViewportLayerState,
+  total: number | null = null,
+): string {
+  if (state.error) return '!'
+  const visible = String(state.count) + (state.truncated ? '+' : '')
+  return total === null ? visible : visible + '/' + String(total)
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export function InfrastructurePanel({
   apiBase,
   map,
@@ -414,25 +496,65 @@ export function InfrastructurePanel({
 
   const [runs, setRuns] = useState<InfrastructureRunSummary[]>([])
   const [runId, setRunId] = useState('')
+  const [runsStatus, setRunsStatus] = useState<LoadStatus>('idle')
+  const [runsMessage, setRunsMessage] = useState(
+    'Выберите проект с infrastructure run.',
+  )
+  const [runSelectionNotice, setRunSelectionNotice] = useState<string | null>(
+    null,
+  )
+  const [runsRefreshNonce, setRunsRefreshNonce] = useState(0)
+
+  const [metrics, setMetrics] = useState<InfrastructureMetricsResponse | null>(
+    null,
+  )
+  const [readModelStatus, setReadModelStatus] =
+    useState<ReadModelStatus>('idle')
+  const [readModelMessage, setReadModelMessage] = useState(
+    'Read model будет проверен после выбора run.',
+  )
+  const [readModelRefreshNonce, setReadModelRefreshNonce] = useState(0)
+
   const [existingVisible, setExistingVisible] = useState(true)
   const [generatedVisible, setGeneratedVisible] = useState(true)
   const [demandVisible, setDemandVisible] = useState(true)
-  const [status, setStatus] = useState<LoadStatus>('idle')
-  const [message, setMessage] = useState('Выберите проект с infrastructure run.')
-  const [existingCount, setExistingCount] = useState(0)
-  const [generatedCount, setGeneratedCount] = useState(0)
-  const [demandCount, setDemandCount] = useState(0)
-  const [existingTruncated, setExistingTruncated] = useState(false)
-  const [generatedTruncated, setGeneratedTruncated] = useState(false)
-  const [demandTruncated, setDemandTruncated] = useState(false)
-  const [metrics, setMetrics] = useState<InfrastructureMetricsResponse | null>(null)
-  const [readModelReady, setReadModelReady] = useState(false)
+  const [viewportStatus, setViewportStatus] = useState<LoadStatus>('idle')
+  const [viewportMessage, setViewportMessage] = useState(
+    'Viewport будет загружен после выбора run.',
+  )
+  const [viewportLayers, setViewportLayers] = useState<ViewportLayerStates>(
+    emptyViewportLayerStates,
+  )
+
   const [selected, setSelected] = useState<SelectedInfrastructure | null>(null)
-  const [selectedDemand, setSelectedDemand] = useState<GeoJsonFeature | null>(null)
+  const [selectedDemand, setSelectedDemand] = useState<GeoJsonFeature | null>(
+    null,
+  )
 
   const activeRun = useMemo(
     () => runs.find((run) => run.id === runId) ?? null,
     [runId, runs],
+  )
+  const readModelReady = readModelStatus === 'ready'
+
+  const truncatedLayers = useMemo(
+    () =>
+      (Object.keys(viewportLayers) as ViewportLayerKey[])
+        .filter((key) => viewportLayers[key].truncated)
+        .map((key) => VIEWPORT_LABELS[key]),
+    [viewportLayers],
+  )
+
+  const layerErrors = useMemo(
+    () =>
+      (Object.keys(viewportLayers) as ViewportLayerKey[])
+        .filter((key) => viewportLayers[key].error !== null)
+        .map((key) => ({
+          key,
+          label: VIEWPORT_LABELS[key],
+          message: viewportLayers[key].error ?? '',
+        })),
+    [viewportLayers],
   )
 
   const selectedAccessibility = useMemo(() => {
@@ -554,30 +676,29 @@ export function InfrastructurePanel({
     setRuns([])
     setRunId('')
     setMetrics(null)
-    setReadModelReady(false)
+    setRunSelectionNotice(null)
+    setReadModelStatus('idle')
+    setReadModelMessage('Read model будет проверен после выбора run.')
+    setViewportStatus('idle')
+    setViewportMessage('Viewport будет загружен после выбора run.')
+    setViewportLayers(emptyViewportLayerStates())
     setSelected(null)
     setSelectedDemand(null)
-    setExistingCount(0)
-    setGeneratedCount(0)
-    setDemandCount(0)
-    setExistingTruncated(false)
-    setGeneratedTruncated(false)
-    setDemandTruncated(false)
     if (map) {
       setSourceData(map, FACILITY_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
       setSourceData(map, DEMAND_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
     }
 
     if (!projectId) {
-      setStatus('idle')
-      setMessage('Выберите проект с infrastructure run.')
+      setRunsStatus('idle')
+      setRunsMessage('Выберите проект с infrastructure run.')
       return
     }
 
     const controller = new AbortController()
     runsAbortRef.current = controller
-    setStatus('loading')
-    setMessage('Загружаю infrastructure runs…')
+    setRunsStatus('loading')
+    setRunsMessage('Загружаю infrastructure runs…')
 
     const url =
       apiBase +
@@ -603,41 +724,45 @@ export function InfrastructurePanel({
           new URLSearchParams(window.location.search).get(
             'infrastructure_run_id',
           ) ?? ''
-        const preferred =
-          items.find((run) => run.id === requested) ??
-          items.find(
-            (run) =>
-              run.existing_facility_count > 0 ||
-              run.generated_facility_count > 0,
-          ) ??
-          items[0]
-        setRunId(preferred?.id ?? '')
-        setStatus('ready')
-        setMessage(
-          preferred
-            ? 'Infrastructure run выбран; карта обновляется по viewport.'
+        const selection = chooseRun(items, requested)
+        setRunId(selection.runId)
+        setRunSelectionNotice(selection.notice)
+        syncRunQuery(selection.runId)
+        setRunsStatus('ready')
+        setRunsMessage(
+          items.length > 0
+            ? String(items.length) + ' infrastructure runs доступны.'
             : 'Для проекта ещё нет generation runs.',
         )
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setStatus('error')
-        setMessage(error instanceof Error ? error.message : String(error))
+        setRuns([])
+        setRunId('')
+        syncRunQuery('')
+        setRunsStatus('error')
+        setRunsMessage(errorMessage(error))
       })
 
     return () => controller.abort()
-  }, [apiBase, map, projectId])
+  }, [apiBase, map, projectId, runsRefreshNonce])
 
   useEffect(() => {
     metricsAbortRef.current?.abort()
     setMetrics(null)
-    setReadModelReady(false)
     setSelected(null)
     setSelectedDemand(null)
-    if (!projectId || !runId) return
+
+    if (!projectId || !runId) {
+      setReadModelStatus('idle')
+      setReadModelMessage('Read model будет проверен после выбора run.')
+      return
+    }
 
     const controller = new AbortController()
     metricsAbortRef.current = controller
+    setReadModelStatus('loading')
+    setReadModelMessage('Проверяю persisted infrastructure read model…')
     const url =
       apiBase +
       '/projects/' +
@@ -648,7 +773,12 @@ export function InfrastructurePanel({
 
     void fetch(url, { signal: controller.signal })
       .then(async (response) => {
-        if (response.status === 409) return null
+        if (response.status === 409) {
+          return {
+            kind: 'not-ready' as const,
+            detail: await response.text(),
+          }
+        }
         if (!response.ok) {
           throw new Error(
             'Infrastructure metrics: HTTP ' +
@@ -657,26 +787,51 @@ export function InfrastructurePanel({
               (await response.text()),
           )
         }
-        return (await response.json()) as InfrastructureMetricsResponse
+        return {
+          kind: 'ready' as const,
+          value: (await response.json()) as InfrastructureMetricsResponse,
+        }
       })
-      .then((value) => {
+      .then((result) => {
         if (controller.signal.aborted) return
-        setMetrics(value)
-        setReadModelReady(value !== null)
+        if (result.kind === 'not-ready') {
+          setMetrics(null)
+          setReadModelStatus('not-ready')
+          setReadModelMessage(
+            'Run существует, но S10 presentation read model ещё не materialized. ' +
+              'Fixed/generated facilities доступны; demand и metrics пока скрыты.',
+          )
+          if (map) {
+            setSourceData(map, DEMAND_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+          }
+          setViewportLayers((current) => ({
+            ...current,
+            demand: { count: 0, truncated: false, error: null },
+          }))
+          return
+        }
+        setMetrics(result.value)
+        setReadModelStatus('ready')
+        setReadModelMessage(
+          'Authoritative S10 metrics и demand read model готовы.',
+        )
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         setMetrics(null)
-        setReadModelReady(false)
-        setStatus('error')
-        setMessage(error instanceof Error ? error.message : String(error))
+        setReadModelStatus('error')
+        setReadModelMessage(errorMessage(error))
       })
 
     return () => controller.abort()
-  }, [apiBase, projectId, runId])
+  }, [apiBase, map, projectId, readModelRefreshNonce, runId])
 
   const loadViewport = useCallback(async () => {
-    if (!map || !projectId || !runId) return
+    if (!map || !projectId || !runId) {
+      setViewportStatus('idle')
+      setViewportMessage('Viewport будет загружен после выбора run.')
+      return
+    }
     ensureLayers(map)
 
     viewportAbortRef.current?.abort()
@@ -691,8 +846,8 @@ export function InfrastructurePanel({
         bounds.getNorth(),
       ),
     )
-    setStatus('loading')
-    setMessage('Загружаю infrastructure viewport…')
+    setViewportStatus('loading')
+    setViewportMessage('Загружаю infrastructure viewport…')
 
     const runBase =
       apiBase +
@@ -716,18 +871,13 @@ export function InfrastructurePanel({
       )
       if (!response.ok) {
         throw new Error(
-          'Infrastructure ' +
-            origin +
-            ' viewport: HTTP ' +
-            response.status +
-            ' ' +
-            (await response.text()),
+          'HTTP ' + response.status + ' ' + (await response.text()),
         )
       }
       return (await response.json()) as InfrastructureResponse
     }
 
-    const fetchDemand = async (): Promise<InfrastructureDemandResponse | null> => {
+    const fetchDemand = async (): Promise<InfrastructureDemandResponse> => {
       const response = await fetch(
         runBase +
           '/demand/geojson?bbox=' +
@@ -736,69 +886,111 @@ export function InfrastructurePanel({
           String(VIEWPORT_LIMIT),
         { signal: controller.signal },
       )
-      if (response.status === 409) return null
       if (!response.ok) {
         throw new Error(
-          'Infrastructure demand viewport: HTTP ' +
-            response.status +
-            ' ' +
-            (await response.text()),
+          'HTTP ' + response.status + ' ' + (await response.text()),
         )
       }
       return (await response.json()) as InfrastructureDemandResponse
     }
 
-    try {
-      const [existingResult, generatedResult, demandResult] = await Promise.all([
-        existingVisible
-          ? fetchOrigin('existing')
-          : Promise.resolve<InfrastructureResponse | null>(null),
-        generatedVisible
-          ? fetchOrigin('generated')
-          : Promise.resolve<InfrastructureResponse | null>(null),
-        demandVisible && readModelReady
-          ? fetchDemand()
-          : Promise.resolve<InfrastructureDemandResponse | null>(null),
-      ])
-      if (controller.signal.aborted) return
+    const requests: Array<{
+      key: ViewportLayerKey
+      promise: Promise<BoundedInfrastructureResponse>
+    }> = []
 
-      const existingFeatures = existingResult?.features ?? []
-      const generatedFeatures = generatedResult?.features ?? []
-      setSourceData(map, FACILITY_SOURCE_ID, {
-        type: 'FeatureCollection',
-        features: [...existingFeatures, ...generatedFeatures],
-      })
-      setSourceData(
-        map,
-        DEMAND_SOURCE_ID,
-        demandResult ?? EMPTY_FEATURE_COLLECTION,
-      )
+    if (existingVisible) {
+      requests.push({ key: 'existing', promise: fetchOrigin('existing') })
+    }
+    if (generatedVisible) {
+      requests.push({ key: 'generated', promise: fetchOrigin('generated') })
+    }
+    if (demandVisible && readModelReady) {
+      requests.push({ key: 'demand', promise: fetchDemand() })
+    }
 
-      setExistingCount(existingFeatures.length)
-      setGeneratedCount(generatedFeatures.length)
-      setDemandCount(demandResult?.features.length ?? 0)
-      setExistingTruncated(existingResult?.truncated ?? false)
-      setGeneratedTruncated(generatedResult?.truncated ?? false)
-      setDemandTruncated(demandResult?.truncated ?? false)
-      setStatus('ready')
-      setMessage(
-        'Viewport: fixed ' +
-          String(existingFeatures.length) +
-          (existingResult?.truncated ? '+' : '') +
-          ', generated ' +
-          String(generatedFeatures.length) +
-          (generatedResult?.truncated ? '+' : '') +
-          (readModelReady
-            ? ', demand blocks ' +
-              String(demandResult?.features.length ?? 0) +
-              (demandResult?.truncated ? '+' : '')
-            : ', read model not materialized') +
-          '.',
+    if (requests.length === 0) {
+      setSourceData(map, FACILITY_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+      setSourceData(map, DEMAND_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+      setViewportLayers(emptyViewportLayerStates())
+      setViewportStatus('ready')
+      setViewportMessage(
+        readModelStatus === 'not-ready'
+          ? 'Facility layers скрыты; demand read model ещё не готов.'
+          : 'Все infrastructure layers скрыты.',
       )
-    } catch (error: unknown) {
-      if (controller.signal.aborted) return
-      setStatus('error')
-      setMessage(error instanceof Error ? error.message : String(error))
+      return
+    }
+
+    const results = await Promise.allSettled(
+      requests.map((request) => request.promise),
+    )
+    if (controller.signal.aborted) return
+
+    const nextStates = emptyViewportLayerStates()
+    let existingFeatures: GeoJsonFeature[] = []
+    let generatedFeatures: GeoJsonFeature[] = []
+    let demandFeatures: GeoJsonFeature[] = []
+    let failureCount = 0
+
+    results.forEach((result, index) => {
+      const key = requests[index].key
+      if (result.status === 'rejected') {
+        failureCount += 1
+        nextStates[key] = {
+          count: 0,
+          truncated: false,
+          error: errorMessage(result.reason),
+        }
+        return
+      }
+
+      nextStates[key] = {
+        count: result.value.features.length,
+        truncated: result.value.truncated,
+        error: null,
+      }
+      if (key === 'existing') {
+        existingFeatures = result.value.features
+      } else if (key === 'generated') {
+        generatedFeatures = result.value.features
+      } else {
+        demandFeatures = result.value.features
+      }
+    })
+
+    setSourceData(map, FACILITY_SOURCE_ID, {
+      type: 'FeatureCollection',
+      features: [...existingFeatures, ...generatedFeatures],
+    })
+    setSourceData(map, DEMAND_SOURCE_ID, {
+      type: 'FeatureCollection',
+      features: demandFeatures,
+    })
+    setViewportLayers(nextStates)
+
+    const successCount = requests.length - failureCount
+    if (failureCount === requests.length) {
+      setViewportStatus('error')
+      setViewportMessage('Не удалось загрузить ни один выбранный слой.')
+    } else if (failureCount > 0) {
+      setViewportStatus('partial')
+      setViewportMessage(
+        'Viewport загружен частично: ' +
+          String(successCount) +
+          '/' +
+          String(requests.length) +
+          ' слоёв.',
+      )
+    } else {
+      setViewportStatus('ready')
+      setViewportMessage(
+        'Viewport загружен: ' +
+          String(requests.length) +
+          '/' +
+          String(requests.length) +
+          ' слоёв.',
+      )
     }
   }, [
     apiBase,
@@ -808,6 +1000,7 @@ export function InfrastructurePanel({
     map,
     projectId,
     readModelReady,
+    readModelStatus,
     runId,
   ])
 
@@ -825,15 +1018,14 @@ export function InfrastructurePanel({
   function changeRun(event: ChangeEvent<HTMLSelectElement>): void {
     const nextRunId = event.target.value
     setRunId(nextRunId)
+    setRunSelectionNotice(null)
+    setMetrics(null)
+    setReadModelStatus(nextRunId ? 'loading' : 'idle')
+    setViewportStatus(nextRunId ? 'loading' : 'idle')
+    setViewportLayers(emptyViewportLayerStates())
     setSelected(null)
     setSelectedDemand(null)
-    const url = new URL(window.location.href)
-    if (nextRunId) {
-      url.searchParams.set('infrastructure_run_id', nextRunId)
-    } else {
-      url.searchParams.delete('infrastructure_run_id')
-    }
-    window.history.replaceState({}, '', url)
+    syncRunQuery(nextRunId)
   }
 
   const properties = selected?.feature.properties ?? {}
@@ -863,23 +1055,94 @@ export function InfrastructurePanel({
           <p className="section-kicker">S10 Infrastructure</p>
           <h2>Facilities & accessibility</h2>
         </div>
-        <span className="badge">
-          {existingCount + generatedCount}
-          {existingTruncated || generatedTruncated ? '+' : ''}
-        </span>
+        <span className="badge">{runs.length} runs</span>
       </div>
 
-      <label className="infrastructure-select">
-        <span>Generation run</span>
-        <select value={runId} onChange={changeRun} disabled={runs.length === 0}>
-          {runs.length === 0 && <option value="">Нет infrastructure runs</option>}
-          {runs.map((run) => (
-            <option value={run.id} key={run.id}>
-              {formatRun(run)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="infrastructure-run-controls">
+        <label className="infrastructure-select">
+          <span>Generation run</span>
+          <select
+            value={runId}
+            onChange={changeRun}
+            disabled={runsStatus === 'loading' || runs.length === 0}
+          >
+            {runs.length === 0 && <option value="">Нет infrastructure runs</option>}
+            {runs.map((run) => (
+              <option value={run.id} key={run.id}>
+                {formatRun(run)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="button"
+          type="button"
+          onClick={() => setRunsRefreshNonce((value) => value + 1)}
+          disabled={!projectId || runsStatus === 'loading'}
+        >
+          Обновить runs
+        </button>
+      </div>
+
+      <div
+        className={
+          'infrastructure-state infrastructure-state-' + runsStatus
+        }
+      >
+        <strong>Run list</strong>
+        <span>{runsMessage}</span>
+      </div>
+
+      {runSelectionNotice && (
+        <div className="infrastructure-selection-notice">
+          {runSelectionNotice}
+        </div>
+      )}
+
+      {activeRun && (
+        <dl className="infrastructure-run-meta">
+          <div>
+            <dt>Status</dt>
+            <dd>{activeRun.status}</dd>
+          </div>
+          <div>
+            <dt>Mode</dt>
+            <dd>{activeRun.mode}</dd>
+          </div>
+          <div>
+            <dt>Seed</dt>
+            <dd>{activeRun.seed}</dd>
+          </div>
+          <div>
+            <dt>Working SRID</dt>
+            <dd>EPSG:{activeRun.working_srid}</dd>
+          </div>
+        </dl>
+      )}
+
+      <div
+        className={
+          'infrastructure-state infrastructure-state-' + readModelStatus
+        }
+      >
+        <strong>
+          Read model: {readModelStatus.replace('-', ' ')}
+        </strong>
+        <span>{readModelMessage}</span>
+        {(readModelStatus === 'not-ready' ||
+          readModelStatus === 'error') && (
+          <button
+            className="button"
+            type="button"
+            onClick={() =>
+              setReadModelRefreshNonce((value) => value + 1)
+            }
+            disabled={!runId}
+          >
+            Повторить проверку
+          </button>
+        )}
+      </div>
 
       <div className="infrastructure-layer-list">
         <label className="infrastructure-layer-row">
@@ -891,7 +1154,10 @@ export function InfrastructurePanel({
           <span className="swatch infrastructure-existing-swatch" />
           <span>Existing / fixed facilities</span>
           <span className="layer-count">
-            {activeRun?.existing_facility_count ?? 0}
+            {layerCount(
+              viewportLayers.existing,
+              activeRun?.existing_facility_count ?? 0,
+            )}
           </span>
         </label>
         <label className="infrastructure-layer-row">
@@ -903,7 +1169,10 @@ export function InfrastructurePanel({
           <span className="swatch infrastructure-generated-swatch" />
           <span>Generated sites / hosts</span>
           <span className="layer-count">
-            {activeRun?.generated_facility_count ?? 0}
+            {layerCount(
+              viewportLayers.generated,
+              activeRun?.generated_facility_count ?? 0,
+            )}
           </span>
         </label>
         <label className="infrastructure-layer-row">
@@ -916,7 +1185,7 @@ export function InfrastructurePanel({
           <span className="swatch infrastructure-demand-swatch" />
           <span>Final unmet demand</span>
           <span className="layer-count">
-            {demandTruncated ? String(demandCount) + '+' : demandCount}
+            {layerCount(viewportLayers.demand)}
           </span>
         </label>
       </div>
@@ -961,26 +1230,49 @@ export function InfrastructurePanel({
         className="button"
         type="button"
         onClick={() => void loadViewport()}
-        disabled={!runId}
+        disabled={!runId || viewportStatus === 'loading'}
       >
         Обновить viewport
       </button>
 
-      <div className={'load-state load-state-' + status}>{message}</div>
-      {(existingTruncated || generatedTruncated || demandTruncated) && (
+      <div
+        className={'load-state load-state-' + viewportStatus}
+      >
+        {viewportMessage}
+      </div>
+
+      {layerErrors.length > 0 && (
+        <div className="infrastructure-layer-errors">
+          {layerErrors.map((item) => (
+            <div key={item.key}>
+              <strong>{item.label}</strong>
+              <span>{item.message}</span>
+            </div>
+          ))}
+          <button
+            className="button"
+            type="button"
+            onClick={() => void loadViewport()}
+          >
+            Повторить viewport
+          </button>
+        </div>
+      )}
+
+      {truncatedLayers.length > 0 && (
         <p className="warning-text">
-          Infrastructure viewport достиг limit ({VIEWPORT_LIMIT}) для одного
-          из слоёв; приблизьте карту.
+          Viewport limit ({VIEWPORT_LIMIT}) достигнут: {truncatedLayers.join(', ')}.
+          Приблизьте карту, чтобы получить полный локальный набор.
         </p>
       )}
 
       <div className="infrastructure-authority-note">
         <strong>Authoritative read boundary</strong>
         <span>
-          Facilities, final unmet demand, T07 reachability summaries и T11 raw
-          metrics читаются из persisted run read-model. Frontend не запускает
-          snapping, routing, placement или metric computation. Unaccepted
-          candidate alternatives остаются вне этого read contract.
+          UI отображает только persisted backend results. Ошибки, 409 read-model
+          readiness и truncation не запускают fallback-вычисления в браузере:
+          frontend не выполняет snapping, routing, placement или metric
+          computation.
         </span>
       </div>
 
@@ -1089,11 +1381,19 @@ export function InfrastructurePanel({
             <dl className="infrastructure-metrics">
               <div>
                 <dt>Gross demand</dt>
-                <dd>{formatNumber(numberProperty(demandProperties, 'gross_demand'))}</dd>
+                <dd>
+                  {formatNumber(
+                    numberProperty(demandProperties, 'gross_demand'),
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>Served demand</dt>
-                <dd>{formatNumber(numberProperty(demandProperties, 'served_demand'))}</dd>
+                <dd>
+                  {formatNumber(
+                    numberProperty(demandProperties, 'served_demand'),
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>Final unmet</dt>
