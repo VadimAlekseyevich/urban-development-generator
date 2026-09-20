@@ -47,6 +47,22 @@ S08-T13 добавляет read-only delivery persisted зданий конкр�
 zone, archetype, use, floors, footprint area и GFA. `truncated=true` означает, что
 viewport достиг limit и клиенту следует приблизить карту или повторить запрос меньшей областью.
 
+
+## Infrastructure run read API
+
+S10-T12 exposes only persisted, run-scoped infrastructure presentation data:
+
+- `GET /projects/{project_id}/infrastructure-runs`;
+- `GET /projects/{project_id}/infrastructure-runs/{run_id}/facilities/geojson?bbox=...&limit=1500&origin=existing|generated`;
+- `GET /projects/{project_id}/infrastructure-runs/{run_id}/metrics`;
+- `GET /projects/{project_id}/infrastructure-runs/{run_id}/demand/geojson?bbox=...&limit=1500`.
+
+Facility and demand GeoJSON are bounded viewport reads in EPSG:4326 with filtering in the run
+working CRS. `metrics` and `demand/geojson` return HTTP 409 when the run exists but the
+authoritative S10 UI read-model has not been materialized yet. Reads never rerun snapping,
+routing, placement or metric computation.
+
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
