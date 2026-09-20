@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T10 are complete; S10-T11 raw metric computation is implemented through UG-AI-036 and the current ordered task is **UG-AI-038 / S10-T11**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T10 are complete; S10-T11 raw metric computation and edge policies are implemented through UG-AI-037 and the current ordered task is **UG-AI-038 / S10-T11**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
