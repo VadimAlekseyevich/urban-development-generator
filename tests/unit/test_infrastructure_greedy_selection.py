@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from core.urban_generator.infrastructure import (
+    MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES,
     InfrastructureAcceptedFacility,
     InfrastructureCandidateBenefit,
     InfrastructureCandidateRef,
@@ -191,6 +192,6 @@ def test_greedy_placement_policy_rejects_hard_limit_overflow() -> None:
         match="max_facilities exceeds placement hard limit",
     ):
         InfrastructureGreedyPlacementPolicy(
-            max_facilities=100_001,
+            max_facilities=MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES + 1,
             max_iterations=1,
         )
