@@ -6,8 +6,10 @@ from core.urban_generator.infrastructure import (
     MAX_INFRASTRUCTURE_PLACEMENT_FACILITIES,
     InfrastructureAcceptedFacility,
     InfrastructureCandidateBenefit,
+    InfrastructureCandidateGeometryKind,
     InfrastructureCandidateRef,
     InfrastructureCoverageCacheEntry,
+    InfrastructureFeasibilityResult,
     InfrastructureGreedyPlacementPolicy,
     InfrastructureGreedyPlacementState,
     InfrastructurePlacementError,
@@ -37,6 +39,22 @@ def _benefit(
         reachable_remaining_demand=benefit,
         capacity=capacity,
         benefit=benefit,
+    )
+
+
+def _feasibility(
+    benefits: tuple[InfrastructureCandidateBenefit, ...],
+) -> tuple[InfrastructureFeasibilityResult, ...]:
+    return tuple(
+        InfrastructureFeasibilityResult(
+            candidate_id=item.candidate_ref.candidate_id,
+            infrastructure_type_code=TYPE_CODE,
+            working_srid=3857,
+            geometry_kind=InfrastructureCandidateGeometryKind.SITE,
+            proposed_capacity=item.capacity,
+            is_feasible=True,
+        )
+        for item in benefits
     )
 
 
@@ -71,13 +89,15 @@ def _state(
 
 
 def test_greedy_selection_breaks_equal_benefit_tie_by_candidate_order() -> None:
+    benefits = (
+        _benefit("candidate-a", 5.0),
+        _benefit("candidate-b", 5.0),
+        _benefit("candidate-z", 4.0),
+    )
     decision = select_infrastructure_greedy_candidate(
         _state(),
-        (
-            _benefit("candidate-a", 5.0),
-            _benefit("candidate-b", 5.0),
-            _benefit("candidate-z", 4.0),
-        ),
+        benefits,
+        feasibility=_feasibility(benefits),
         iteration_index=0,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=3,
@@ -92,12 +112,14 @@ def test_greedy_selection_breaks_equal_benefit_tie_by_candidate_order() -> None:
 
 
 def test_greedy_selection_stops_at_facility_limit_before_selecting() -> None:
+    benefits = (
+        _benefit("candidate-b", 5.0),
+        _benefit("candidate-z", 4.0),
+    )
     decision = select_infrastructure_greedy_candidate(
         _state(accepted=("candidate-a",)),
-        (
-            _benefit("candidate-b", 5.0),
-            _benefit("candidate-z", 4.0),
-        ),
+        benefits,
+        feasibility=_feasibility(benefits),
         iteration_index=1,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=1,
@@ -112,13 +134,15 @@ def test_greedy_selection_stops_at_facility_limit_before_selecting() -> None:
 
 
 def test_greedy_selection_stops_at_zero_based_iteration_limit() -> None:
+    benefits = (
+        _benefit("candidate-a", 5.0),
+        _benefit("candidate-b", 4.0),
+        _benefit("candidate-z", 3.0),
+    )
     decision = select_infrastructure_greedy_candidate(
         _state(),
-        (
-            _benefit("candidate-a", 5.0),
-            _benefit("candidate-b", 4.0),
-            _benefit("candidate-z", 3.0),
-        ),
+        benefits,
+        feasibility=_feasibility(benefits),
         iteration_index=2,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=3,
@@ -133,13 +157,15 @@ def test_greedy_selection_stops_at_zero_based_iteration_limit() -> None:
 
 
 def test_greedy_selection_stops_when_all_remaining_benefits_are_zero() -> None:
+    benefits = (
+        _benefit("candidate-a", 0.0),
+        _benefit("candidate-b", 0.0),
+        _benefit("candidate-z", 0.0),
+    )
     decision = select_infrastructure_greedy_candidate(
         _state(),
-        (
-            _benefit("candidate-a", 0.0),
-            _benefit("candidate-b", 0.0),
-            _benefit("candidate-z", 0.0),
-        ),
+        benefits,
+        feasibility=_feasibility(benefits),
         iteration_index=0,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=3,
@@ -160,6 +186,7 @@ def test_greedy_selection_reports_no_unaccepted_candidates() -> None:
             candidates=("candidate-a",),
         ),
         (),
+        feasibility=(),
         iteration_index=1,
         policy=InfrastructureGreedyPlacementPolicy(
             max_facilities=2,
@@ -181,6 +208,24 @@ def test_greedy_selection_rejects_reordered_or_incomplete_benefits() -> None:
             (
                 _benefit("candidate-b", 5.0),
                 _benefit("candidate-a", 5.0),
+            ),
+            feasibility=(
+                InfrastructureFeasibilityResult(
+                    candidate_id="candidate-a",
+                    infrastructure_type_code=TYPE_CODE,
+                    working_srid=3857,
+                    geometry_kind=InfrastructureCandidateGeometryKind.SITE,
+                    proposed_capacity=5.0,
+                    is_feasible=True,
+                ),
+                InfrastructureFeasibilityResult(
+                    candidate_id="candidate-b",
+                    infrastructure_type_code=TYPE_CODE,
+                    working_srid=3857,
+                    geometry_kind=InfrastructureCandidateGeometryKind.SITE,
+                    proposed_capacity=5.0,
+                    is_feasible=True,
+                ),
             ),
             iteration_index=0,
         )
