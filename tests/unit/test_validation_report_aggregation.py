@@ -5,13 +5,13 @@ from shapely import to_wkb
 from shapely.geometry import Polygon, box
 
 from core.urban_generator.domain import (
+    VALIDATION_REPORT_SCHEMA_VERSION,
     ConstraintContractError,
     ConstraintEntityRef,
     ConstraintProblemGeometry,
     ConstraintResult,
     ConstraintScope,
     ConstraintSeverity,
-    VALIDATION_REPORT_SCHEMA_VERSION,
     ValidationReport,
     ValidationReportCodecError,
     aggregate_validation_reports,

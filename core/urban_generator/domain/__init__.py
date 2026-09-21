@@ -88,18 +88,18 @@ from core.urban_generator.domain.stage import (
     require_stage_input,
     validate_stage_metadata,
 )
+from core.urban_generator.domain.territory import (
+    SnapshotLayerKind,
+    SnapshotLayerRef,
+    TerritorySnapshot,
+    TerritorySnapshotError,
+)
 from core.urban_generator.domain.validation import (
     VALIDATION_REPORT_SCHEMA_VERSION,
     ValidationReportCodecError,
     aggregate_validation_reports,
     deserialize_validation_report,
     serialize_validation_report,
-)
-from core.urban_generator.domain.territory import (
-    SnapshotLayerKind,
-    SnapshotLayerRef,
-    TerritorySnapshot,
-    TerritorySnapshotError,
 )
 
 __all__ = [
