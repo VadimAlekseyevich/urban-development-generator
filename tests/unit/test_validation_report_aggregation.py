@@ -175,7 +175,7 @@ def test_validation_report_codec_round_trip_preserves_invalid_problem_geometry()
 def test_validation_report_codec_rejects_unknown_version_and_shape_drift() -> None:
     with pytest.raises(ValidationReportCodecError, match="schema_version"):
         deserialize_validation_report(
-            b'{"results":[],"schema_version":2}'
+            b'{"results":[],"schema_version":999}'
         )
 
     with pytest.raises(ValidationReportCodecError, match="exactly"):
