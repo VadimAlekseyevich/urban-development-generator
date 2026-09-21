@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11-T01 canonical validation detail, aggregation and serialization are implemented through UG-AI-047. The current ordered task is **UG-AI-048 / S11-T02**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 validation is implemented through UG-AI-048, including canonical detail/aggregation/serialization and aggregate coverage/FAR/density/capacity bounds through the shared ConstraintEngine. The current ordered task is **UG-AI-049 / S11-T03**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-048 / S11-T02
-Implement aggregate coverage/FAR/density/capacity constraints through ConstraintEngine registrations.
+UG-AI-049 / S11-T03
+Define versioned soft-penalty result metadata and implement soft rules independently from hard invalidity.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.

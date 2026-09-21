@@ -1,3 +1,12 @@
+from core.urban_generator.constraints.aggregate_bounds import (
+    CANONICAL_AGGREGATE_BOUND_METRIC_IDS,
+    AggregateBoundError,
+    AggregateConstraintSubject,
+    AggregateMetricBound,
+    AggregateMetricBoundConstraint,
+    AggregateMetricValue,
+    build_aggregate_bound_registrations,
+)
 from core.urban_generator.constraints.distance_setback import (
     DistanceSetbackBand,
     DistanceSetbackCandidateLimitError,
@@ -39,6 +48,12 @@ from core.urban_generator.constraints.raster_threshold import (
 )
 
 __all__ = [
+    "CANONICAL_AGGREGATE_BOUND_METRIC_IDS",
+    "AggregateBoundError",
+    "AggregateConstraintSubject",
+    "AggregateMetricBound",
+    "AggregateMetricBoundConstraint",
+    "AggregateMetricValue",
     "ConstraintRegistration",
     "ConstraintRegistry",
     "ConstraintRegistryError",
@@ -70,4 +85,5 @@ __all__ = [
     "RasterThresholdSubject",
     "RasterWindow",
     "RegisteredConstraintEngine",
+    "build_aggregate_bound_registrations",
 ]
