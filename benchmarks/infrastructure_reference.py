@@ -27,7 +27,6 @@ from core.urban_generator.infrastructure import (
     InfrastructureDemandRef,
     InfrastructureDemandSnap,
     InfrastructureGreedyPlacementPolicy,
-    InfrastructureGreedyPlacementState,
     InfrastructureNetworkSnapBatchResult,
     InfrastructureNetworkSnapDiagnostics,
     InfrastructurePlacementSelectionStatus,
@@ -85,6 +84,10 @@ class InfrastructureBenchmarkConfig:
                 "fixture must retain positive demand through every greedy iteration"
             )
         _ = WorkingCRS(self.working_srid)
+
+
+@dataclass(frozen=True, slots=True)
+REFERENCE_CONFIG = InfrastructureBenchmarkConfig()
 
 
 @dataclass(frozen=True, slots=True)
@@ -255,7 +258,7 @@ def _candidate_refs(
 
 
 def run_reference_infrastructure_benchmark(
-    config: InfrastructureBenchmarkConfig = InfrastructureBenchmarkConfig(),
+    config: InfrastructureBenchmarkConfig = REFERENCE_CONFIG,
 ) -> InfrastructureBenchmarkResult:
     infrastructure_type = _type(config)
     demands = _demands(config)
