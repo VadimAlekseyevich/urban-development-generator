@@ -60,6 +60,132 @@ jobs:
         run: |
           uv run alembic upgrade head
           uv run alembic downgrade base
+          uv run alembic upgrade 0012_generated_zone_persistence
+          uv run python - <<'PY'
+          from sqlalchemy import create_engine, text
+
+          from backend.app.core.config import settings
+
+          engine = create_engine(settings.database_url)
+          project_id = "00000000-0000-0000-0000-000000000101"
+          dataset_id = "00000000-0000-0000-0000-000000000102"
+          version_id = "00000000-0000-0000-0000-000000000103"
+          road_id = "00000000-0000-0000-0000-000000000104"
+
+          with engine.begin() as connection:
+              connection.execute(
+                  text(
+                      """
+                      INSERT INTO projects (id, name, working_srid, boundary_metadata)
+                      VALUES (:project_id, 'migration-smoke', 32637, '{}'::jsonb)
+                      """
+                  ),
+                  {"project_id": project_id},
+              )
+              connection.execute(
+                  text(
+                      """
+                      INSERT INTO datasets (id, project_id, kind)
+                      VALUES (:dataset_id, :project_id, 'roads')
+                      """
+                  ),
+                  {"dataset_id": dataset_id, "project_id": project_id},
+              )
+              connection.execute(
+                  text(
+                      """
+                      INSERT INTO dataset_versions (
+                          id, dataset_id, version, status, source_metadata
+                      )
+                      VALUES (
+                          :version_id, :dataset_id, 1, 'processing', '{}'::jsonb
+                      )
+                      """
+                  ),
+                  {"version_id": version_id, "dataset_id": dataset_id},
+              )
+              connection.execute(
+                  text(
+                      """
+                      INSERT INTO source_roads (
+                          id,
+                          dataset_version_id,
+                          source_feature_id,
+                          attributes_json,
+                          road_class,
+                          geometry
+                      )
+                      VALUES (
+                          :road_id,
+                          :version_id,
+                          'migration-road',
+                          '{"osm_tags":{"oneway":"-1","bridge":"yes","tunnel":"no","layer":"2"}}'::jsonb,
+                          'residential',
+                          ST_GeomFromText(
+                              'MULTILINESTRING((0 0, 10 0))',
+                              32637
+                          )
+                      )
+                      """
+                  ),
+                  {"road_id": road_id, "version_id": version_id},
+              )
+              connection.execute(
+                  text(
+                      """
+                      UPDATE dataset_versions
+                      SET status = 'ready'
+                      WHERE id = :version_id
+                      """
+                  ),
+                  {"version_id": version_id},
+              )
+          PY
+          uv run alembic upgrade head
+          uv run python - <<'PY'
+          from sqlalchemy import create_engine, text
+          from sqlalchemy.exc import DBAPIError
+
+          from backend.app.core.config import settings
+
+          engine = create_engine(settings.database_url)
+          road_id = "00000000-0000-0000-0000-000000000104"
+
+          with engine.connect() as connection:
+              row = connection.execute(
+                  text(
+                      """
+                      SELECT one_way_direction, one_way, bridge, tunnel, layer
+                      FROM source_roads
+                      WHERE id = :road_id
+                      """
+                  ),
+                  {"road_id": road_id},
+              ).one()
+
+          assert row == ("reverse", True, True, False, 2)
+
+          try:
+              with engine.begin() as connection:
+                  connection.execute(
+                      text(
+                          """
+                          UPDATE source_roads
+                          SET layer = 3
+                          WHERE id = :road_id
+                          """
+                      ),
+                      {"road_id": road_id},
+                  )
+          except DBAPIError as exc:
+              assert "source entities of a ready dataset version are immutable" in str(exc)
+          else:
+              raise AssertionError("ready source-row guard was not restored")
+
+          with engine.begin() as connection:
+              connection.execute(text("TRUNCATE TABLE projects CASCADE"))
+          PY
+          uv run alembic downgrade base
           uv run alembic upgrade head
 
   frontend:
