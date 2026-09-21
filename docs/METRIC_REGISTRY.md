@@ -1,6 +1,6 @@
 # Canonical raw metric registry
 
-> **Status: Implemented through UG-AI-050 / S11-T04**
+> **Status: Implemented through UG-AI-051 / S11-T05**
 
 The canonical raw metric identity remains `RawMetricId` from
 `core.urban_generator.domain.benchmarking`. S11-T04 enriches the existing
@@ -53,6 +53,10 @@ contracts. Both are backed by the same canonical registry.
 
 Those adapters must reuse authoritative stage outputs and this registry metadata. They must not
 redefine IDs, units, directions, scopes, sources or versions locally.
+
+S11-T05 now implements the `LAND_BUILDING` source adapter. Its exact source/empty-data policies
+are documented in `LAND_BUILDING_METRICS.md`; S11-T06..T09 remain the owners of the other source
+families.
 
 ## Non-goals
 
