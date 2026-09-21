@@ -2,12 +2,15 @@ import uuid
 from dataclasses import dataclass
 
 import pytest
+from shapely.geometry import Polygon, box
 
 from core.urban_generator.domain import (
     ConfigRef,
     Constraint,
     ConstraintContractError,
     ConstraintEngine,
+    ConstraintEntityRef,
+    ConstraintProblemGeometry,
     ConstraintResult,
     ConstraintScope,
     ConstraintSeverity,
@@ -213,3 +216,90 @@ def test_constraint_result_requires_structured_values() -> None:
 def test_validation_report_requires_immutable_results() -> None:
     with pytest.raises(ConstraintContractError, match="immutable tuple"):
         ValidationReport(results=[])
+
+
+
+def test_constraint_result_accepts_optional_entity_and_problem_geometry_detail() -> None:
+    entity_ref = ConstraintEntityRef(entity_id="building:synthetic:001")
+    geometry = ConstraintProblemGeometry(
+        geometry=box(0, 0, 10, 10),
+        working_srid=32637,
+    )
+
+    result = ConstraintResult(
+        code="buildings.minimum_gap",
+        severity=ConstraintSeverity.HARD,
+        scope=ConstraintScope.BUILDING,
+        passed=False,
+        message="Building violates minimum gap",
+        entity_ref=entity_ref,
+        problem_geometry=geometry,
+    )
+
+    assert result.entity_ref is entity_ref
+    assert result.problem_geometry is geometry
+    assert result.failed is True
+    assert result.blocks_generation is True
+
+
+def test_validation_detail_does_not_change_hard_soft_semantics() -> None:
+    entity_ref = ConstraintEntityRef(entity_id="building:synthetic:002")
+    geometry = ConstraintProblemGeometry(
+        geometry=box(20, 20, 22, 22),
+        working_srid=32637,
+    )
+    report = ValidationReport(
+        results=(
+            ConstraintResult(
+                code="buildings.preferred_orientation",
+                severity=ConstraintSeverity.SOFT,
+                scope=ConstraintScope.BUILDING,
+                passed=False,
+                message="Preferred orientation is not met",
+                entity_ref=entity_ref,
+                problem_geometry=geometry,
+            ),
+        )
+    )
+
+    assert report.is_valid is True
+    assert report.hard_failures == ()
+    assert report.soft_violations == report.results
+    assert report.failures == report.results
+
+
+def test_constraint_entity_ref_requires_stable_nonempty_single_line_id() -> None:
+    with pytest.raises(ConstraintContractError, match="non-empty string"):
+        ConstraintEntityRef(entity_id=" ")
+
+    with pytest.raises(ConstraintContractError, match="line breaks"):
+        ConstraintEntityRef(entity_id="building:1\nbuilding:2")
+
+
+def test_constraint_problem_geometry_requires_nonempty_geometry_and_metric_crs() -> None:
+    with pytest.raises(ConstraintContractError, match="Shapely geometry"):
+        ConstraintProblemGeometry(geometry="not-geometry", working_srid=32637)
+
+    with pytest.raises(ConstraintContractError, match="must not be empty"):
+        ConstraintProblemGeometry(
+            geometry=Polygon(),
+            working_srid=32637,
+        )
+
+    with pytest.raises(ConstraintContractError, match="valid working SRID"):
+        ConstraintProblemGeometry(
+            geometry=box(0, 0, 1, 1),
+            working_srid=4326,
+        )
+
+
+def test_constraint_problem_geometry_can_preserve_invalid_violation_shape() -> None:
+    bow_tie = Polygon([(0, 0), (2, 2), (0, 2), (2, 0), (0, 0)])
+    assert bow_tie.is_valid is False
+
+    detail = ConstraintProblemGeometry(
+        geometry=bow_tie,
+        working_srid=32637,
+    )
+
+    assert detail.geometry.equals(bow_tie)
