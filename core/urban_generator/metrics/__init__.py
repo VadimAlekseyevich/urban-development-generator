@@ -4,8 +4,8 @@ from core.urban_generator.metrics.land_building import (
     LandBuildingMetricAdapter,
     LandBuildingMetricAdapterError,
     LandBuildingMetricDiagnostics,
-    LandBuildingRawMetricValue,
     LandBuildingRawMetricsResult,
+    LandBuildingRawMetricValue,
 )
 
 __all__ = [
