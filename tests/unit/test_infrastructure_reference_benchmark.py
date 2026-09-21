@@ -84,12 +84,14 @@ def test_reference_infrastructure_config_rejects_inconsistent_bounds() -> None:
         InfrastructureBenchmarkConfig(
             demand_count=8,
             candidate_count=2,
+            demand_batch_size=4,
             max_facilities=3,
         )
     with pytest.raises(ValueError, match="positive demand"):
         InfrastructureBenchmarkConfig(
             demand_count=8,
             candidate_count=4,
+            demand_batch_size=4,
             capacity=4.0,
             max_facilities=3,
         )
