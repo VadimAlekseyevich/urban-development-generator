@@ -32,12 +32,6 @@ from core.urban_generator.constraints.geometry_exclusion import (
     GeometryExclusionReason,
     GeometryExclusionSubject,
 )
-from core.urban_generator.constraints.soft_penalty import (
-    SoftAggregatePreference,
-    SoftAggregatePreferenceConstraint,
-    SoftPenaltyRuleError,
-    build_soft_preference_registrations,
-)
 from core.urban_generator.constraints.raster_threshold import (
     RasterNoDataPolicy,
     RasterThresholdComparison,
@@ -51,6 +45,12 @@ from core.urban_generator.constraints.raster_threshold import (
     RasterThresholdSource,
     RasterThresholdSubject,
     RasterWindow,
+)
+from core.urban_generator.constraints.soft_penalty import (
+    SoftAggregatePreference,
+    SoftAggregatePreferenceConstraint,
+    SoftPenaltyRuleError,
+    build_soft_preference_registrations,
 )
 
 __all__ = [
