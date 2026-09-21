@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 validation is implemented through UG-AI-049, including canonical detail/aggregation/serialization, hard aggregate bounds, and versioned SOFT penalty metadata/rules through the shared ConstraintEngine. The current ordered task is **UG-AI-050 / S11-T04**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-050: canonical validation includes hard/soft semantics and the raw-metric vocabulary now has one typed scope/direction/source/version registry around existing RawMetricId values. The current ordered task is **UG-AI-051 / S11-T05**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-050 / S11-T04
-Extend MetricDefinition around existing RawMetricId with scope/direction/source/version metadata and a canonical registry.
+UG-AI-051 / S11-T05
+Implement land/building raw metric adapter from authoritative suitability/block/building results.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
