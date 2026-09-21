@@ -91,6 +91,13 @@ def test_cross_stage_aggregation_is_lossless_and_does_not_deduplicate() -> None:
     assert aggregate.results == (repeated, repeated)
 
 
+def test_empty_cross_stage_aggregation_returns_valid_empty_report() -> None:
+    aggregate = aggregate_validation_reports(())
+
+    assert aggregate.results == ()
+    assert aggregate.is_valid is True
+
+
 def test_cross_stage_aggregation_requires_immutable_reports() -> None:
     with pytest.raises(ConstraintContractError, match="immutable tuple"):
         aggregate_validation_reports([])
