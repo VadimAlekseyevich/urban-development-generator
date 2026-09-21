@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from shapely.geometry.base import BaseGeometry
+
+from core.urban_generator.domain.crs import require_working_crs
 from core.urban_generator.domain.run_context import RunContext
 from core.urban_generator.domain.territory import TerritorySnapshot
 
@@ -32,6 +35,47 @@ class ConstraintScope(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ConstraintEntityRef:
+    """Stable domain identifier for the entity affected by one constraint result."""
+
+    entity_id: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.entity_id, str) or not self.entity_id.strip():
+            raise ConstraintContractError(
+                "constraint entity_id must be a non-empty string"
+            )
+        if "\n" in self.entity_id or "\r" in self.entity_id:
+            raise ConstraintContractError(
+                "constraint entity_id must not contain line breaks"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class ConstraintProblemGeometry:
+    """Spatial evidence for a constraint result in the run's metric working CRS."""
+
+    geometry: BaseGeometry
+    working_srid: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.geometry, BaseGeometry):
+            raise ConstraintContractError(
+                "constraint problem geometry must be a Shapely geometry"
+            )
+        if self.geometry.is_empty:
+            raise ConstraintContractError(
+                "constraint problem geometry must not be empty"
+            )
+        try:
+            require_working_crs(self.working_srid)
+        except ValueError as exc:
+            raise ConstraintContractError(
+                "constraint problem geometry requires a valid working SRID"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
 class ConstraintResult:
     """Immutable result of evaluating one constraint against one subject."""
 
@@ -40,6 +84,8 @@ class ConstraintResult:
     scope: ConstraintScope
     passed: bool
     message: str
+    entity_ref: ConstraintEntityRef | None = None
+    problem_geometry: ConstraintProblemGeometry | None = None
 
     def __post_init__(self) -> None:
         validate_constraint_metadata(self.code, self.severity, self.scope)
@@ -47,6 +93,20 @@ class ConstraintResult:
             raise ConstraintContractError("constraint passed flag must be bool")
         if not isinstance(self.message, str) or not self.message.strip():
             raise ConstraintContractError("constraint result message must be a non-empty string")
+        if self.entity_ref is not None and not isinstance(
+            self.entity_ref,
+            ConstraintEntityRef,
+        ):
+            raise ConstraintContractError(
+                "constraint entity_ref must be ConstraintEntityRef or None"
+            )
+        if self.problem_geometry is not None and not isinstance(
+            self.problem_geometry,
+            ConstraintProblemGeometry,
+        ):
+            raise ConstraintContractError(
+                "constraint problem_geometry must be ConstraintProblemGeometry or None"
+            )
 
     @property
     def failed(self) -> bool:
