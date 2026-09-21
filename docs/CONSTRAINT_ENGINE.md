@@ -84,3 +84,27 @@ S04-T01 does **not** implement GIS rules. The roadmap keeps them separate:
 
 Those rules should register through this engine rather than add stage-specific ad-hoc
 validation loops.
+
+
+## S11 aggregate final-validation bounds
+
+UG-AI-048 keeps aggregate validation inside the same registry/engine contract. The canonical
+aggregate subject carries authoritative scalar values keyed by existing `RawMetricId` values;
+it does not introduce another metric identity vocabulary.
+
+The S11-T02 registration builder requires exactly these four aggregate metrics:
+
+- `buildings.coverage_ratio`;
+- `buildings.far`;
+- `demography.density_per_km2`;
+- `infrastructure.capacity_utilization`.
+
+Each configured `AggregateMetricBound` is inclusive and may define a lower bound, an upper
+bound, or both. The four rules are HARD `TERRITORY` constraints registered only at the
+canonical `final_validation` stage. Registration order is normalized by metric ID, while the
+shared engine still evaluates by stable constraint code order.
+
+A finite value outside its configured range becomes a normal failed `ConstraintResult`.
+Malformed configuration, duplicate/missing subject metrics, non-finite values, or inconsistent
+snapshot/run CRS are input-contract errors rather than synthetic violations. S11-T03 owns soft
+penalty semantics; these S11-T02 rules do not overload HARD invalidity with penalty scoring.
