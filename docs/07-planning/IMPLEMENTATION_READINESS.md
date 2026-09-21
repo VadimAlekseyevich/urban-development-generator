@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10-T06 through S10-T14 are complete through UG-AI-045; the dedicated infrastructure reference benchmark is part of required CI and M1 is complete. The current ordered task is **UG-AI-046 / S11-T01**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11-T01 validation detail is implemented through UG-AI-046. The current ordered task is **UG-AI-047 / S11-T01**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-046 / S11-T01
-Extend ConstraintResult/ValidationReport with optional stable entity reference and problem-geometry payload while preserving existing hard/soft semantics.
+UG-AI-047 / S11-T01
+Add cross-stage validation aggregation and serialization tests; do not create a competing violation domain model.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
