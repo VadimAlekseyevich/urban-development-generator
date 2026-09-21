@@ -86,7 +86,6 @@ class InfrastructureBenchmarkConfig:
         _ = WorkingCRS(self.working_srid)
 
 
-@dataclass(frozen=True, slots=True)
 REFERENCE_CONFIG = InfrastructureBenchmarkConfig()
 
 
