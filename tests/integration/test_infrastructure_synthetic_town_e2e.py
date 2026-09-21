@@ -27,7 +27,7 @@ from core.urban_generator.demography import (
     DemographicDemandTotals,
     DemographicDemandUnit,
 )
-from core.urban_generator.domain import NetworkPoint, WorkingCRS
+from core.urban_generator.domain import NetworkPoint, RawMetricId, WorkingCRS
 from core.urban_generator.infrastructure import (
     ExistingInfrastructureDiagnostics,
     ExistingInfrastructureFacility,
@@ -80,6 +80,7 @@ TYPE_CODE = "school.general"
 @dataclass(frozen=True, slots=True)
 class SyntheticTownResult:
     run_id: uuid.UUID
+    existing: ExistingInfrastructureResult
     gross_demand: UnmetDemandResult
     unmet_demand: UnmetDemandResult
     snaps: InfrastructureNetworkSnapBatchResult
@@ -450,9 +451,12 @@ def _create_run() -> uuid.UUID:
             return run.id
 
 
-def _run_synthetic_town() -> SyntheticTownResult:
+def _run_synthetic_town(
+    *,
+    existing: ExistingInfrastructureResult | None = None,
+) -> SyntheticTownResult:
     infrastructure_type = _type()
-    existing = _existing()
+    existing = existing or _existing()
     candidate_geometry = _candidate_geometry()
     backend = _network()
     demand_calculator = UnmetDemandCalculator()
@@ -523,6 +527,7 @@ def _run_synthetic_town() -> SyntheticTownResult:
     )
     return SyntheticTownResult(
         run_id=run_id,
+        existing=existing,
         gross_demand=gross_demand,
         unmet_demand=unmet_demand,
         snaps=snaps,
@@ -558,3 +563,129 @@ def test_synthetic_town_runs_through_s10_demand_to_persistence_and_metrics() -> 
         "candidate-b",
     ]
     assert all(row.network_snapshot_id == SNAPSHOT_ID for row in rows)
+
+
+def _scalar_metric(
+    result: SyntheticTownResult,
+    metric_id: RawMetricId,
+) -> float:
+    value = result.metrics.require(metric_id).scalar_value
+    assert value is not None
+    return value
+
+
+def _fixed_signature(
+    existing: ExistingInfrastructureResult,
+) -> tuple[tuple[object, ...], ...]:
+    return tuple(
+        (
+            facility.facility_id,
+            facility.source_ref,
+            facility.source_feature_id,
+            facility.infrastructure_type_code,
+            facility.capacity,
+            facility.working_srid,
+            facility.name,
+            facility.geometry.wkb_hex,
+        )
+        for facility in existing.facilities
+    )
+
+
+def _semantic_signature(result: SyntheticTownResult) -> tuple[object, ...]:
+    return (
+        result.gross_demand,
+        result.unmet_demand,
+        result.snaps,
+        result.existing_accessibility,
+        result.candidate_accessibility,
+        result.placement,
+        result.metrics,
+        result.persistence.deleted_rows,
+        result.persistence.inserted_rows,
+        result.persistence.insert_statements,
+        result.persistence.host_building_ref_count,
+    )
+
+
+def test_synthetic_town_expected_coverage_and_fixed_contribution() -> None:
+    result = _run_synthetic_town()
+
+    summary = result.unmet_demand.summaries[0]
+    assert summary.gross_demand == pytest.approx(20.0)
+    assert summary.served_demand == pytest.approx(5.0)
+    assert summary.unmet_demand == pytest.approx(15.0)
+    assert summary.existing_capacity == pytest.approx(5.0)
+
+    final_remaining = sum(
+        item.remaining_demand for item in result.placement.remaining_demand
+    )
+    assert final_remaining == pytest.approx(5.0)
+    assert 0.70 <= _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_POPULATION_COVERAGE_RATIO,
+    ) <= 0.80
+    assert _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_UNMET_DEMAND,
+    ) == pytest.approx(5.0)
+    assert _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
+    ) == pytest.approx(1.0)
+    assert _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
+    ) == pytest.approx(100.0)
+    assert _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
+    ) == pytest.approx(100.0)
+
+    age_metric = result.metrics.require(
+        RawMetricId.INFRASTRUCTURE_AGE_SPECIFIC_COVERAGE
+    )
+    assert len(age_metric.age_coverage) == 1
+    assert age_metric.age_coverage[0].demographic_group == "child"
+    assert age_metric.age_coverage[0].coverage_ratio == pytest.approx(0.75)
+
+
+def test_synthetic_town_is_deterministic_and_does_not_mutate_fixed_state() -> None:
+    fixed = _existing()
+    fixed_before = _fixed_signature(fixed)
+
+    first = _run_synthetic_town(existing=fixed)
+    second = _run_synthetic_town(existing=fixed)
+
+    assert first.existing is fixed
+    assert second.existing is fixed
+    assert _fixed_signature(fixed) == fixed_before
+    assert _semantic_signature(first) == _semantic_signature(second)
+
+    with Session(engine) as session:
+        persisted = session.scalars(
+            select(GeneratedInfrastructure)
+            .where(GeneratedInfrastructure.run_id.in_((first.run_id, second.run_id)))
+            .order_by(
+                GeneratedInfrastructure.run_id,
+                GeneratedInfrastructure.acceptance_index,
+            )
+        ).all()
+
+    by_run: dict[uuid.UUID, list[tuple[object, ...]]] = {}
+    for row in persisted:
+        by_run.setdefault(row.run_id, []).append(
+            (
+                row.candidate_id,
+                row.infrastructure_type_code,
+                row.category,
+                row.capacity,
+                row.acceptance_index,
+                row.geometry_kind,
+                row.site_area_m2,
+                row.network_snapshot_id,
+                row.network_node_id,
+                row.network_snap_distance_m,
+            )
+        )
+    assert by_run[first.run_id] == by_run[second.run_id]
