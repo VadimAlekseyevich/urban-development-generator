@@ -107,13 +107,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md` — текущий аудит архитектурного долга;
 - `docs/02-architecture/PIPELINE_MODEL.md` — канонический Stage/pipeline execution contract;
 - `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
+- `docs/METRIC_REGISTRY.md` — canonical RawMetricId/MetricDefinition registry и runtime metadata;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-049**: canonical ConstraintResult/ValidationReport поддерживает detail/aggregation/versioned serialization, hard aggregate bounds и versioned SOFT penalty metadata/rules через один ConstraintEngine без нового metric/violation vocabulary.
+**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-050**: validation detail/hard-soft semantics остаются в одном ConstraintEngine, а existing RawMetricId получил единственный typed MetricDefinition registry со scope/direction/source/version metadata без второго metric-id vocabulary.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +131,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
-**`UG-AI-050 / S11-T04`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-051 / S11-T05`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
