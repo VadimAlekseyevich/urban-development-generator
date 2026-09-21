@@ -13,10 +13,12 @@ from core.urban_generator.domain.constraints import (
     ConstraintResult,
     ConstraintScope,
     ConstraintSeverity,
+    SoftPenaltyMetadata,
     ValidationReport,
 )
 
-VALIDATION_REPORT_SCHEMA_VERSION = 1
+VALIDATION_REPORT_SCHEMA_VERSION = 2
+_SUPPORTED_VALIDATION_REPORT_SCHEMA_VERSIONS = frozenset({1, 2})
 
 
 class ValidationReportCodecError(ConstraintContractError):
@@ -88,7 +90,7 @@ def deserialize_validation_report(payload: bytes) -> ValidationReport:
     if (
         not isinstance(version, int)
         or isinstance(version, bool)
-        or version != VALIDATION_REPORT_SCHEMA_VERSION
+        or version not in _SUPPORTED_VALIDATION_REPORT_SCHEMA_VERSIONS
     ):
         raise ValidationReportCodecError(
             f"unsupported validation report schema_version: {version!r}"
@@ -101,7 +103,10 @@ def deserialize_validation_report(payload: bytes) -> ValidationReport:
         )
 
     return ValidationReport(
-        results=tuple(_deserialize_result(item) for item in raw_results)
+        results=tuple(
+            _deserialize_result(item, schema_version=version)
+            for item in raw_results
+        )
     )
 
 
@@ -123,6 +128,14 @@ def _serialize_result(result: ConstraintResult) -> dict[str, object]:
             "wkb_hex": cast(str, wkb_hex),
         }
 
+    soft_penalty: dict[str, object] | None = None
+    if result.soft_penalty is not None:
+        soft_penalty = {
+            "raw_penalty": result.soft_penalty.raw_penalty,
+            "schema_version": result.soft_penalty.schema_version,
+            "weight": result.soft_penalty.weight,
+        }
+
     return {
         "code": result.code,
         "entity_ref": entity_ref,
@@ -131,27 +144,40 @@ def _serialize_result(result: ConstraintResult) -> dict[str, object]:
         "problem_geometry": problem_geometry,
         "scope": result.scope.value,
         "severity": result.severity.value,
+        "soft_penalty": soft_penalty,
     }
 
 
-def _deserialize_result(value: object) -> ConstraintResult:
+def _deserialize_result(
+    value: object,
+    *,
+    schema_version: int,
+) -> ConstraintResult:
     item = _require_mapping(value, field_name="constraint result")
+    expected_keys = {
+        "code",
+        "entity_ref",
+        "message",
+        "passed",
+        "problem_geometry",
+        "scope",
+        "severity",
+    }
+    if schema_version >= 2:
+        expected_keys.add("soft_penalty")
     _require_exact_keys(
         item,
-        {
-            "code",
-            "entity_ref",
-            "message",
-            "passed",
-            "problem_geometry",
-            "scope",
-            "severity",
-        },
+        expected_keys,
         field_name="constraint result",
     )
 
     entity_ref = _deserialize_entity_ref(item["entity_ref"])
     problem_geometry = _deserialize_problem_geometry(item["problem_geometry"])
+    soft_penalty = (
+        _deserialize_soft_penalty(item["soft_penalty"])
+        if schema_version >= 2
+        else None
+    )
 
     try:
         severity = ConstraintSeverity(cast(str, item["severity"]))
@@ -164,10 +190,33 @@ def _deserialize_result(value: object) -> ConstraintResult:
             message=cast(str, item["message"]),
             entity_ref=entity_ref,
             problem_geometry=problem_geometry,
+            soft_penalty=soft_penalty,
         )
     except (ConstraintContractError, TypeError, ValueError) as exc:
         raise ValidationReportCodecError(
             "serialized constraint result violates the domain contract"
+        ) from exc
+
+
+def _deserialize_soft_penalty(value: object) -> SoftPenaltyMetadata | None:
+    if value is None:
+        return None
+
+    item = _require_mapping(value, field_name="constraint soft_penalty")
+    _require_exact_keys(
+        item,
+        {"raw_penalty", "schema_version", "weight"},
+        field_name="constraint soft_penalty",
+    )
+    try:
+        return SoftPenaltyMetadata(
+            raw_penalty=cast(float, item["raw_penalty"]),
+            weight=cast(float, item["weight"]),
+            schema_version=cast(int, item["schema_version"]),
+        )
+    except (ConstraintContractError, TypeError, ValueError) as exc:
+        raise ValidationReportCodecError(
+            "serialized constraint soft_penalty violates the domain contract"
         ) from exc
 
 
