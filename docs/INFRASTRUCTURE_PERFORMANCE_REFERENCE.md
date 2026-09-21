@@ -1,6 +1,6 @@
 # Infrastructure reference performance fixture
 
-> **Status: Implemented through UG-AI-044 / S10-T14**
+> **Status: Complete through UG-AI-045 / S10-T14**
 
 S10-T14 uses `benchmarks/infrastructure_reference.py` as the deterministic reference workload for
 candidate×demand accessibility and greedy placement cache behavior.
@@ -62,10 +62,49 @@ The benchmark result records:
 - raw accessibility and greedy elapsed milliseconds;
 - a deterministic semantic digest.
 
-Elapsed timings are observations only in UG-AI-044. No wall-clock pass/fail threshold is introduced
-here because machine-dependent benchmark envelopes belong to UG-AI-045.
+Elapsed timings remain observations rather than fixed wall-clock pass/fail thresholds because
+shared CI runners vary substantially. The accepted S10-T14 benchmark envelope is structural:
 
-## Ordered follow-up
+- fixture identity: `infrastructure-candidate-demand-v1`;
+- 64 demand subjects;
+- 16 candidate sites;
+- 1,024 bounded candidate×demand subjects;
+- demand batch size 16;
+- exactly 64 T07 `multi_source_distances()` calls;
+- eight greedy iterations / eight accepted generated facilities;
+- routing-call count after greedy must remain exactly 64;
+- deterministic semantic digest must be stable for an unchanged implementation;
+- full required Python/frontend/compose CI must remain green.
 
-UG-AI-045 records the benchmark envelope/diagnostics, wires the infrastructure reference workload
-into the required CI benchmark gate, and closes S10 only if the complete CI suite remains green.
+## Required CI gate
+
+UG-AI-045 adds `Infrastructure reference benchmark` to the required Python CI job after the
+existing road/block/building reference workloads. The benchmark emits JSON into the CI log. The
+final S10/M1 closure commit records the observed default-run diagnostics from the first green
+closure run, but does not convert those machine-specific milliseconds into a hard threshold.
+
+## Recorded closure diagnostics
+
+The first required CI run with the dedicated infrastructure benchmark step was **CI run
+35560322208** on branch head `ec01af3df7aa741f531a13f69bee2677f2e93523`, using the hosted
+Ubuntu 24.04 runner image. Python, frontend and compose-smoke jobs were all green.
+
+The default infrastructure benchmark emitted:
+
+- `accepted_facility_count = 8`;
+- `accessibility_ms = 12.87811`;
+- `greedy_ms = 3.417852`;
+- `reachable_count = 1024`;
+- `remaining_demand = 32.0`;
+- `routing_call_count = 64`;
+- `routing_call_count_after_greedy = 64`;
+- deterministic digest
+  `8fd8a263b208e8f31820f010f020e9445948aceda87e24891508e96d65706ac7`.
+
+The milliseconds are recorded observations, not a portable performance threshold. The enforced
+regression envelope is the workload shape, routing-call/cache invariants, deterministic digest,
+successful benchmark execution, and green required CI.
+
+With that evidence, the S10-T14 performance gate is satisfied. Any later change to the reference
+workload or structural envelope must update this document explicitly rather than silently weakening
+the gate.

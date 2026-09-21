@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**S10-T10–T13 завершены; S10-T14 performance fixture реализован through UG-AI-044**: reference candidate×demand workload считает bounded T07 routing calls и подтверждает, что greedy iterations используют coverage cache без повторного full all-pairs routing.
+**Sprint S10 / M1 Infrastructure Complete завершён through UG-AI-045**: demographic demand проходит через real network snap/accessibility, feasibility-aware greedy placement, persistence, metrics и infrastructure UI; synthetic-town acceptance и dedicated candidate×demand CI benchmark gates зелёные.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -129,8 +129,8 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
-Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-045 / S10-T14`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
+**`UG-AI-046 / S11-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
