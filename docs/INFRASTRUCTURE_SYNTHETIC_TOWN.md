@@ -1,6 +1,6 @@
 # Infrastructure synthetic-town acceptance fixture
 
-> **Status: Implemented through UG-AI-042 / S10-T13**
+> **Status: Complete through UG-AI-043 / S10-T13**
 
 S10-T13 adds one deliberately small synthetic town that exercises the completed S10 contracts
 together instead of restating them in another orchestration layer. The fixture lives in
@@ -39,9 +39,22 @@ The fixture invokes the production contracts in this order:
 8. T11 `InfrastructureMetricsBuilder` computes the canonical six infrastructure raw metrics from
    the authoritative T03/T07/T08 results without rerouting.
 
-The test asserts that every stage produced the expected structural subjects, that two generated
-facilities were accepted/persisted, and that the canonical metric set was emitted. It intentionally
-does not yet encode numeric acceptance ranges or determinism/fixed-state invariants.
+The fixture first asserts that every stage produced the expected structural subjects, that two
+generated facilities were accepted/persisted, and that the canonical metric set was emitted.
+
+UG-AI-043 adds the acceptance invariants on the same fixture:
+
+- gross school demand is 20 capacity units;
+- the fixed school contributes 5 served units before generated placement;
+- two generated facilities contribute another 10 units, leaving final unmet demand 5;
+- canonical population/child coverage is 0.75 and is accepted inside the documented 0.70–0.80
+  regression range;
+- capacity utilization is 1.0;
+- weighted p50/p90 network distance are both 100 m for this town;
+- two complete reruns have equal semantic T03/T06/T07/T08/T11 outputs and equal persisted
+  generated-facility provenance apart from run-scoped identifiers;
+- the same fixed ExistingInfrastructureResult instance retains its complete facility/geometry
+  signature across both runs.
 
 ## Why the fixed-service allocator is test-only
 
@@ -55,11 +68,6 @@ use that capability instead of growing its helper into application logic.
 
 ## Ordered follow-up
 
-UG-AI-043 extends this same synthetic town with acceptance assertions for:
-
-- expected coverage/unmet-demand ranges;
-- measurable fixed-facility contribution;
-- deterministic output;
-- no mutation of fixed source state.
-
-Performance/all-pairs evidence remains UG-AI-044/045 rather than being mixed into S10-T13.
+S10-T13 is complete through UG-AI-043. Performance/all-pairs evidence remains UG-AI-044/045:
+the next task is UG-AI-044 / S10-T14, which adds the bounded candidate×demand performance fixture
+and counters proving that greedy iterations do not repeat full all-pairs routing.
