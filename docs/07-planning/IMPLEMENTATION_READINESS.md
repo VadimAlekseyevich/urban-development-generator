@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T12 are complete through UG-AI-041; the current ordered task is **UG-AI-042 / S10-T13**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T12 are complete through UG-AI-041; the S10-T13 synthetic-town fixture is implemented through UG-AI-042 and the current ordered task is **UG-AI-043 / S10-T13**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-042 / S10-T13
-Build one synthetic-town end-to-end fixture from demography demand through network snap/accessibility/placement/persistence/metrics.
+UG-AI-043 / S10-T13
+Assert expected coverage ranges, fixed facility contribution, deterministic output and no fixed-state mutation.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
