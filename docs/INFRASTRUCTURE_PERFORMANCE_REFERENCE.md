@@ -1,6 +1,6 @@
 # Infrastructure reference performance fixture
 
-> **Status: Implemented through UG-AI-044 / S10-T14**
+> **Status: UG-AI-045 closure gate in progress**
 
 S10-T14 uses `benchmarks/infrastructure_reference.py` as the deterministic reference workload for
 candidate×demand accessibility and greedy placement cache behavior.
@@ -62,10 +62,25 @@ The benchmark result records:
 - raw accessibility and greedy elapsed milliseconds;
 - a deterministic semantic digest.
 
-Elapsed timings are observations only in UG-AI-044. No wall-clock pass/fail threshold is introduced
-here because machine-dependent benchmark envelopes belong to UG-AI-045.
+Elapsed timings remain observations rather than fixed wall-clock pass/fail thresholds because
+shared CI runners vary substantially. The accepted S10-T14 benchmark envelope is structural:
 
-## Ordered follow-up
+- fixture identity: `infrastructure-candidate-demand-v1`;
+- 64 demand subjects;
+- 16 candidate sites;
+- 1,024 bounded candidate×demand subjects;
+- demand batch size 16;
+- exactly 64 T07 `multi_source_distances()` calls;
+- eight greedy iterations / eight accepted generated facilities;
+- routing-call count after greedy must remain exactly 64;
+- deterministic semantic digest must be stable for an unchanged implementation;
+- full required Python/frontend/compose CI must remain green.
 
-UG-AI-045 records the benchmark envelope/diagnostics, wires the infrastructure reference workload
-into the required CI benchmark gate, and closes S10 only if the complete CI suite remains green.
+## Required CI gate
+
+UG-AI-045 adds `Infrastructure reference benchmark` to the required Python CI job after the
+existing road/block/building reference workloads. The benchmark emits JSON into the CI log. The
+final S10/M1 closure commit records the observed default-run diagnostics from the first green
+closure run, but does not convert those machine-specific milliseconds into a hard threshold.
+
+Until that required run is green, S10/M1 remains open.
