@@ -90,9 +90,6 @@ REFERENCE_CONFIG = InfrastructureBenchmarkConfig()
 
 
 @dataclass(frozen=True, slots=True)
-REFERENCE_CONFIG = InfrastructureBenchmarkConfig()
-
-
 class InfrastructureBenchmarkResult:
     fixture_name: str
     working_srid: int
