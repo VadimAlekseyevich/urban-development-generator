@@ -88,6 +88,13 @@ from core.urban_generator.domain.stage import (
     require_stage_input,
     validate_stage_metadata,
 )
+from core.urban_generator.domain.validation import (
+    VALIDATION_REPORT_SCHEMA_VERSION,
+    ValidationReportCodecError,
+    aggregate_validation_reports,
+    deserialize_validation_report,
+    serialize_validation_report,
+)
 from core.urban_generator.domain.territory import (
     SnapshotLayerKind,
     SnapshotLayerRef,
@@ -165,9 +172,12 @@ __all__ = [
     "UrbanGeneratorError",
     "V1_EXPERIMENT_DEFINITIONS",
     "V1_REFERENCE_PROFILE",
+    "VALIDATION_REPORT_SCHEMA_VERSION",
     "ValidationReport",
+    "ValidationReportCodecError",
     "WorkingCRS",
     "WorldStateContract",
+    "aggregate_validation_reports",
     "build_stage_fingerprint",
     "require_max_distance_m",
     "require_node_refs",
@@ -175,6 +185,8 @@ __all__ = [
     "require_stage_input",
     "require_temporary_artifact_ref",
     "require_working_crs",
+    "deserialize_validation_report",
+    "serialize_validation_report",
     "validate_constraint_metadata",
     "validate_stage_metadata",
 ]

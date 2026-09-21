@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11-T01 validation detail is implemented through UG-AI-046. The current ordered task is **UG-AI-047 / S11-T01**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11-T01 canonical validation detail, aggregation and serialization are implemented through UG-AI-047. The current ordered task is **UG-AI-048 / S11-T02**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -55,11 +55,11 @@ The following are canonical and must not be re-invented:
 
 Critical/High architecture debt: **0 open**.
 
-Remaining Medium items:
-- AD-007 -> UG-AI-046/047 (canonical validation detail extension);
+Remaining Medium item:
 - AD-009 -> UG-AI-085/086 (frontend layer registry/tree).
 
-Both are named roadmap work and do not threaten the stabilized cross-cutting architecture.
+AD-007 is closed through UG-AI-046/047. The remaining item is named roadmap work and does not
+threaten the stabilized cross-cutting architecture.
 
 ## 4. What remains intentionally future work
 
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-047 / S11-T01
-Add cross-stage validation aggregation and serialization tests; do not create a competing violation domain model.
+UG-AI-048 / S11-T02
+Implement aggregate coverage/FAR/density/capacity constraints through ConstraintEngine registrations.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
