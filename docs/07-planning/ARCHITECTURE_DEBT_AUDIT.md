@@ -81,13 +81,13 @@ another metric identity vocabulary.
 
 ### AD-007 — ValidationReport needs richer violation detail
 **Severity:** Medium  
-**State:** Deferred with named owner; non-blocking
+**State:** Closed
 
-This is a planned additive extension of the canonical validation family, not a competing contract.
+UG-AI-046/047 extended the canonical validation family with stable entity references, CRS-aware
+problem geometry, lossless cross-stage aggregation and a strict deterministic v1 codec.
 
-Future owner:
-- `UG-AI-046` / S11-T01 — entity/problem-geometry detail;
-- `UG-AI-047` / S11-T01 — aggregation/serialization evidence.
+No competing violation model was introduced; `ConstraintResult/ValidationReport` remain the
+single validation family.
 
 ### AD-008 — Work-item count can overstate integrated readiness
 **Severity:** Medium  
