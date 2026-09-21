@@ -22,6 +22,10 @@ Exit:
 
 ## M1 — Infrastructure Complete
 
+**State: COMPLETE.** S10 closure evidence: PR #122 closure branch required CI run
+`35560322208` was green on `ec01af3df7aa741f531a13f69bee2677f2e93523`; the run included
+the dedicated infrastructure reference benchmark plus full Python/frontend/compose gates.
+
 Exit:
 
 - S10 complete;
