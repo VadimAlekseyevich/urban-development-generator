@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for S10 feature development. S10-T06 through S10-T12 are complete through UG-AI-041; S10-T13 synthetic-town integration and acceptance assertions are complete through UG-AI-043. The current ordered task is **UG-AI-044 / S10-T14**.
+The repository is architecture-ready for S10 feature development. S10-T06 through S10-T13 are complete through UG-AI-043; the S10-T14 reference candidate×demand workload and routing-call/cache counters are implemented through UG-AI-044. The current ordered task is **UG-AI-045 / S10-T14**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-044 / S10-T14
-Add reference candidate×demand performance fixture and counters proving no repeated full all-pairs recomputation.
+UG-AI-045 / S10-T14
+Record benchmark envelope/diagnostics and close S10 sprint gate only with green CI.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
