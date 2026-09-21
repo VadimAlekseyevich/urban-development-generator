@@ -82,7 +82,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## S11–v1.0 / Ordered future execution
 
-- [ ] **UG-AI-046** — **S11-T01** — Extend ConstraintResult/ValidationReport with optional stable entity reference and problem-geometry payload while preserving existing hard/soft semantics.
+- [x] **UG-AI-046** — **S11-T01** — Extend ConstraintResult/ValidationReport with optional stable entity reference and problem-geometry payload while preserving existing hard/soft semantics.
 - [ ] **UG-AI-047** — **S11-T01** — Add cross-stage validation aggregation and serialization tests; do not create a competing violation domain model.
 - [ ] **UG-AI-048** — **S11-T02** — Implement aggregate coverage/FAR/density/capacity constraints through ConstraintEngine registrations.
 - [ ] **UG-AI-049** — **S11-T03** — Define versioned soft-penalty result metadata and implement soft rules independently from hard invalidity.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..045 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-046. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..046 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-047. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
