@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -9,6 +10,36 @@ class BenchmarkContractError(ValueError):
 class MetricValueKind(StrEnum):
     SCALAR = "SCALAR"
     DISTRIBUTION = "DISTRIBUTION"
+
+
+class MetricScope(StrEnum):
+    """Runtime domain grouping for canonical raw metrics."""
+
+    LAND = "LAND"
+    BUILDINGS = "BUILDINGS"
+    ROADS = "ROADS"
+    DEMOGRAPHY = "DEMOGRAPHY"
+    INFRASTRUCTURE = "INFRASTRUCTURE"
+    CONSTRAINTS = "CONSTRAINTS"
+
+
+class MetricDirection(StrEnum):
+    """How a scalar metric should be interpreted before later normalization."""
+
+    HIGHER_IS_BETTER = "HIGHER_IS_BETTER"
+    LOWER_IS_BETTER = "LOWER_IS_BETTER"
+    TARGET = "TARGET"
+    DESCRIPTIVE = "DESCRIPTIVE"
+
+
+class MetricSource(StrEnum):
+    """Canonical producer-family ownership for raw metric values."""
+
+    LAND_BUILDING = "LAND_BUILDING"
+    ROADS = "ROADS"
+    DEMOGRAPHY = "DEMOGRAPHY"
+    INFRASTRUCTURE = "INFRASTRUCTURE"
+    CONSTRAINTS = "CONSTRAINTS"
 
 
 class RawMetricId(StrEnum):
@@ -80,11 +111,104 @@ class BaselineId(StrEnum):
 class MetricDefinition:
     metric_id: RawMetricId
     unit: str
+    scope: MetricScope
+    direction: MetricDirection
+    source: MetricSource
+    version: str
     value_kind: MetricValueKind = MetricValueKind.SCALAR
 
     def __post_init__(self) -> None:
-        if not self.unit.strip():
+        if not isinstance(self.metric_id, RawMetricId):
+            raise BenchmarkContractError("metric_id must be a RawMetricId value")
+        if not isinstance(self.unit, str) or not self.unit.strip():
             raise BenchmarkContractError("metric unit must be non-empty")
+        if not isinstance(self.scope, MetricScope):
+            raise BenchmarkContractError("metric scope must be a MetricScope value")
+        if not isinstance(self.direction, MetricDirection):
+            raise BenchmarkContractError(
+                "metric direction must be a MetricDirection value"
+            )
+        if not isinstance(self.source, MetricSource):
+            raise BenchmarkContractError("metric source must be a MetricSource value")
+        if (
+            not isinstance(self.version, str)
+            or _METRIC_VERSION_RE.fullmatch(self.version) is None
+        ):
+            raise BenchmarkContractError(
+                "metric version must be a stable non-empty identifier"
+            )
+        if not isinstance(self.value_kind, MetricValueKind):
+            raise BenchmarkContractError(
+                "metric value_kind must be a MetricValueKind value"
+            )
+
+
+class MetricRegistry:
+    """Deterministic immutable registry keyed only by canonical RawMetricId."""
+
+    def __init__(self, definitions: tuple[MetricDefinition, ...]) -> None:
+        if not isinstance(definitions, tuple):
+            raise BenchmarkContractError(
+                "metric registry definitions must be an immutable tuple"
+            )
+        if not definitions:
+            raise BenchmarkContractError(
+                "metric registry definitions must not be empty"
+            )
+        if any(not isinstance(item, MetricDefinition) for item in definitions):
+            raise BenchmarkContractError(
+                "metric registry definitions must contain only MetricDefinition values"
+            )
+
+        metric_ids = tuple(item.metric_id for item in definitions)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise BenchmarkContractError(
+                "metric registry definitions must not contain duplicate metric IDs"
+            )
+
+        self._definitions = definitions
+        self._by_id = {definition.metric_id: definition for definition in definitions}
+
+    @property
+    def definitions(self) -> tuple[MetricDefinition, ...]:
+        return self._definitions
+
+    @property
+    def metric_ids(self) -> tuple[RawMetricId, ...]:
+        return tuple(definition.metric_id for definition in self._definitions)
+
+    def get(self, metric_id: RawMetricId) -> MetricDefinition:
+        if not isinstance(metric_id, RawMetricId):
+            raise BenchmarkContractError(
+                "metric registry lookup requires a RawMetricId value"
+            )
+        try:
+            return self._by_id[metric_id]
+        except KeyError as exc:
+            raise BenchmarkContractError(
+                f"metric definition is not registered: {metric_id.value}"
+            ) from exc
+
+    def definitions_for(
+        self,
+        *,
+        scope: MetricScope | None = None,
+        source: MetricSource | None = None,
+    ) -> tuple[MetricDefinition, ...]:
+        if scope is not None and not isinstance(scope, MetricScope):
+            raise BenchmarkContractError(
+                "metric registry scope filter must be MetricScope or None"
+            )
+        if source is not None and not isinstance(source, MetricSource):
+            raise BenchmarkContractError(
+                "metric registry source filter must be MetricSource or None"
+            )
+        return tuple(
+            definition
+            for definition in self._definitions
+            if (scope is None or definition.scope is scope)
+            and (source is None or definition.source is source)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,71 +259,231 @@ def _require_unique(name: str, values: tuple[object, ...]) -> None:
         raise BenchmarkContractError(f"{name} must not contain duplicates")
 
 
+_METRIC_VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
 CANONICAL_RAW_METRIC_DEFINITIONS = (
-    MetricDefinition(RawMetricId.LAND_DEVELOPABLE_AREA_M2, "m2"),
-    MetricDefinition(RawMetricId.LAND_DEVELOPED_AREA_M2, "m2"),
-    MetricDefinition(RawMetricId.LAND_GREEN_RECREATION_SHARE, "ratio"),
-    MetricDefinition(RawMetricId.BUILDINGS_COVERAGE_RATIO, "ratio"),
-    MetricDefinition(RawMetricId.BUILDINGS_FAR, "ratio"),
-    MetricDefinition(RawMetricId.BUILDINGS_GFA_M2, "m2"),
     MetricDefinition(
-        RawMetricId.BUILDINGS_ARCHETYPE_DISTRIBUTION,
-        "share",
-        MetricValueKind.DISTRIBUTION,
-    ),
-    MetricDefinition(RawMetricId.DEMOGRAPHY_TOTAL_POPULATION, "persons"),
-    MetricDefinition(
-        RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
-        "persons_per_km2",
+        metric_id=RawMetricId.LAND_DEVELOPABLE_AREA_M2,
+        unit="m2",
+        scope=MetricScope.LAND,
+        direction=MetricDirection.DESCRIPTIVE,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
     MetricDefinition(
-        RawMetricId.DEMOGRAPHY_AGE_GROUP_DISTRIBUTION,
-        "share",
-        MetricValueKind.DISTRIBUTION,
-    ),
-    MetricDefinition(RawMetricId.DEMOGRAPHY_JOBS_ESTIMATE, "jobs"),
-    MetricDefinition(
-        RawMetricId.ROADS_LENGTH_DENSITY_KM_PER_KM2,
-        "km_per_km2",
-    ),
-    MetricDefinition(RawMetricId.ROADS_CONNECTED_COMPONENTS, "count"),
-    MetricDefinition(RawMetricId.ROADS_AVERAGE_DEGREE, "degree"),
-    MetricDefinition(
-        RawMetricId.ROADS_INTERSECTION_DENSITY_PER_KM2,
-        "count_per_km2",
-    ),
-    MetricDefinition(RawMetricId.ROADS_CIRCUITY, "ratio"),
-    MetricDefinition(RawMetricId.ROADS_DEAD_END_RATIO, "ratio"),
-    MetricDefinition(
-        RawMetricId.INFRASTRUCTURE_POPULATION_COVERAGE_RATIO,
-        "ratio",
+        metric_id=RawMetricId.LAND_DEVELOPED_AREA_M2,
+        unit="m2",
+        scope=MetricScope.LAND,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
     MetricDefinition(
-        RawMetricId.INFRASTRUCTURE_AGE_SPECIFIC_COVERAGE,
-        "ratio",
-        MetricValueKind.DISTRIBUTION,
+        metric_id=RawMetricId.LAND_GREEN_RECREATION_SHARE,
+        unit="ratio",
+        scope=MetricScope.LAND,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
     MetricDefinition(
-        RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
-        "m",
+        metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+        unit="ratio",
+        scope=MetricScope.BUILDINGS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
     MetricDefinition(
-        RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
-        "m",
+        metric_id=RawMetricId.BUILDINGS_FAR,
+        unit="ratio",
+        scope=MetricScope.BUILDINGS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
-    MetricDefinition(RawMetricId.INFRASTRUCTURE_UNMET_DEMAND, "demand_units"),
     MetricDefinition(
-        RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
-        "ratio",
+        metric_id=RawMetricId.BUILDINGS_GFA_M2,
+        unit="m2",
+        scope=MetricScope.BUILDINGS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
     ),
-    MetricDefinition(RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT, "count"),
-    MetricDefinition(RawMetricId.CONSTRAINTS_AFFECTED_AREA_M2, "m2"),
-    MetricDefinition(RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY, "score"),
+    MetricDefinition(
+        metric_id=RawMetricId.BUILDINGS_ARCHETYPE_DISTRIBUTION,
+        unit="share",
+        scope=MetricScope.BUILDINGS,
+        direction=MetricDirection.DESCRIPTIVE,
+        source=MetricSource.LAND_BUILDING,
+        version="1",
+        value_kind=MetricValueKind.DISTRIBUTION,
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.DEMOGRAPHY_TOTAL_POPULATION,
+        unit="persons",
+        scope=MetricScope.DEMOGRAPHY,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.DEMOGRAPHY,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+        unit="persons_per_km2",
+        scope=MetricScope.DEMOGRAPHY,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.DEMOGRAPHY,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.DEMOGRAPHY_AGE_GROUP_DISTRIBUTION,
+        unit="share",
+        scope=MetricScope.DEMOGRAPHY,
+        direction=MetricDirection.DESCRIPTIVE,
+        source=MetricSource.DEMOGRAPHY,
+        version="1",
+        value_kind=MetricValueKind.DISTRIBUTION,
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.DEMOGRAPHY_JOBS_ESTIMATE,
+        unit="jobs",
+        scope=MetricScope.DEMOGRAPHY,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.DEMOGRAPHY,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_LENGTH_DENSITY_KM_PER_KM2,
+        unit="km_per_km2",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_CONNECTED_COMPONENTS,
+        unit="count",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_AVERAGE_DEGREE,
+        unit="degree",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_INTERSECTION_DENSITY_PER_KM2,
+        unit="count_per_km2",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_CIRCUITY,
+        unit="ratio",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.ROADS_DEAD_END_RATIO,
+        unit="ratio",
+        scope=MetricScope.ROADS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.ROADS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_POPULATION_COVERAGE_RATIO,
+        unit="ratio",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.HIGHER_IS_BETTER,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_AGE_SPECIFIC_COVERAGE,
+        unit="ratio",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.DESCRIPTIVE,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+        value_kind=MetricValueKind.DISTRIBUTION,
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
+        unit="m",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
+        unit="m",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_UNMET_DEMAND,
+        unit="demand_units",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
+        unit="ratio",
+        scope=MetricScope.INFRASTRUCTURE,
+        direction=MetricDirection.TARGET,
+        source=MetricSource.INFRASTRUCTURE,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+        unit="count",
+        scope=MetricScope.CONSTRAINTS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.CONSTRAINTS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.CONSTRAINTS_AFFECTED_AREA_M2,
+        unit="m2",
+        scope=MetricScope.CONSTRAINTS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.CONSTRAINTS,
+        version="1",
+    ),
+    MetricDefinition(
+        metric_id=RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY,
+        unit="score",
+        scope=MetricScope.CONSTRAINTS,
+        direction=MetricDirection.LOWER_IS_BETTER,
+        source=MetricSource.CONSTRAINTS,
+        version="1",
+    ),
 )
 
-CANONICAL_RAW_METRIC_IDS = tuple(
-    definition.metric_id for definition in CANONICAL_RAW_METRIC_DEFINITIONS
-)
+CANONICAL_METRIC_REGISTRY = MetricRegistry(CANONICAL_RAW_METRIC_DEFINITIONS)
+CANONICAL_RAW_METRIC_IDS = CANONICAL_METRIC_REGISTRY.metric_ids
+
+if CANONICAL_RAW_METRIC_IDS != tuple(RawMetricId):
+    raise BenchmarkContractError(
+        "canonical metric registry must contain every RawMetricId exactly once "
+        "in declaration order"
+    )
 
 CANONICAL_DIAGNOSTIC_IDS = (
     DiagnosticId.RUN_DURATION_SECONDS,
