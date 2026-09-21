@@ -77,7 +77,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-041** — **S10-T12** — Keep authoritative computation on backend and add UI error/truncation/run-selection states.
 - [x] **UG-AI-042** — **S10-T13** — Build one synthetic-town end-to-end fixture from demography demand through network snap/accessibility/placement/persistence/metrics.
 - [x] **UG-AI-043** — **S10-T13** — Assert expected coverage ranges, fixed facility contribution, deterministic output and no fixed-state mutation.
-- [ ] **UG-AI-044** — **S10-T14** — Add reference candidate×demand performance fixture and counters proving no repeated full all-pairs recomputation.
+- [x] **UG-AI-044** — **S10-T14** — Add reference candidate×demand performance fixture and counters proving no repeated full all-pairs recomputation.
 - [ ] **UG-AI-045** — **S10-T14** — Record benchmark envelope/diagnostics and close S10 sprint gate only with green CI.
 
 ## S11–v1.0 / Ordered future execution
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..043 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-044. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..044 are complete and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-045. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
