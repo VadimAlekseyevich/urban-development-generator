@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-048**: canonical ConstraintResult/ValidationReport поддерживает validation detail/aggregation/serialization, а coverage/FAR/density/capacity aggregate bounds проходят через тот же ConstraintEngine на final_validation без нового metric/violation vocabulary.
+**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-049**: canonical ConstraintResult/ValidationReport поддерживает detail/aggregation/versioned serialization, hard aggregate bounds и versioned SOFT penalty metadata/rules через один ConstraintEngine без нового metric/violation vocabulary.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
-**`UG-AI-049 / S11-T03`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-050 / S11-T04`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
