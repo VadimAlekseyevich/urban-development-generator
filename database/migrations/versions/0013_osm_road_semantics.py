@@ -48,7 +48,14 @@ def upgrade() -> None:
     )
 
     # Existing OSM rows already retain their raw tags in attributes_json, so backfill the
-    # normalized semantics without mutating dataset ownership or source geometry.
+    # normalized semantics without mutating dataset ownership or source geometry. Source
+    # rows belonging to a ready dataset are normally immutable; suspend only this table's
+    # named guard for the schema-owned backfill. PostgreSQL DDL is transactional here, so
+    # a failed migration rolls the trigger state back together with the revision.
+    op.execute(
+        "ALTER TABLE source_roads "
+        "DISABLE TRIGGER trg_source_roads_version_guard"
+    )
     op.execute(
         """
         UPDATE source_roads
@@ -102,6 +109,10 @@ def upgrade() -> None:
         UPDATE source_roads
         SET one_way = (one_way_direction <> 'both')
         """
+    )
+    op.execute(
+        "ALTER TABLE source_roads "
+        "ENABLE TRIGGER trg_source_roads_version_guard"
     )
 
     op.create_check_constraint(
