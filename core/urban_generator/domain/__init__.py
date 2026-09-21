@@ -8,6 +8,7 @@ from core.urban_generator.domain.artifacts import (
 )
 from core.urban_generator.domain.benchmarking import (
     CANONICAL_DIAGNOSTIC_IDS,
+    CANONICAL_METRIC_REGISTRY,
     CANONICAL_RAW_METRIC_DEFINITIONS,
     CANONICAL_RAW_METRIC_IDS,
     V1_EXPERIMENT_DEFINITIONS,
@@ -19,6 +20,10 @@ from core.urban_generator.domain.benchmarking import (
     ExperimentDefinition,
     ExperimentId,
     MetricDefinition,
+    MetricDirection,
+    MetricRegistry,
+    MetricScope,
+    MetricSource,
     MetricValueKind,
     RawMetricId,
 )
@@ -114,6 +119,7 @@ __all__ = [
     "BenchmarkContractError",
     "BenchmarkReferenceProfile",
     "CANONICAL_DIAGNOSTIC_IDS",
+    "CANONICAL_METRIC_REGISTRY",
     "CANONICAL_RAW_METRIC_DEFINITIONS",
     "CANONICAL_RAW_METRIC_IDS",
     "CRSContractError",
@@ -140,6 +146,10 @@ __all__ = [
     "ExperimentDefinition",
     "ExperimentId",
     "MetricDefinition",
+    "MetricDirection",
+    "MetricRegistry",
+    "MetricScope",
+    "MetricSource",
     "MetricValueKind",
     "NetworkBackend",
     "NetworkContractError",
