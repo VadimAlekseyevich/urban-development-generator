@@ -85,7 +85,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-046** — **S11-T01** — Extend ConstraintResult/ValidationReport with optional stable entity reference and problem-geometry payload while preserving existing hard/soft semantics.
 - [x] **UG-AI-047** — **S11-T01** — Add cross-stage validation aggregation and serialization tests; do not create a competing violation domain model.
 - [x] **UG-AI-048** — **S11-T02** — Implement aggregate coverage/FAR/density/capacity constraints through ConstraintEngine registrations.
-- [ ] **UG-AI-049** — **S11-T03** — Define versioned soft-penalty result metadata and implement soft rules independently from hard invalidity.
+- [x] **UG-AI-049** — **S11-T03** — Define versioned soft-penalty result metadata and implement soft rules independently from hard invalidity.
 - [ ] **UG-AI-050** — **S11-T04** — Extend MetricDefinition around existing RawMetricId with scope/direction/source/version metadata and a canonical registry.
 - [ ] **UG-AI-051** — **S11-T05** — Implement land/building raw metric adapter from authoritative suitability/block/building results.
 - [ ] **UG-AI-052** — **S11-T06** — Implement road raw metric adapter reusing road graph/metrics artifacts without graph rebuild.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..048 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-049. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..049 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-050. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
