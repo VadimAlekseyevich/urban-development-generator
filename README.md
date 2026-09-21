@@ -113,7 +113,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**S10-T10 persistence, S10-T11 metrics и S10-T12 infrastructure read/UI завершены through UG-AI-041; S10-T13 synthetic-town fixture реализован through UG-AI-042**: один integration path проходит от demographic demand через real NetworkBackend snap/accessibility/greedy/feasibility к persistence и canonical infrastructure metrics.
+**S10-T10 persistence, S10-T11 metrics и S10-T12 infrastructure read/UI завершены; S10-T13 synthetic-town acceptance завершён through UG-AI-043**: integration path проходит от demographic demand через real NetworkBackend snap/accessibility/greedy/feasibility к persistence и canonical metrics, с regression assertions на coverage, fixed contribution, determinism и fixed-state immutability.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -130,7 +130,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Поэтому readiness теперь **ACCEPTED**, и следующий execution item —
-**`UG-AI-043 / S10-T13`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-044 / S10-T14`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
