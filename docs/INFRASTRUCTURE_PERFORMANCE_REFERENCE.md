@@ -1,6 +1,6 @@
 # Infrastructure reference performance fixture
 
-> **Status: UG-AI-045 closure gate in progress**
+> **Status: Complete through UG-AI-045 / S10-T14**
 
 S10-T14 uses `benchmarks/infrastructure_reference.py` as the deterministic reference workload for
 candidate×demand accessibility and greedy placement cache behavior.
@@ -83,4 +83,28 @@ existing road/block/building reference workloads. The benchmark emits JSON into 
 final S10/M1 closure commit records the observed default-run diagnostics from the first green
 closure run, but does not convert those machine-specific milliseconds into a hard threshold.
 
-Until that required run is green, S10/M1 remains open.
+## Recorded closure diagnostics
+
+The first required CI run with the dedicated infrastructure benchmark step was **CI run
+35560322208** on branch head `ec01af3df7aa741f531a13f69bee2677f2e93523`, using the hosted
+Ubuntu 24.04 runner image. Python, frontend and compose-smoke jobs were all green.
+
+The default infrastructure benchmark emitted:
+
+- `accepted_facility_count = 8`;
+- `accessibility_ms = 12.87811`;
+- `greedy_ms = 3.417852`;
+- `reachable_count = 1024`;
+- `remaining_demand = 32.0`;
+- `routing_call_count = 64`;
+- `routing_call_count_after_greedy = 64`;
+- deterministic digest
+  `8fd8a263b208e8f31820f010f020e9445948aceda87e24891508e96d65706ac7`.
+
+The milliseconds are recorded observations, not a portable performance threshold. The enforced
+regression envelope is the workload shape, routing-call/cache invariants, deterministic digest,
+successful benchmark execution, and green required CI.
+
+With that evidence, the S10-T14 performance gate is satisfied. Any later change to the reference
+workload or structural envelope must update this document explicitly rather than silently weakening
+the gate.
