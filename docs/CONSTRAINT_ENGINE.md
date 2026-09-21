@@ -108,3 +108,22 @@ A finite value outside its configured range becomes a normal failed `ConstraintR
 Malformed configuration, duplicate/missing subject metrics, non-finite values, or inconsistent
 snapshot/run CRS are input-contract errors rather than synthetic violations. S11-T03 owns soft
 penalty semantics; these S11-T02 rules do not overload HARD invalidity with penalty scoring.
+
+
+## S11 soft aggregate preferences
+
+UG-AI-049 adds SOFT aggregate preference rules without changing HARD invalidity.
+
+`SoftAggregatePreference` reuses the same canonical aggregate `RawMetricId` values as S11-T02,
+defines an inclusive preferred range, and assigns one positive rule weight. The rule is registered
+at `final_validation/TERRITORY` through the same `ConstraintRegistry`.
+
+A passing preference emits `SoftPenaltyMetadata(raw_penalty=0, weight=...)`. A failed preference
+emits the same metadata with `raw_penalty=1`. The metadata is versioned independently from the
+validation-report codec. Its derived `weighted_penalty` is the local contribution
+`raw_penalty * weight`; UG-AI-055 owns aggregation into the canonical
+`constraints.weighted_soft_penalty` raw metric.
+
+A failed SOFT preference remains in `ValidationReport.soft_violations` but never enters
+`hard_failures` and never makes the report invalid by itself. S11-T10/T11 normalization and
+composite-score behavior remain separate future work.

@@ -21,6 +21,42 @@ class ConstraintSeverity(StrEnum):
     SOFT = "SOFT"
 
 
+SOFT_PENALTY_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class SoftPenaltyMetadata:
+    """Versioned per-result soft penalty metadata, independent from hard invalidity."""
+
+    raw_penalty: float
+    weight: float
+    schema_version: int = SOFT_PENALTY_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.schema_version, int)
+            or isinstance(self.schema_version, bool)
+            or self.schema_version != SOFT_PENALTY_SCHEMA_VERSION
+        ):
+            raise ConstraintContractError(
+                f"unsupported soft penalty schema_version: {self.schema_version!r}"
+            )
+        raw_penalty = _require_finite_number("soft penalty raw_penalty", self.raw_penalty)
+        weight = _require_finite_number("soft penalty weight", self.weight)
+        if raw_penalty < 0.0 or raw_penalty > 1.0:
+            raise ConstraintContractError(
+                "soft penalty raw_penalty must stay inside 0..1"
+            )
+        if weight < 0.0:
+            raise ConstraintContractError("soft penalty weight must be non-negative")
+        object.__setattr__(self, "raw_penalty", raw_penalty)
+        object.__setattr__(self, "weight", weight)
+
+    @property
+    def weighted_penalty(self) -> float:
+        return self.raw_penalty * self.weight
+
+
 class ConstraintScope(StrEnum):
     """Canonical domain scopes to which a constraint can apply."""
 
@@ -86,6 +122,7 @@ class ConstraintResult:
     message: str
     entity_ref: ConstraintEntityRef | None = None
     problem_geometry: ConstraintProblemGeometry | None = None
+    soft_penalty: SoftPenaltyMetadata | None = None
 
     def __post_init__(self) -> None:
         validate_constraint_metadata(self.code, self.severity, self.scope)
@@ -107,6 +144,26 @@ class ConstraintResult:
             raise ConstraintContractError(
                 "constraint problem_geometry must be ConstraintProblemGeometry or None"
             )
+        if self.soft_penalty is not None and not isinstance(
+            self.soft_penalty,
+            SoftPenaltyMetadata,
+        ):
+            raise ConstraintContractError(
+                "constraint soft_penalty must be SoftPenaltyMetadata or None"
+            )
+        if self.soft_penalty is not None:
+            if self.severity is not ConstraintSeverity.SOFT:
+                raise ConstraintContractError(
+                    "soft penalty metadata is only valid for SOFT constraints"
+                )
+            if self.passed and self.soft_penalty.raw_penalty != 0.0:
+                raise ConstraintContractError(
+                    "passed SOFT constraints must have zero raw_penalty"
+                )
+            if self.failed and self.soft_penalty.raw_penalty <= 0.0:
+                raise ConstraintContractError(
+                    "failed SOFT constraints with penalty metadata require positive raw_penalty"
+                )
 
     @property
     def failed(self) -> bool:
@@ -206,3 +263,12 @@ def validate_constraint_metadata(
 
 
 _CONSTRAINT_CODE_RE = re.compile(r"^[a-z][a-z0-9_.-]{0,127}$")
+
+
+def _require_finite_number(field_name: str, value: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConstraintContractError(f"{field_name} must be a finite number")
+    numeric = float(value)
+    if numeric != numeric or numeric in {float("inf"), float("-inf")}:
+        raise ConstraintContractError(f"{field_name} must be a finite number")
+    return numeric

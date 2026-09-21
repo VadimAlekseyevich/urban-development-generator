@@ -46,6 +46,12 @@ from core.urban_generator.constraints.raster_threshold import (
     RasterThresholdSubject,
     RasterWindow,
 )
+from core.urban_generator.constraints.soft_penalty import (
+    SoftAggregatePreference,
+    SoftAggregatePreferenceConstraint,
+    SoftPenaltyRuleError,
+    build_soft_preference_registrations,
+)
 
 __all__ = [
     "CANONICAL_AGGREGATE_BOUND_METRIC_IDS",
@@ -85,5 +91,9 @@ __all__ = [
     "RasterThresholdSubject",
     "RasterWindow",
     "RegisteredConstraintEngine",
+    "SoftAggregatePreference",
+    "SoftAggregatePreferenceConstraint",
+    "SoftPenaltyRuleError",
     "build_aggregate_bound_registrations",
+    "build_soft_preference_registrations",
 ]
