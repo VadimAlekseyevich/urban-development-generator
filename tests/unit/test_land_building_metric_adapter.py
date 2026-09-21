@@ -128,7 +128,7 @@ def _building_attributes() -> BuildingAttributeAssignmentResult:
                 source_id="source:002",
                 zone_class=ZoneClass.MIXED,
                 archetype=BuildingArchetype.POINT,
-                use=BuildingUse.MIXED_USE,
+                use=BuildingUse.MIXED,
                 floors=2,
                 config_version="1",
             ),
