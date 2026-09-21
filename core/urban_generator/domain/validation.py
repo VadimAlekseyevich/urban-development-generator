@@ -154,8 +154,8 @@ def _deserialize_result(value: object) -> ConstraintResult:
     problem_geometry = _deserialize_problem_geometry(item["problem_geometry"])
 
     try:
-        severity = ConstraintSeverity(item["severity"])
-        scope = ConstraintScope(item["scope"])
+        severity = ConstraintSeverity(cast(str, item["severity"]))
+        scope = ConstraintScope(cast(str, item["scope"]))
         return ConstraintResult(
             code=cast(str, item["code"]),
             severity=severity,
