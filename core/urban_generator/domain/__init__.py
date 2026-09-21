@@ -23,6 +23,7 @@ from core.urban_generator.domain.benchmarking import (
     RawMetricId,
 )
 from core.urban_generator.domain.constraints import (
+    SOFT_PENALTY_SCHEMA_VERSION,
     Constraint,
     ConstraintContractError,
     ConstraintEngine,
@@ -31,6 +32,7 @@ from core.urban_generator.domain.constraints import (
     ConstraintResult,
     ConstraintScope,
     ConstraintSeverity,
+    SoftPenaltyMetadata,
     ValidationReport,
     validate_constraint_metadata,
 )
@@ -157,6 +159,7 @@ __all__ = [
     "RunMode",
     "RunSemantics",
     "RunSemanticsError",
+    "SOFT_PENALTY_SCHEMA_VERSION",
     "SnapshotLayerKind",
     "SnapshotLayerRef",
     "Stage",
@@ -165,6 +168,7 @@ __all__ = [
     "StageDiagnosticLevel",
     "StageFingerprint",
     "StageResult",
+    "SoftPenaltyMetadata",
     "StateOwnership",
     "TerritorySnapshot",
     "TerritorySnapshotError",
