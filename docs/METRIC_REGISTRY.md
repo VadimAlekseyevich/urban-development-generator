@@ -1,6 +1,6 @@
 # Canonical raw metric registry
 
-> **Status: Implemented through UG-AI-054 / S11-T08**
+> **Status: Implemented through UG-AI-055 / S11-T09**
 
 The canonical raw metric identity remains `RawMetricId` from
 `core.urban_generator.domain.benchmarking`. S11-T04 enriches the existing
@@ -55,10 +55,10 @@ Those adapters must reuse authoritative stage outputs and this registry metadata
 redefine IDs, units, directions, scopes, sources or versions locally.
 
 S11-T05 implements `LAND_BUILDING`, S11-T06 implements `ROADS`, S11-T07 implements
-`DEMOGRAPHY`, and S11-T08 implements `INFRASTRUCTURE`. Their exact source/empty-data policies
-are documented in `LAND_BUILDING_METRICS.md`, `ROAD_RAW_METRICS.md`,
-`DEMOGRAPHY_RAW_METRICS.md`, and `INFRASTRUCTURE_RAW_METRICS.md`. S11-T09 remains the owner
-of the final `CONSTRAINTS` source family.
+`DEMOGRAPHY`, S11-T08 implements `INFRASTRUCTURE`, and S11-T09 implements `CONSTRAINTS`.
+Their exact source/empty-data policies are documented in `LAND_BUILDING_METRICS.md`,
+`ROAD_RAW_METRICS.md`, `DEMOGRAPHY_RAW_METRICS.md`,
+`INFRASTRUCTURE_RAW_METRICS.md`, and `CONSTRAINT_RAW_METRICS.md`.
 
 ## Non-goals
 
