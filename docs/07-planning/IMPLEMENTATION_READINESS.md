@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-052: canonical validation/metric registry plus land/building and road raw-metric adapters now project authoritative stage outputs without rerunning GIS or rebuilding road graphs. The current ordered task is **UG-AI-053 / S11-T07**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-053: canonical validation/metric registry plus land/building, road and demography raw-metric adapters project authoritative typed outputs without rerunning domain algorithms. The current ordered task is **UG-AI-054 / S11-T08**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-053 / S11-T07
-Implement demography raw metric adapter from persisted/typed demography outputs.
+UG-AI-054 / S11-T08
+Implement infrastructure raw metric adapter reusing S10 metrics/results.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
