@@ -30,6 +30,9 @@ with Shapely `make_valid` and records the repair count in diagnostics.
 Geometry-free failures remain valid and add zero affected area. Diagnostics separately record
 geometry-bearing and missing-geometry failures.
 
+The union is explicitly bounded by `max_problem_geometries` (default 100,000). Reports exceeding
+the configured geometry bound fail closed before union work starts.
+
 ## Soft-penalty compatibility
 
 Versioned S11-T03 SOFT results contribute `raw_penalty * weight` exactly as stored in
