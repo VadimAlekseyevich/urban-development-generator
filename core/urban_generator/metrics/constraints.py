@@ -20,6 +20,9 @@ class ConstraintMetricAdapterError(ValueError):
     """Raised when canonical validation data cannot be projected into S11 metrics."""
 
 
+DEFAULT_MAX_CONSTRAINT_PROBLEM_GEOMETRIES = 100_000
+
+
 CONSTRAINT_RAW_METRIC_IDS = tuple(
     definition.metric_id
     for definition in CANONICAL_METRIC_REGISTRY.definitions_for(
@@ -169,13 +172,31 @@ class ConstraintMetricAdapter:
 
     version = "1"
 
+    def __init__(
+        self,
+        *,
+        max_problem_geometries: int = DEFAULT_MAX_CONSTRAINT_PROBLEM_GEOMETRIES,
+    ) -> None:
+        if (
+            isinstance(max_problem_geometries, bool)
+            or not isinstance(max_problem_geometries, int)
+            or max_problem_geometries <= 0
+        ):
+            raise ConstraintMetricAdapterError(
+                "max_problem_geometries must be a positive integer"
+            )
+        self.max_problem_geometries = max_problem_geometries
+
     def adapt(self, report: ValidationReport) -> ConstraintRawMetricsResult:
         if not isinstance(report, ValidationReport):
             raise ConstraintMetricAdapterError(
                 "report must be a ValidationReport"
             )
 
-        area, geometry_diagnostics = _affected_area(report)
+        area, geometry_diagnostics = _affected_area(
+            report,
+            max_problem_geometries=self.max_problem_geometries,
+        )
 
         soft_with_penalty = tuple(
             result
@@ -254,6 +275,8 @@ class _GeometryDiagnostics:
 
 def _affected_area(
     report: ValidationReport,
+    *,
+    max_problem_geometries: int,
 ) -> tuple[float, _GeometryDiagnostics]:
     polygonal_parts: list[BaseGeometry] = []
     working_srid: int | None = None
@@ -261,6 +284,16 @@ def _affected_area(
     polygonal = 0
     non_polygonal = 0
     invalid = 0
+
+    geometry_count = sum(
+        result.problem_geometry is not None
+        for result in report.failures
+    )
+    if geometry_count > max_problem_geometries:
+        raise ConstraintMetricAdapterError(
+            "constraint problem geometry limit exceeded: "
+            f"{geometry_count} > {max_problem_geometries}"
+        )
 
     for result in report.failures:
         detail = result.problem_geometry
