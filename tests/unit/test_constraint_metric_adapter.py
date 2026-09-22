@@ -273,3 +273,36 @@ def test_adapter_weighted_soft_penalty_is_finite_and_exact_sum() -> None:
 
     assert math.isfinite(value)
     assert value == pytest.approx(1.5)
+
+
+def test_adapter_bounds_problem_geometry_union() -> None:
+    report = ValidationReport(
+        results=(
+            _result(
+                "constraints.hard.bound_a",
+                severity=ConstraintSeverity.HARD,
+                passed=False,
+                geometry=box(0, 0, 1, 1),
+            ),
+            _result(
+                "constraints.hard.bound_b",
+                severity=ConstraintSeverity.HARD,
+                passed=False,
+                geometry=box(2, 2, 3, 3),
+            ),
+        )
+    )
+
+    with pytest.raises(
+        ConstraintMetricAdapterError,
+        match="problem geometry limit exceeded",
+    ):
+        ConstraintMetricAdapter(max_problem_geometries=1).adapt(report)
+
+
+def test_adapter_requires_positive_problem_geometry_bound() -> None:
+    with pytest.raises(
+        ConstraintMetricAdapterError,
+        match="max_problem_geometries must be a positive integer",
+    ):
+        ConstraintMetricAdapter(max_problem_geometries=0)
