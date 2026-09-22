@@ -1,5 +1,5 @@
-from dataclasses import replace
 import uuid
+from dataclasses import replace
 
 import pytest
 from shapely.geometry import LineString
