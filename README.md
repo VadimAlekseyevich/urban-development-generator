@@ -110,13 +110,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/METRIC_REGISTRY.md` — canonical RawMetricId/MetricDefinition registry и runtime metadata;
 - `docs/LAND_BUILDING_METRICS.md` — S11 land/building raw metric adapter и source policy;
 - `docs/ROAD_RAW_METRICS.md` — S11 road raw metric adapter без graph rebuild;
+- `docs/DEMOGRAPHY_RAW_METRICS.md` — S11 demography raw metric adapter поверх typed S09 metrics;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-052**: canonical validation/metric registry дополнены land/building и road raw metric adapters; road path переиспользует готовые S06 metrics/validation artifacts без перестроения графа.
+**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-053**: canonical validation/metric registry дополнены land/building, road и demography raw metric adapters; каждый adapter переиспользует authoritative typed outputs без повторного domain/GIS расчёта.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -133,7 +134,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
-**`UG-AI-053 / S11-T07`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-054 / S11-T08`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
