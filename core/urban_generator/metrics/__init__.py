@@ -6,6 +6,11 @@ from core.urban_generator.metrics.demography import (
     DemographyRawMetricsResult,
     DemographyRawMetricValue,
 )
+from core.urban_generator.metrics.infrastructure import (
+    INFRASTRUCTURE_RAW_METRIC_IDS,
+    InfrastructureMetricAdapter,
+    InfrastructureMetricAdapterError,
+)
 from core.urban_generator.metrics.land_building import (
     LAND_BUILDING_RAW_METRIC_IDS,
     BuildingArchetypeShare,
@@ -31,6 +36,9 @@ __all__ = [
     "DemographyMetricAdapterError",
     "DemographyRawMetricValue",
     "DemographyRawMetricsResult",
+    "INFRASTRUCTURE_RAW_METRIC_IDS",
+    "InfrastructureMetricAdapter",
+    "InfrastructureMetricAdapterError",
     "LAND_BUILDING_RAW_METRIC_IDS",
     "BuildingArchetypeShare",
     "LandBuildingMetricAdapter",
