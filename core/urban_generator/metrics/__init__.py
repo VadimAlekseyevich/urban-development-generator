@@ -16,4 +16,19 @@ __all__ = [
     "LandBuildingMetricDiagnostics",
     "LandBuildingRawMetricValue",
     "LandBuildingRawMetricsResult",
+    "ROAD_RAW_METRIC_IDS",
+    "RoadMetricAdapter",
+    "RoadMetricAdapterDiagnostics",
+    "RoadMetricAdapterError",
+    "RoadRawMetricValue",
+    "RoadRawMetricsResult",
 ]
+
+from core.urban_generator.metrics.roads import (
+    ROAD_RAW_METRIC_IDS,
+    RoadMetricAdapter,
+    RoadMetricAdapterDiagnostics,
+    RoadMetricAdapterError,
+    RoadRawMetricsResult,
+    RoadRawMetricValue,
+)
