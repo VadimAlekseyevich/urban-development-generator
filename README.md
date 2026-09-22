@@ -112,13 +112,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/ROAD_RAW_METRICS.md` — S11 road raw metric adapter без graph rebuild;
 - `docs/DEMOGRAPHY_RAW_METRICS.md` — S11 demography raw metric adapter поверх typed S09 metrics;
 - `docs/INFRASTRUCTURE_RAW_METRICS.md` — S11 infrastructure adapter, напрямую переиспользующий canonical S10 metrics;
+- `docs/CONSTRAINT_RAW_METRICS.md` — S11 constraint raw metrics из canonical ValidationReport;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-054**: canonical validation/metric registry дополнены land/building, road, demography и infrastructure raw metric adapters; infrastructure path возвращает существующий canonical S10 `InfrastructureMetricsResult` без копирования или recompute.
+**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-055**: canonical validation/metric registry дополнены land/building, road, demography, infrastructure и constraint raw metric adapters; constraint path считает hard count, union affected area и weighted SOFT penalty непосредственно из canonical `ValidationReport`.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -135,7 +136,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
-**`UG-AI-055 / S11-T09`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-056 / S11-T10`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
