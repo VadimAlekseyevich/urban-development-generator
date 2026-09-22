@@ -89,7 +89,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-050** — **S11-T04** — Extend MetricDefinition around existing RawMetricId with scope/direction/source/version metadata and a canonical registry.
 - [x] **UG-AI-051** — **S11-T05** — Implement land/building raw metric adapter from authoritative suitability/block/building results.
 - [x] **UG-AI-052** — **S11-T06** — Implement road raw metric adapter reusing road graph/metrics artifacts without graph rebuild.
-- [ ] **UG-AI-053** — **S11-T07** — Implement demography raw metric adapter from persisted/typed demography outputs.
+- [x] **UG-AI-053** — **S11-T07** — Implement demography raw metric adapter from persisted/typed demography outputs.
 - [ ] **UG-AI-054** — **S11-T08** — Implement infrastructure raw metric adapter reusing S10 metrics/results.
 - [ ] **UG-AI-055** — **S11-T09** — Implement constraint raw metrics from canonical ValidationReport results.
 - [ ] **UG-AI-056** — **S11-T10** — Define versioned normalization direction/range/clamp/missing policy and tests.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..052 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-053. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..053 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-054. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
