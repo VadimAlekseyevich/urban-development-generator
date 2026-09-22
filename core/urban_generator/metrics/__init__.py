@@ -1,3 +1,11 @@
+from core.urban_generator.metrics.constraints import (
+    CONSTRAINT_RAW_METRIC_IDS,
+    ConstraintMetricAdapter,
+    ConstraintMetricAdapterDiagnostics,
+    ConstraintMetricAdapterError,
+    ConstraintRawMetricsResult,
+    ConstraintRawMetricValue,
+)
 from core.urban_generator.metrics.demography import (
     DEMOGRAPHY_RAW_METRIC_IDS,
     DemographyMetricAdapter,
@@ -30,6 +38,12 @@ from core.urban_generator.metrics.roads import (
 )
 
 __all__ = [
+    "CONSTRAINT_RAW_METRIC_IDS",
+    "ConstraintMetricAdapter",
+    "ConstraintMetricAdapterDiagnostics",
+    "ConstraintMetricAdapterError",
+    "ConstraintRawMetricValue",
+    "ConstraintRawMetricsResult",
     "DEMOGRAPHY_RAW_METRIC_IDS",
     "DemographyMetricAdapter",
     "DemographyMetricAdapterDiagnostics",
