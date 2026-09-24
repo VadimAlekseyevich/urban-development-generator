@@ -54,6 +54,18 @@ from core.urban_generator.metrics.score import (
     CompositeScoreResult,
     build_composite_score,
 )
+from core.urban_generator.metrics.sensitivity import (
+    ScoreSensitivityError,
+    ScoreSensitivityMetricSnapshot,
+    ScoreSensitivityRankedRun,
+    ScoreSensitivityResult,
+    ScoreSensitivityRunSnapshot,
+    ScoreSensitivityScenarioResult,
+    ScoreSensitivityWeightFactor,
+    ScoreWeightPerturbation,
+    analyze_score_sensitivity,
+    build_perturbed_score_config,
+)
 
 __all__ = [
     "CONSTRAINT_RAW_METRIC_IDS",
@@ -91,11 +103,21 @@ __all__ = [
     "NormalizationMissingPolicy",
     "NormalizedMetricValue",
     "ROAD_RAW_METRIC_IDS",
+    "ScoreSensitivityError",
+    "ScoreSensitivityMetricSnapshot",
+    "ScoreSensitivityRankedRun",
+    "ScoreSensitivityResult",
+    "ScoreSensitivityRunSnapshot",
+    "ScoreSensitivityScenarioResult",
+    "ScoreSensitivityWeightFactor",
+    "ScoreWeightPerturbation",
     "RoadMetricAdapter",
     "RoadMetricAdapterDiagnostics",
     "RoadMetricAdapterError",
     "RoadRawMetricValue",
     "RoadRawMetricsResult",
+    "analyze_score_sensitivity",
     "build_composite_score",
+    "build_perturbed_score_config",
     "normalize_metric",
 ]
