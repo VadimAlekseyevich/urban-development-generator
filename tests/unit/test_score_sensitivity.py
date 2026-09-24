@@ -94,8 +94,8 @@ def _perturbation(
 def test_weight_perturbation_recalculates_ranking_from_persisted_values() -> None:
     result = analyze_score_sensitivity(
         (
-            _run("run-a", coverage=0.9, circuity=0.2),
-            _run("run-b", coverage=0.5, circuity=0.9),
+            _run("run-a", coverage=0.9, circuity=0.5),
+            _run("run-b", coverage=0.5, circuity=0.8),
         ),
         baseline_config=_config(),
         perturbations=(
