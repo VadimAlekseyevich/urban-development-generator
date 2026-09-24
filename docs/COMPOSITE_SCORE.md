@@ -69,10 +69,12 @@ Retry before run completion deterministically replaces only the `evaluation` sec
 No new database table or migration is needed: `GenerationRun.metrics_json` is the existing
 run-level metrics persistence extension point.
 
-This persisted input/provenance envelope is the data boundary required by S11-T12 so weight
-sensitivity can be recalculated without rerunning GIS algorithms.
+This persisted input/provenance envelope is consumed by the implemented S11-T12 sensitivity
+engine so weight perturbations can recalculate scores/rankings without rerunning GIS algorithms or
+normalization.
 
 ## Non-goals
 
-S11-T11 does not choose one universal weight profile, run sensitivity perturbations, expose metrics
-through API/UI, or rerun any raw-metric producer. Those remain S11-T12 and later ordered tasks.
+S11-T11 itself does not choose one universal weight profile or rerun raw-metric producers.
+S11-T12 now performs weight-only sensitivity from the persisted envelope. API/UI delivery and the
+formal S15 research experiment remain later ordered tasks.
