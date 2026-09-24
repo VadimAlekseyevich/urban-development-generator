@@ -212,8 +212,12 @@ def build_composite_score(
     if not isinstance(config, CompositeScoreConfig):
         raise CompositeScoreError("config must be a CompositeScoreConfig value")
 
-    raw_by_id = _unique_by_id(raw_metrics, field_name="raw_metrics")
-    weight_by_id = _unique_by_id(config.weights, field_name="score weights")
+    raw_by_id = {item.metric_id: item for item in raw_metrics}
+    if len(raw_by_id) != len(raw_metrics):
+        raise CompositeScoreError(
+            "raw_metrics must not contain duplicate metric IDs"
+        )
+    weight_by_id = {item.metric_id: item for item in config.weights}
     profile_ids = normalization_profile.metric_ids
     expected = set(profile_ids)
     if set(raw_by_id) != expected:
@@ -276,18 +280,6 @@ def _contribution(
             )
         return 0.0
     return normalized.normalized_value * normalized_weight
-
-
-def _unique_by_id(
-    values: tuple[CompositeScoreRawMetric, ...]
-    | tuple[CompositeScoreMetricWeight, ...],
-    *,
-    field_name: str,
-) -> dict[RawMetricId, CompositeScoreRawMetric | CompositeScoreMetricWeight]:
-    by_id = {item.metric_id: item for item in values}
-    if len(by_id) != len(values):
-        raise CompositeScoreError(f"{field_name} must not contain duplicate metric IDs")
-    return by_id
 
 
 def _require_finite_number(field_name: str, value: float | int) -> float:
