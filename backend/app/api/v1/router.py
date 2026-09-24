@@ -11,6 +11,7 @@ from backend.app.api.v1.endpoints import (
     source_layers,
     suitability,
     uploads,
+    validation,
     zoning,
 )
 
@@ -25,4 +26,5 @@ api_router.include_router(demography.router)
 api_router.include_router(source_layers.router)
 api_router.include_router(suitability.router)
 api_router.include_router(uploads.router)
+api_router.include_router(validation.router)
 api_router.include_router(zoning.router)
