@@ -201,7 +201,7 @@ def test_sensitivity_rejects_incompatible_normalization_provenance() -> None:
         )
 
 
-def test_missing_persisted_value_can_only_keep_zero_effective_weight() -> None:
+def test_missing_persisted_value_requires_zero_effective_weight() -> None:
     runs = (
         _run("run-a", coverage=0.8, circuity=None),
         _run("run-b", coverage=0.7, circuity=None),
@@ -220,6 +220,7 @@ def test_missing_persisted_value_can_only_keep_zero_effective_weight() -> None:
         ),
     )
     assert result.baseline_ranking[0].run_ref == "run-a"
+    assert result.scenarios[0].weights[1].weight == 0.0
 
     with pytest.raises(
         ScoreSensitivityError,
@@ -227,15 +228,12 @@ def test_missing_persisted_value_can_only_keep_zero_effective_weight() -> None:
     ):
         analyze_score_sensitivity(
             runs,
-            baseline_config=zero_circuity,
+            baseline_config=_config(circuity_weight=1.0),
             perturbations=(
-                ScoreWeightPerturbation(
-                    perturbation_id="activate-missing",
-                    version="1",
-                    factors=(
-                        ScoreSensitivityWeightFactor(COVERAGE, 1.0),
-                        ScoreSensitivityWeightFactor(CIRCUITY, 1.0),
-                    ),
+                _perturbation(
+                    "same",
+                    coverage_factor=1.0,
+                    circuity_factor=1.0,
                 ),
             ),
         )
