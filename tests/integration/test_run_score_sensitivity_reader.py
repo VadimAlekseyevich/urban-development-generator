@@ -163,18 +163,35 @@ def test_reader_rejects_missing_evaluation_and_mixed_score_configs() -> None:
     ):
         SqlAlchemyRunScoreSensitivityReader().load(run_ids=run_ids)
 
-    with Session(engine) as session:
-        run = session.get(GenerationRun, run_ids[0])
-        assert run is not None
-        run.metrics_json = {"demography": {"population": 100}}
-        session.commit()
+    with Session(engine, expire_on_commit=False) as session:
+        with session.begin():
+            project = Project(
+                name="Missing evaluation",
+                working_srid=WORKING_SRID,
+                boundary_metadata={},
+            )
+            session.add(project)
+            session.flush()
+            run = GenerationRun(
+                project_id=project.id,
+                status="running",
+                mode="EXPANSION",
+                seed=99,
+                working_srid=WORKING_SRID,
+                config_json={},
+                config_schema_version="1",
+                metrics_json={"demography": {"population": 100}},
+            )
+            session.add(run)
+            session.flush()
+            missing_evaluation_run_id = run.id
 
     with pytest.raises(
         RunScoreSensitivityPersistenceError,
         match="no persisted evaluation envelope",
     ):
         SqlAlchemyRunScoreSensitivityReader().load(
-            run_ids=(run_ids[0],),
+            run_ids=(missing_evaluation_run_id,),
         )
 
 
