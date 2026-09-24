@@ -19,6 +19,7 @@ import { DemographyPanel } from './DemographyPanel'
 import { InfrastructurePanel } from './InfrastructurePanel'
 import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
+import { ViolationsPanel } from './ViolationsPanel'
 import { ZoningPanel } from './ZoningPanel'
 import {
   EMPTY_FEATURE_COLLECTION,
@@ -631,6 +632,12 @@ function App() {
         />
 
         <InfrastructurePanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+        />
+
+        <ViolationsPanel
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
