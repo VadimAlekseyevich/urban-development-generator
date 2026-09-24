@@ -80,5 +80,6 @@ The contract rejects:
 
 ## Non-goals
 
-S11-T10 does not assign weights, aggregate a composite score, persist score inputs, perform
-sensitivity analysis, or expose API/UI payloads. Those remain S11-T11 and later ordered tasks.
+S11-T10 itself does not assign weights or aggregate a score. S11-T11 now consumes this contract
+through `CompositeScoreConfig` and persists raw score inputs plus normalization provenance in the
+run evaluation envelope. Sensitivity analysis and API/UI payloads remain later ordered tasks.

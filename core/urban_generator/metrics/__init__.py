@@ -45,9 +45,24 @@ from core.urban_generator.metrics.roads import (
     RoadRawMetricsResult,
     RoadRawMetricValue,
 )
+from core.urban_generator.metrics.score import (
+    CompositeScoreConfig,
+    CompositeScoreError,
+    CompositeScoreMetricResult,
+    CompositeScoreMetricWeight,
+    CompositeScoreRawMetric,
+    CompositeScoreResult,
+    build_composite_score,
+)
 
 __all__ = [
     "CONSTRAINT_RAW_METRIC_IDS",
+    "CompositeScoreConfig",
+    "CompositeScoreError",
+    "CompositeScoreMetricResult",
+    "CompositeScoreMetricWeight",
+    "CompositeScoreRawMetric",
+    "CompositeScoreResult",
     "ConstraintMetricAdapter",
     "ConstraintMetricAdapterDiagnostics",
     "ConstraintMetricAdapterError",
@@ -81,5 +96,6 @@ __all__ = [
     "RoadMetricAdapterError",
     "RoadRawMetricValue",
     "RoadRawMetricsResult",
+    "build_composite_score",
     "normalize_metric",
 ]
