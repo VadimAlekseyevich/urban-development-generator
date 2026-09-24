@@ -1,6 +1,6 @@
 # Validation detail contract
 
-> **Status: Implemented through UG-AI-055 / S11-T09**
+> **Status: Implemented through UG-AI-059 / S11-T13**
 
 S11 extends the existing canonical `ConstraintResult` / `ValidationReport` family. It does not
 introduce a separate violation model.
@@ -92,5 +92,8 @@ does not emit HTTP schemas, GeoJSON or ORM rows.
 UG-AI-046..049 keep detail, aggregation, hard aggregate bounds and soft penalties inside the one
 canonical validation family. UG-AI-055 projects that same `ValidationReport` into canonical
 constraint raw metrics without creating another violation model; the affected-area and legacy
-soft-penalty policies are documented in `CONSTRAINT_RAW_METRICS.md`. The later violations layer
-API/UI remains S11-T13.
+soft-penalty policies are documented in `CONSTRAINT_RAW_METRICS.md`.
+
+UG-AI-059 persists the canonical codec payload in `GenerationRun.validation_json` and projects
+failed results into bounded HTTP/GeoJSON/UI read models. It does not add a competing violation
+table/domain type. Details are documented in `VIOLATIONS_LAYER.md`.
