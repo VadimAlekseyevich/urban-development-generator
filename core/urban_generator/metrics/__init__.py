@@ -28,6 +28,15 @@ from core.urban_generator.metrics.land_building import (
     LandBuildingRawMetricsResult,
     LandBuildingRawMetricValue,
 )
+from core.urban_generator.metrics.normalization import (
+    MetricNormalizationError,
+    MetricNormalizationPolicy,
+    MetricNormalizationProfile,
+    NormalizationClampPolicy,
+    NormalizationMissingPolicy,
+    NormalizedMetricValue,
+    normalize_metric,
+)
 from core.urban_generator.metrics.roads import (
     ROAD_RAW_METRIC_IDS,
     RoadMetricAdapter,
@@ -60,10 +69,17 @@ __all__ = [
     "LandBuildingMetricDiagnostics",
     "LandBuildingRawMetricValue",
     "LandBuildingRawMetricsResult",
+    "MetricNormalizationError",
+    "MetricNormalizationPolicy",
+    "MetricNormalizationProfile",
+    "NormalizationClampPolicy",
+    "NormalizationMissingPolicy",
+    "NormalizedMetricValue",
     "ROAD_RAW_METRIC_IDS",
     "RoadMetricAdapter",
     "RoadMetricAdapterDiagnostics",
     "RoadMetricAdapterError",
     "RoadRawMetricValue",
     "RoadRawMetricsResult",
+    "normalize_metric",
 ]
