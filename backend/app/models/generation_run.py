@@ -92,6 +92,10 @@ class GenerationRun(Base):
             f"status <> '{RUN_SUCCESS_STATUS}' OR commit_sha IS NOT NULL",
             name="ck_generation_runs_success_commit_sha",
         ),
+        CheckConstraint(
+            "validation_json IS NULL OR jsonb_typeof(validation_json) = 'object'",
+            name="ck_generation_runs_validation_json_object",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
