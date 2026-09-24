@@ -10,7 +10,7 @@ from core.urban_generator.metrics.score import (
 
 
 class ScoreSensitivityError(ValueError):
-    """Raised when persisted score snapshots or weight perturbations are incompatible."""
+    """Raised when score snapshots or weight perturbations are incompatible."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,7 +188,7 @@ def analyze_score_sensitivity(
     baseline_config: CompositeScoreConfig,
     perturbations: tuple[ScoreWeightPerturbation, ...],
 ) -> ScoreSensitivityResult:
-    """Recalculate deterministic rankings from persisted normalized score inputs only."""
+    """Recalculate rankings from persisted normalized score inputs only."""
 
     if not isinstance(runs, tuple) or not runs:
         raise ScoreSensitivityError("runs must be a non-empty tuple")
