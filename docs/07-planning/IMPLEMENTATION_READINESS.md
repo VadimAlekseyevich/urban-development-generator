@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-055: canonical validation/metric registry plus land/building, road, demography, infrastructure and constraint raw-metric adapters all reuse authoritative typed outputs without rerunning domain algorithms. The current ordered task is **UG-AI-056 / S11-T10**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-056: canonical validation/metric registry, all raw-metric adapters and the versioned scalar normalization contract reuse authoritative typed outputs without rerunning domain algorithms. The current ordered task is **UG-AI-057 / S11-T11**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-056 / S11-T10
-Define versioned normalization direction/range/clamp/missing policy and tests.
+UG-AI-057 / S11-T11
+Implement composite score as a pure transformation over raw metrics + normalization + weights; persist raw inputs.
 ```
 
-Feature work may resume only through this ordered backlog; do not skip directly to a later S10 item.
+Feature work may resume only through this ordered backlog; do not skip directly to a later item.

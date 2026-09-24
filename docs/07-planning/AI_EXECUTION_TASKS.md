@@ -92,7 +92,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-053** — **S11-T07** — Implement demography raw metric adapter from persisted/typed demography outputs.
 - [x] **UG-AI-054** — **S11-T08** — Implement infrastructure raw metric adapter reusing S10 metrics/results.
 - [x] **UG-AI-055** — **S11-T09** — Implement constraint raw metrics from canonical ValidationReport results.
-- [ ] **UG-AI-056** — **S11-T10** — Define versioned normalization direction/range/clamp/missing policy and tests.
+- [x] **UG-AI-056** — **S11-T10** — Define versioned normalization direction/range/clamp/missing policy and tests.
 - [ ] **UG-AI-057** — **S11-T11** — Implement composite score as a pure transformation over raw metrics + normalization + weights; persist raw inputs.
 - [ ] **UG-AI-058** — **S11-T12** — Implement score sensitivity over persisted raw metrics with no GIS rerun.
 - [ ] **UG-AI-059** — **S11-T13** — Deliver run-scoped violations layer API/UI from canonical validation details.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..055 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-056. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..056 are complete, M0 and M1 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-057. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

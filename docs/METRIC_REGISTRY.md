@@ -1,6 +1,6 @@
 # Canonical raw metric registry
 
-> **Status: Implemented through UG-AI-055 / S11-T09**
+> **Status: Implemented through UG-AI-056 / S11-T10**
 
 The canonical raw metric identity remains `RawMetricId` from
 `core.urban_generator.domain.benchmarking`. S11-T04 enriches the existing
@@ -20,9 +20,10 @@ Every canonical definition now carries:
 - `source` — canonical producer family used by the S11 raw-metric adapters;
 - `version` — stable definition-contract version.
 
-`direction` is descriptive metadata, not normalization logic. Target ranges, clamping,
-missing-value policy and normalized values remain owned by S11-T10. Composite weighting remains
-owned by S11-T11.
+`direction` remains canonical metric metadata. S11-T10 validates every normalization policy
+against that direction and defines explicit range, target-band, clamp, missing-value and version
+semantics in `core.urban_generator.metrics.normalization`. Composite weighting remains owned by
+S11-T11.
 
 ## Canonical registry
 
@@ -62,5 +63,6 @@ Their exact source/empty-data policies are documented in `LAND_BUILDING_METRICS.
 
 ## Non-goals
 
-S11-T04 does not compute raw values, normalize metrics, assign composite-score weights, persist
-score inputs, or define dashboard payloads. Those remain ordered future tasks.
+S11-T04 itself does not compute raw values or normalization. Raw-value adapters are now implemented
+through S11-T09 and normalization is implemented by S11-T10. Composite-score weights, score-input
+persistence and dashboard payloads remain ordered future tasks.
