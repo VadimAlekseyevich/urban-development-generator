@@ -199,6 +199,9 @@ def _parse_evaluation(
             )
         )
 
+    weights.sort(key=lambda item: item.metric_id.value)
+    metrics.sort(key=lambda item: item.metric_id.value)
+
     try:
         config = CompositeScoreConfig(
             config_id=_require_str(score_config, "id"),
