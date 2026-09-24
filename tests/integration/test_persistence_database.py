@@ -120,8 +120,27 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
             )
         )
     }
+    generation_run_columns = {
+        row[0]
+        for row in db_session.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema = current_schema() "
+                "AND table_name = 'generation_runs'"
+            )
+        )
+    }
+    generation_run_constraints = {
+        row[0]
+        for row in db_session.execute(
+            text(
+                "SELECT conname FROM pg_constraint "
+                "WHERE conrelid = 'generation_runs'::regclass"
+            )
+        )
+    }
 
-    assert revision == "0018_infra_persistence"
+    assert revision == "0019_run_validation"
     assert isinstance(postgis_version, str) and postgis_version
     assert {
         "projects",
@@ -131,6 +150,11 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
         *SOURCE_TABLES,
         *GENERATED_TABLES,
     } <= tables
+    assert "validation_json" in generation_run_columns
+    assert (
+        "ck_generation_runs_validation_json_object"
+        in generation_run_constraints
+    )
 
 
 def test_foreign_keys_and_job_idempotency_are_database_enforced(

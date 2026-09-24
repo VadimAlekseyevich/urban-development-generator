@@ -63,6 +63,21 @@ authoritative S10 UI read-model has not been materialized yet. Reads never rerun
 routing, placement or metric computation.
 
 
+## Validation violations read API
+
+S11-T13 exposes only persisted canonical `ValidationReport` data:
+
+- `GET /projects/{project_id}/validation-runs?limit=50`;
+- `GET /projects/{project_id}/validation-runs/{run_id}/violations?offset=0&limit=200`;
+- `GET /projects/{project_id}/validation-runs/{run_id}/violations/geojson?bbox=...&limit=200`.
+
+Run summaries expose hard/soft/spatial failure counts. The detail endpoint includes non-spatial
+violations, stable entity refs and optional soft-penalty metadata. GeoJSON returns only canonical
+problem geometries transformed from the run working CRS to EPSG:4326 and keeps stable
+`violation_index` identity from report order. Reads never rerun validation or repair geometries.
+Run lists are capped at 100 and violation/GeoJSON requests at 1,000 items.
+
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

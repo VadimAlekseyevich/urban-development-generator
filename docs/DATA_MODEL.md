@@ -18,9 +18,9 @@ Legacy datasets из ранней схемы мигрируют в `version = 1`
 
 ## GenerationRun
 
-Воспроизводимый запуск хранит `project_id`, lifecycle `status`, `mode`, `seed`, snapshot `working_srid`, нормализованный `config_json`, `config_schema_version`, commit SHA приложения, timestamps, метрики и диагностику ошибок. Входные данные фиксируются ссылками на конкретные `DatasetVersion` через `generation_run_dataset_versions`, а не на изменяемый логический `Dataset`.
+Воспроизводимый запуск хранит `project_id`, lifecycle `status`, `mode`, `seed`, snapshot `working_srid`, нормализованный `config_json`, `config_schema_version`, commit SHA приложения, timestamps, метрики, canonical validation report и диагностику ошибок. Входные данные фиксируются ссылками на конкретные `DatasetVersion` через `generation_run_dataset_versions`, а не на изменяемый логический `Dataset`.
 
-`mode` ограничен значениями `EXPANSION` и `FROM_SCRATCH`. Успешный run (`status = succeeded`) должен иметь commit SHA. После перехода в успешное состояние scalar-поля run и набор ссылок на `DatasetVersion` неизменяемы; защита существует как в ORM, так и на уровне PostgreSQL trigger. Добавить или удалить dataset-version ref успешного запуска нельзя. DatasetVersion, уже используемую запуском, нельзя удалить через FK `RESTRICT`.
+`mode` ограничен значениями `EXPANSION` и `FROM_SCRATCH`. Успешный run (`status = succeeded`) должен иметь commit SHA. S11-T13 добавляет nullable `validation_json`: это JSONB-представление versioned canonical `ValidationReport` codec, а не отдельная violation-модель. Writer ограничивает report 10 000 results и требует совпадения problem-geometry SRID с snapshot `working_srid`. После перехода в успешное состояние scalar-поля run, включая `validation_json`, и набор ссылок на `DatasetVersion` неизменяемы; защита существует как в ORM, так и на уровне PostgreSQL trigger. Добавить или удалить dataset-version ref успешного запуска нельзя. DatasetVersion, уже используемую запуском, нельзя удалить через FK `RESTRICT`.
 
 Миграция legacy `GenerationRun` присваивает историческим строкам `mode = EXPANSION`, `config_schema_version = legacy-v0` и копирует `working_srid` из проекта. Старое `code_version` переносится в `commit_sha` только если уже является 40-символьным hex commit SHA; неизвестная или произвольная версия не подменяется фиктивным SHA.
 

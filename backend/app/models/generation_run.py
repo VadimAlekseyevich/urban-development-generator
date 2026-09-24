@@ -39,6 +39,7 @@ IMMUTABLE_SUCCEEDED_RUN_FIELDS = frozenset(
         "config_schema_version",
         "commit_sha",
         "metrics_json",
+        "validation_json",
         "error_json",
         "started_at",
         "finished_at",
@@ -91,6 +92,10 @@ class GenerationRun(Base):
             f"status <> '{RUN_SUCCESS_STATUS}' OR commit_sha IS NOT NULL",
             name="ck_generation_runs_success_commit_sha",
         ),
+        CheckConstraint(
+            "validation_json IS NULL OR jsonb_typeof(validation_json) = 'object'",
+            name="ck_generation_runs_validation_json_object",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -119,6 +124,7 @@ class GenerationRun(Base):
     config_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     commit_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
     metrics_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    validation_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     error_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

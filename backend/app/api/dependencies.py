@@ -13,6 +13,7 @@ from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
 from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
+from backend.app.application.validation_layers import ValidationLayerQueryService
 from backend.app.application.zoning_layers import ZoningLayerQueryService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
@@ -36,6 +37,9 @@ from backend.app.db.source_layer_query_repository import (
 )
 from backend.app.db.suitability_artifact_repository import (
     SqlAlchemySuitabilityArtifactRepository,
+)
+from backend.app.db.validation_layer_query_repository import (
+    SqlAlchemyValidationLayerQueryRepository,
 )
 from backend.app.db.zoning_layer_query_repository import (
     SqlAlchemyZoningLayerQueryRepository,
@@ -137,6 +141,22 @@ def get_infrastructure_layer_query_service(
 InfrastructureLayerQueryServiceDep = Annotated[
     InfrastructureLayerQueryService,
     Depends(get_infrastructure_layer_query_service),
+]
+
+
+def get_validation_layer_query_service(
+    db: DbSession,
+) -> ValidationLayerQueryService:
+    """Compose the S11 run-scoped validation layer query service."""
+
+    return ValidationLayerQueryService(
+        SqlAlchemyValidationLayerQueryRepository(db)
+    )
+
+
+ValidationLayerQueryServiceDep = Annotated[
+    ValidationLayerQueryService,
+    Depends(get_validation_layer_query_service),
 ]
 
 

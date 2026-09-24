@@ -28,6 +28,7 @@ def _make_run(*, status: str = "queued") -> GenerationRun:
         config_schema_version="v1",
         commit_sha="a" * 40,
         metrics_json=None,
+        validation_json=None,
         error_json=None,
         started_at=None,
         finished_at=None,
@@ -63,6 +64,8 @@ def test_generation_run_persists_reproducibility_inputs() -> None:
         "config_json",
         "config_schema_version",
         "commit_sha",
+        "metrics_json",
+        "validation_json",
         "started_at",
         "finished_at",
         "created_at",
@@ -73,6 +76,8 @@ def test_generation_run_persists_reproducibility_inputs() -> None:
     assert columns.working_srid.nullable is False
     assert columns.config_schema_version.nullable is False
     assert columns.commit_sha.type.length == 40
+    assert columns.validation_json.nullable is True
+    assert "validation_json" in IMMUTABLE_SUCCEEDED_RUN_FIELDS
     assert "code_version" not in columns
 
 
@@ -101,6 +106,7 @@ def test_generation_run_constraints_cover_mode_crs_schema_and_commit() -> None:
         "ck_generation_runs_config_schema_version_nonempty",
         "ck_generation_runs_commit_sha",
         "ck_generation_runs_success_commit_sha",
+        "ck_generation_runs_validation_json_object",
     } <= constraint_names
 
 
@@ -121,6 +127,7 @@ def test_run_can_be_finalized_once_before_becoming_immutable() -> None:
     run.status = RUN_SUCCESS_STATUS
     run.finished_at = datetime.now(UTC)
     run.metrics_json = {"score": 0.8}
+    run.validation_json = {"schema_version": 2, "results": []}
 
     prevent_succeeded_generation_run_update(object(), object(), run)
 
