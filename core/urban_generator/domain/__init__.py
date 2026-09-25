@@ -68,6 +68,12 @@ from core.urban_generator.domain.network import (
     require_node_refs,
     require_routing_algorithm,
 )
+from core.urban_generator.domain.pipeline_context import (
+    PipelineContext,
+    PipelineContextError,
+    PipelinePorts,
+    ResolvedConfigBinding,
+)
 from core.urban_generator.domain.project import ProjectRef, ProjectSettings
 from core.urban_generator.domain.run_context import (
     ConfigRef,
@@ -161,9 +167,13 @@ __all__ = [
     "NetworkRoutingAlgorithm",
     "NetworkSnapResult",
     "PermanentError",
+    "PipelineContext",
+    "PipelineContextError",
+    "PipelinePorts",
     "ProjectRef",
     "ProjectSettings",
     "RawMetricId",
+    "ResolvedConfigBinding",
     "RunContext",
     "RunContextError",
     "RunMode",
