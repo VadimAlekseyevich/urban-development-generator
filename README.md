@@ -125,7 +125,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-065**: deterministic Stage DAG и immutable core `PipelineContext` теперь имеют SQLAlchemy persistence adapter, который собирает run/snapshot/config/port contracts и завершает ORM/session boundary до входа в core.
+**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-066**: поверх deterministic Stage DAG и `PipelineContext` определён exact checkpoint identity `(stage_name, stage_version, input_hash, config_hash)`, где resolved input hash включает ordered dependency output fingerprints, а current-stage output fingerprint остаётся отдельным provenance field.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -142,7 +142,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M0–M2 закрыты, и следующий ordered execution item —
-**`UG-AI-066 / S12-T03`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-067 / S12-T03`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
