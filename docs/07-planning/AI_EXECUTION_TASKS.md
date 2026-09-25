@@ -98,7 +98,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-059** — **S11-T13** — Deliver run-scoped violations layer API/UI from canonical validation details.
 - [x] **UG-AI-060** — **S11-T14** — Deliver metrics dashboard showing raw value/unit, normalized value, weight and score contribution.
 - [x] **UG-AI-061** — **S11-T15** — Add integrated regression fixtures with expected ranges/invariants and canonical metric IDs.
-- [ ] **UG-AI-062** — **S12-T01** — Implement typed Stage registry/DAG validation over stabilized Stage metadata; reject missing deps, cycles and duplicate names.
+- [x] **UG-AI-062** — **S12-T01** — Implement typed Stage registry/DAG validation over stabilized Stage metadata; reject missing deps, cycles and duplicate names.
 - [ ] **UG-AI-063** — **S12-T01** — Define deterministic topological order and explicit skip semantics with unit tests.
 - [ ] **UG-AI-064** — **S12-T02** — Define persistence-to-core PipelineContext assembly contract for RunContext, TerritorySnapshot, configs and ports.
 - [ ] **UG-AI-065** — **S12-T02** — Implement adapter without exposing ORM/session types to core.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..061 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-062. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..062 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-063. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
