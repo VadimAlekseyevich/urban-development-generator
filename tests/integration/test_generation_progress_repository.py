@@ -22,7 +22,12 @@ from backend.app.db.session import engine
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
-from core.urban_generator.domain import StageDiagnostic, StageResult, build_stage_fingerprint
+from core.urban_generator.domain import (
+    StageDiagnostic,
+    StageResult,
+    build_stage_fingerprint,
+)
+from core.urban_generator.domain.errors import PermanentError
 from core.urban_generator.stages import StageSkipReason
 
 WORKING_SRID = 32637
@@ -233,5 +238,5 @@ def test_progress_repository_does_not_reclaim_nonqueued_run_before_retry_policy(
     )
     repository.begin_run(run_id)
 
-    with pytest.raises(Exception, match="not claimable"):
+    with pytest.raises(PermanentError, match="not claimable"):
         repository.begin_run(run_id)
