@@ -20,7 +20,6 @@ from core.urban_generator.domain import (
     MetricValueKind,
     RawMetricId,
 )
-
 from core.urban_generator.metrics import (
     CONSTRAINT_RAW_METRIC_IDS,
     DEMOGRAPHY_RAW_METRIC_IDS,
@@ -28,6 +27,7 @@ from core.urban_generator.metrics import (
     LAND_BUILDING_RAW_METRIC_IDS,
     ROAD_RAW_METRIC_IDS,
 )
+
 
 def _definition(
     metric_id: RawMetricId = RawMetricId.LAND_DEVELOPABLE_AREA_M2,
