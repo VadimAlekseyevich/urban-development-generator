@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete through UG-AI-061: canonical validation/raw metrics, versioned normalization, explainable scoring, weight sensitivity, run-scoped violations, persisted metrics delivery and deterministic regression fixtures all reuse canonical outputs without a parallel pipeline. The current ordered task is **UG-AI-062 / S12-T01**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 has started through UG-AI-062 with a typed StageRegistry that validates the stabilized Stage metadata graph without introducing a second stage identity model. The current ordered task is **UG-AI-063 / S12-T01**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-062 / S12-T01
-Implement typed Stage registry/DAG validation over stabilized Stage metadata; reject missing deps, cycles and duplicate names.
+UG-AI-063 / S12-T01
+Define deterministic topological order and explicit skip semantics with unit tests.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
