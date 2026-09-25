@@ -158,7 +158,7 @@ def _config_binding(
     value: object | None = None,
 ) -> ResolvedConfigBinding:
     return ResolvedConfigBinding(
-        key="roads",
+        stage_name="roads",
         source=source or ConfigRef(
             name="generation",
             ref="db:generation-run:config:v1",
@@ -178,14 +178,17 @@ def test_pipeline_context_assembles_core_only_values_and_typed_config_lookup() -
     config = context.require_config("roads", DummyStageConfig)
 
     assert config == DummyStageConfig(version="1")
-    assert context.config_keys == ("roads",)
+    assert context.configured_stage_names == ("roads",)
     assert context.run.working_srid == context.snapshot.settings.working_srid
     assert context.ports.network_backend is not None
     assert context.ports.network_backend.snapshot.working_crs.srid == 32637
 
 
 def test_resolved_config_rejects_raw_mapping_payload() -> None:
-    with pytest.raises(PipelineContextError, match="typed core object, not a mapping"):
+    with pytest.raises(
+        PipelineContextError,
+        match="typed core object, not a mapping or None",
+    ):
         _config_binding(value={"road_spacing_m": 180.0})
 
 
@@ -210,7 +213,7 @@ def test_pipeline_context_requires_config_provenance_from_run_context() -> None:
 
 
 def test_pipeline_context_rejects_duplicate_config_keys() -> None:
-    with pytest.raises(PipelineContextError, match="duplicate resolved config key: roads"):
+    with pytest.raises(PipelineContextError, match="duplicate resolved config stage: roads"):
         PipelineContext(
             run=_run_context(),
             snapshot=_snapshot(),
@@ -261,7 +264,7 @@ def test_pipeline_context_config_lookup_is_explicitly_typed() -> None:
 
     with pytest.raises(
         PipelineContextError,
-        match="resolved config is not available: buildings",
+        match="resolved config is not available for stage: buildings",
     ):
         context.require_config("buildings", DummyStageConfig)
 
@@ -274,4 +277,32 @@ def test_pipeline_ports_reject_non_port_objects() -> None:
         PipelinePorts(
             artifact_store=FakeArtifactStore(),
             network_backend=object(),  # type: ignore[arg-type]
+        )
+
+
+
+def test_resolved_config_binding_rejects_invalid_stage_name_and_none_value() -> None:
+    source = ConfigRef(
+        name="generation",
+        ref="db:generation-run:config:v1",
+    )
+
+    with pytest.raises(
+        PipelineContextError,
+        match="invalid resolved config stage name",
+    ):
+        ResolvedConfigBinding(
+            stage_name="Roads",
+            source=source,
+            value=DummyStageConfig(version="1"),
+        )
+
+    with pytest.raises(
+        PipelineContextError,
+        match="typed core object, not a mapping or None",
+    ):
+        ResolvedConfigBinding(
+            stage_name="roads",
+            source=source,
+            value=None,
         )
