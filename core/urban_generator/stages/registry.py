@@ -20,7 +20,7 @@ class StageSkipReason(StrEnum):
     """Why a stage is excluded from execution in one immutable plan."""
 
     REQUESTED = "REQUESTED"
-    DEPENDENCY_SKIPPED = "DEPENDENDENCY_SKIPPED"
+    DEPENDENCY_SKIPPED = "DEPENDENCY_SKIPPED"
 
 
 StageAny = Stage[Any, Any, Any]
