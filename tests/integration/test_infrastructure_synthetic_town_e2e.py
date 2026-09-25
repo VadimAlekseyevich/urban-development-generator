@@ -69,6 +69,10 @@ from core.urban_generator.infrastructure import (
     snap_infrastructure_network_batch,
     validate_infrastructure_candidate_feasibility,
 )
+from core.urban_generator.metrics import (
+    INFRASTRUCTURE_RAW_METRIC_IDS,
+    InfrastructureMetricAdapter,
+)
 from core.urban_generator.roads import NetworkXBackend
 from core.urban_generator.zoning import ZoneClass
 
@@ -610,6 +614,12 @@ def _semantic_signature(result: SyntheticTownResult) -> tuple[object, ...]:
 
 def test_synthetic_town_expected_coverage_and_fixed_contribution() -> None:
     result = _run_synthetic_town()
+    adapted = InfrastructureMetricAdapter().adapt(metrics=result.metrics)
+
+    assert adapted is result.metrics
+    assert tuple(item.metric_id for item in adapted.raw_metrics) == (
+        INFRASTRUCTURE_RAW_METRIC_IDS
+    )
 
     summary = result.unmet_demand.summaries[0]
     assert summary.gross_demand == pytest.approx(20.0)
@@ -637,10 +647,17 @@ def test_synthetic_town_expected_coverage_and_fixed_contribution() -> None:
         result,
         RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
     ) == pytest.approx(100.0)
-    assert _scalar_metric(
+    p50 = _scalar_metric(
+        result,
+        RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P50_M,
+    )
+    p90 = _scalar_metric(
         result,
         RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M,
-    ) == pytest.approx(100.0)
+    )
+    assert p50 == pytest.approx(100.0)
+    assert p90 == pytest.approx(100.0)
+    assert 0.0 <= p50 <= p90 <= 250.0
 
     age_metric = result.metrics.require(
         RawMetricId.INFRASTRUCTURE_AGE_SPECIFIC_COVERAGE
