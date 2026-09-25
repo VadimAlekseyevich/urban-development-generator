@@ -103,9 +103,30 @@ snapshot already exists. Port implementations are injected runtime capabilities;
 sessions/repositories, storage paths and queue clients are not pipeline-context fields.
 
 Assembly enforces one metric working CRS across `RunContext`, `TerritorySnapshot` and any
-provided `NetworkBackend`. The persistence adapter in UG-AI-065 is responsible for reading ORM
-state and constructing these core values; ORM entities and sessions must terminate at that adapter
-boundary and never appear in `PipelineContext`.
+provided `NetworkBackend`.
+
+UG-AI-065 / S12-T02 implements that persistence boundary in
+`backend.app.adapters.pipeline_context.SqlAlchemyPipelineContextAdapter`. The adapter owns the
+SQLAlchemy `Session` and reads `GenerationRun`, its `Project`, and linked `DatasetVersion`
+rows, but returns only the canonical core `PipelineContext`.
+
+Persistence mapping rules are explicit:
+
+- run id/mode/seed/working CRS become `RunContext`;
+- the persisted run config gets one stable `ConfigRef`, and a `PersistedStageConfigResolver`
+  decodes a defensive copy of `config_json` into typed `ResolvedConfigBinding` values;
+- the project boundary becomes a `BOUNDARY` ref whose opaque identity includes a SHA-256 of
+  canonical geometry WKB, so WKT/WKB ORM loading differences do not alter its identity;
+- linked ready dataset versions become typed snapshot layer refs using existing
+  `SnapshotLayerKind`; unknown kinds and non-ready versions are rejected;
+- project, run, boundary, snapshot, and any supplied network backend must agree on working CRS;
+- `ArtifactStore` and optional `NetworkBackend` implementations are injected without exposing
+  their infrastructure types through core.
+
+The adapter deliberately does not guess rich stage policy objects from generic JSON. Config
+decoding stays behind the injected resolver boundary until a versioned persisted stage-config
+schema exists. No ORM entity or `Session` crosses into core, and no checkpoint identity/reuse is
+implemented by this adapter.
 
 ## 6. Stage adapters for existing capabilities
 
