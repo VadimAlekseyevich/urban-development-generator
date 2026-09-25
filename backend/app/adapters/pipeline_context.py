@@ -6,7 +6,8 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Protocol
 
-from geoalchemy2.elements import WKBElement
+from geoalchemy2.elements import WKBElement, WKTElement
+from geoalchemy2.shape import to_shape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -254,11 +255,10 @@ class SqlAlchemyPipelineContextAdapter:
     @staticmethod
     def _boundary_source_ref(project: Project) -> str:
         boundary = project.boundary
-        if not isinstance(boundary, WKBElement):
+        if not isinstance(boundary, (WKBElement, WKTElement)):
             raise PipelineContextAssemblyError(
-                "project boundary must be loaded as WKBElement"
+                "project boundary must be a GeoAlchemy geometry element"
             )
-        raw = boundary.data
-        payload = raw.encode("utf-8") if isinstance(raw, str) else bytes(raw)
+        payload = to_shape(boundary).wkb
         digest = hashlib.sha256(payload).hexdigest()
         return f"project-boundary:{project.id}:sha256:{digest}"
