@@ -131,8 +131,23 @@ protocol. Registry construction validates each stage's existing `name`, `version
 the assembled registry, and rejects dependency cycles. Registry insertion order is retained only as
 assembly/debugging information and is explicitly not an execution order.
 
-UG-AI-063 / S12-T01 remains responsible for deterministic topological ordering and explicit skip
-semantics. The registry validation task does not execute stages, decide skips or add worker state.
+UG-AI-063 / S12-T01 adds deterministic planning semantics to the same registry. Topological order
+is dependency-safe and independent of registry insertion order; when multiple stages are ready at
+the same time, stable stage name is the tie-breaker.
+
+Explicit skip requests produce an immutable plan in that topological order:
+
+- a requested stage is marked with skip reason `REQUESTED`;
+- any non-requested stage whose direct dependency is already skipped is marked
+  `DEPENDENCY_SKIPPED`;
+- dependency skips propagate transitively through downstream stages;
+- the plan records the directly blocking dependency names in stable order;
+- an explicit request takes priority over dependency-derived reason when both apply;
+- stages outside the downstream closure remain executable.
+
+Skip is an execution exclusion decision, not checkpoint reuse. S12-T03 checkpoint reuse has its own
+provenance rules and must not be represented as a skip. The core plan does not persist status,
+execute stages or own worker lifecycle.
 
 No second enum, metadata vocabulary or execution contract such as legacy `PipelineStage` may
 become an independent source of stage identity.
