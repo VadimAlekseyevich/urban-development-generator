@@ -211,7 +211,31 @@ Core fingerprint and execution input/config hashes are related but distinct:
 
 `output_fingerprint` is nullable only for compatibility with pre-stabilization rows and incomplete/failed executions. New successful S12 stage executions must persist it.
 
-S12 checkpoint reuse requires stage name/version plus independently resolved input/config provenance to match. Dependency output fingerprints participate in resolved input identity; an output fingerprint is never substituted for the input/config hashes of the same stage.
+UG-AI-066 / S12-T03 defines checkpoint eligibility as the exact four-part identity:
+
+```text
+(stage_name, stage_version, input_hash, config_hash)
+```
+
+The hashes remain independent. `config_hash` is computed only from canonical resolved stage
+configuration parts in its own hash namespace. `input_hash` is computed from canonical current
+stage input parts plus the direct dependency output fingerprints in the exact order declared by
+`Stage.dependencies`.
+
+Dependency provenance is structural rather than set-like: each dependency entry carries its stable
+stage name and canonical `StageFingerprint`, and missing, extra or reordered dependency outputs
+make resolved input identity invalid. Length prefixes and type markers keep string/byte parts
+unambiguous.
+
+The current stage's own `StageResult.fingerprint` is deliberately **not** a field of checkpoint
+identity. It is only available after execution and remains the separate persisted
+`RunStageResult.output_fingerprint`. Therefore an output fingerprint is never substituted for
+the same stage's `input_hash` or `config_hash`.
+
+UG-AI-066 defines only the pure application-layer identity/hash contract. UG-AI-067 remains
+responsible for loading persisted `RunStageResult` candidates, requiring successful/non-null
+dependency and candidate output fingerprints, rejecting stale provenance, and deciding actual
+reuse.
 
 ## 9. Cancellation and retry
 
