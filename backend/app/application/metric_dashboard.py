@@ -5,9 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-RUN_EVALUATION_METRICS_KEY = "evaluation"
-RUN_EVALUATION_SCHEMA_VERSION = "1"
-
 from core.urban_generator.domain.benchmarking import (
     CANONICAL_METRIC_REGISTRY,
     MetricDirection,
@@ -20,6 +17,8 @@ from core.urban_generator.metrics.score import (
     CompositeScoreResult,
 )
 
+RUN_EVALUATION_METRICS_KEY = "evaluation"
+RUN_EVALUATION_SCHEMA_VERSION = "1"
 DEFAULT_METRIC_RUN_LIMIT = 50
 MAX_METRIC_RUN_LIMIT = 100
 
