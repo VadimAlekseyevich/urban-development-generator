@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from core.urban_generator.domain.artifacts import ArtifactStore
 from core.urban_generator.domain.network import NetworkBackend
 from core.urban_generator.domain.run_context import ConfigRef, RunContext
+from core.urban_generator.domain.stage import StageContractError, validate_stage_metadata
 from core.urban_generator.domain.territory import TerritorySnapshot
 
 
@@ -17,15 +18,17 @@ class PipelineContextError(ValueError):
 class ResolvedConfigBinding:
     """One typed core config value with immutable persisted provenance."""
 
-    key: str
+    stage_name: str
     source: ConfigRef
     value: object
 
     def __post_init__(self) -> None:
-        if not isinstance(self.key, str) or not self.key.strip():
-            raise PipelineContextError("resolved config key must be a non-empty string")
-        if "\n" in self.key or "\r" in self.key:
-            raise PipelineContextError("resolved config key must not contain line breaks")
+        try:
+            validate_stage_metadata(self.stage_name, "pipeline-context", ())
+        except StageContractError as exc:
+            raise PipelineContextError(
+                f"invalid resolved config stage name: {self.stage_name!r}"
+            ) from exc
         if not isinstance(self.source, ConfigRef):
             raise PipelineContextError("resolved config source must be a ConfigRef")
         if isinstance(self.value, Mapping):
@@ -80,21 +83,21 @@ class PipelineContext:
             )
 
         known_refs = frozenset(self.run.config_refs)
-        keys: set[str] = set()
+        stage_names: set[str] = set()
         for binding in self.configs:
             if not isinstance(binding, ResolvedConfigBinding):
                 raise PipelineContextError(
                     "configs must contain only ResolvedConfigBinding values"
                 )
-            if binding.key in keys:
+            if binding.stage_name in stage_names:
                 raise PipelineContextError(
-                    f"duplicate resolved config key: {binding.key}"
+                    f"duplicate resolved config stage: {binding.stage_name}"
                 )
             if binding.source not in known_refs:
                 raise PipelineContextError(
                     f"resolved config source is not present in RunContext: {binding.source.name}"
                 )
-            keys.add(binding.key)
+            stage_names.add(binding.stage_name)
 
         network_backend = self.ports.network_backend
         if (
@@ -106,21 +109,24 @@ class PipelineContext:
             )
 
     @property
-    def config_keys(self) -> tuple[str, ...]:
-        """Return resolved config keys in immutable assembly order."""
+    @property
+    def configured_stage_names(self) -> tuple[str, ...]:
+        """Return configured stage names in immutable assembly order."""
 
-        return tuple(binding.key for binding in self.configs)
+        return tuple(binding.stage_name for binding in self.configs)
 
-    def require_config[T](self, key: str, expected_type: type[T]) -> T:
-        """Return one resolved config narrowed to the caller's expected core type."""
+    def require_config[T](self, stage_name: str, expected_type: type[T]) -> T:
+        """Return one resolved stage config narrowed to the expected core type."""
 
         for binding in self.configs:
-            if binding.key != key:
+            if binding.stage_name != stage_name:
                 continue
             if not isinstance(binding.value, expected_type):
                 raise PipelineContextError(
-                    f"resolved config {key} must be {expected_type.__name__}, "
+                    f"resolved config {stage_name} must be {expected_type.__name__}, "
                     f"got {type(binding.value).__name__}"
                 )
             return binding.value
-        raise PipelineContextError(f"resolved config is not available: {key}")
+        raise PipelineContextError(
+            f"resolved config is not available for stage: {stage_name}"
+        )
