@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-066 with PipelineContext persistence assembly plus an application-layer checkpoint identity over exact stage name/version and independent resolved input/config hashes, including ordered dependency output fingerprints. The current ordered task is **UG-AI-067 / S12-T03**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T03 is complete through UG-AI-067 with exact checkpoint identity plus same-run persisted reuse requiring successful dependency/candidate provenance and non-null output fingerprints. The current ordered task is **UG-AI-068 / S12-T04**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-067 / S12-T03
-Implement persisted checkpoint eligibility/reuse requiring matching stage/input/config provenance and non-null dependency/output fingerprints; reject stale or incomplete provenance.
+UG-AI-068 / S12-T04
+Replace worker.run_generation placeholder with real canonical Stage DAG execution outside HTTP and persisted stage progress.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
