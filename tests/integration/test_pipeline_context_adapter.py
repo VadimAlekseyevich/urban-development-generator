@@ -225,6 +225,7 @@ def test_adapter_assembles_persisted_run_into_core_pipeline_context() -> None:
         assert context.snapshot.boundary.source_ref.startswith(
             f"project-boundary:{project.id}:sha256:"
         )
+        first_boundary_ref = context.snapshot.boundary.source_ref
         assert len(context.snapshot.roads) == 1
         assert context.snapshot.roads[0].source_ref == (
             f"dataset-version:{roads.id}:v2"
@@ -244,6 +245,10 @@ def test_adapter_assembles_persisted_run_into_core_pipeline_context() -> None:
 
         session.expire(run, ["config_json"])
         assert run.config_json == {"target_population": 10_000}
+
+        session.expire(project, ["boundary"])
+        reloaded_context = adapter.assemble(run.id, correlation=correlation)
+        assert reloaded_context.snapshot.boundary.source_ref == first_boundary_ref
 
 
 def test_adapter_default_correlation_is_stable_and_infrastructure_neutral() -> None:
