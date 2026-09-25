@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 has started through UG-AI-062 with a typed StageRegistry that validates the stabilized Stage metadata graph without introducing a second stage identity model. The current ordered task is **UG-AI-063 / S12-T01**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T01 is complete through UG-AI-063 with typed StageRegistry validation, deterministic topological planning and explicit downstream skip propagation over the stabilized Stage model. The current ordered task is **UG-AI-064 / S12-T02**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-063 / S12-T01
-Define deterministic topological order and explicit skip semantics with unit tests.
+UG-AI-064 / S12-T02
+Define persistence-to-core PipelineContext assembly contract for RunContext, TerritorySnapshot, configs and ports.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
