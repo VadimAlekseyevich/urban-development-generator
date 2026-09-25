@@ -8,6 +8,7 @@ from backend.app.application.block_parcel_layers import BlockParcelLayerQuerySer
 from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
+from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.source_layers import SourceLayerQueryService
@@ -28,6 +29,9 @@ from backend.app.db.demography_layer_query_repository import (
 )
 from backend.app.db.infrastructure_layer_query_repository import (
     SqlAlchemyInfrastructureLayerQueryRepository,
+)
+from backend.app.db.metric_dashboard_query_repository import (
+    SqlAlchemyMetricDashboardQueryRepository,
 )
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
@@ -141,6 +145,22 @@ def get_infrastructure_layer_query_service(
 InfrastructureLayerQueryServiceDep = Annotated[
     InfrastructureLayerQueryService,
     Depends(get_infrastructure_layer_query_service),
+]
+
+
+def get_metric_dashboard_query_service(
+    db: DbSession,
+) -> MetricDashboardQueryService:
+    """Compose the S11 persisted evaluation dashboard query service."""
+
+    return MetricDashboardQueryService(
+        SqlAlchemyMetricDashboardQueryRepository(db)
+    )
+
+
+MetricDashboardQueryServiceDep = Annotated[
+    MetricDashboardQueryService,
+    Depends(get_metric_dashboard_query_service),
 ]
 
 

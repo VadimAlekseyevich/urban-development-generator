@@ -71,10 +71,12 @@ run-level metrics persistence extension point.
 
 This persisted input/provenance envelope is consumed by the implemented S11-T12 sensitivity
 engine so weight perturbations can recalculate scores/rankings without rerunning GIS algorithms or
-normalization.
+normalization. S11-T14 now also projects the same envelope into the run-scoped metrics dashboard,
+combining persisted score inputs with canonical registry units/scope/direction without recomputation.
 
 ## Non-goals
 
 S11-T11 itself does not choose one universal weight profile or rerun raw-metric producers.
-S11-T12 now performs weight-only sensitivity from the persisted envelope. API/UI delivery and the
+S11-T12 performs weight-only sensitivity from the persisted envelope and S11-T14 provides its
+read-only score explanation API/UI. Scenario comparison, interactive sensitivity controls and the
 formal S15 research experiment remain later ordered tasks.

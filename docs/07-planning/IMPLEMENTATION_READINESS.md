@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-059: canonical validation/raw metrics, versioned normalization, explainable scoring, weight sensitivity and a run-scoped violations persistence/API/UI path reuse the canonical ValidationReport without rerunning GIS. The current ordered task is **UG-AI-060 / S11-T14**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 is complete; S11 is implemented through UG-AI-060: canonical validation/raw metrics, versioned normalization, explainable scoring, weight sensitivity, run-scoped violations and a persisted metrics dashboard reuse canonical outputs without rerunning GIS. The current ordered task is **UG-AI-061 / S11-T15**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-060 / S11-T14
-Deliver metrics dashboard showing raw value/unit, normalized value, weight and score contribution.
+UG-AI-061 / S11-T15
+Add integrated regression fixtures with expected ranges/invariants and canonical metric IDs.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
