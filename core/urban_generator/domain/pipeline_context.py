@@ -31,9 +31,9 @@ class ResolvedConfigBinding:
             ) from exc
         if not isinstance(self.source, ConfigRef):
             raise PipelineContextError("resolved config source must be a ConfigRef")
-        if isinstance(self.value, Mapping):
+        if self.value is None or isinstance(self.value, Mapping):
             raise PipelineContextError(
-                "resolved config value must be a typed core object, not a mapping"
+                "resolved config value must be a typed core object, not a mapping or None"
             )
 
 
@@ -108,7 +108,6 @@ class PipelineContext:
                 "network backend working CRS must match pipeline working CRS"
             )
 
-    @property
     @property
     def configured_stage_names(self) -> tuple[str, ...]:
         """Return configured stage names in immutable assembly order."""
