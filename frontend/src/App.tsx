@@ -17,6 +17,7 @@ import { BlockParcelsPanel } from './BlockParcelsPanel'
 import { BuildingsPanel } from './BuildingsPanel'
 import { DemographyPanel } from './DemographyPanel'
 import { InfrastructurePanel } from './InfrastructurePanel'
+import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ViolationsPanel } from './ViolationsPanel'
@@ -634,6 +635,11 @@ function App() {
         <InfrastructurePanel
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
+          projectId={context?.projectId ?? null}
+        />
+
+        <MetricsDashboard
+          apiBase={API_BASE}
           projectId={context?.projectId ?? null}
         />
 
