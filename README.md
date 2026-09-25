@@ -125,7 +125,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт through UG-AI-061**: deterministic regression fixtures связывают canonical raw metrics, final validation и explainable score поверх уже стабилизированных S04–S10 outputs без второго execution path.
+**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-062**: typed `StageRegistry` валидирует canonical Stage DAG metadata, включая duplicate names, missing dependencies и cycles, без второго stage vocabulary и без преждевременной реализации execution order.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -142,7 +142,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M0–M2 закрыты, и следующий ordered execution item —
-**`UG-AI-062 / S12-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-063 / S12-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
