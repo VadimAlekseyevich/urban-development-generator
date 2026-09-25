@@ -103,7 +103,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-064** — **S12-T02** — Define persistence-to-core PipelineContext assembly contract for RunContext, TerritorySnapshot, configs and ports.
 - [x] **UG-AI-065** — **S12-T02** — Implement adapter without exposing ORM/session types to core.
 - [x] **UG-AI-066** — **S12-T03** — Define checkpoint eligibility from stage name/version + independent input/config hashes; resolved input identity must include ordered dependency `RunStageResult.output_fingerprint` values, while the current stage output fingerprint remains a separate persisted provenance field.
-- [ ] **UG-AI-067** — **S12-T03** — Implement persisted checkpoint eligibility/reuse requiring matching name/version/input/config provenance and non-null dependency/output fingerprints; add stale/missing-fingerprint rejection tests.
+- [x] **UG-AI-067** — **S12-T03** — Implement persisted checkpoint eligibility/reuse requiring matching name/version/input/config provenance and non-null dependency/output fingerprints; add stale/missing-fingerprint rejection tests.
 - [ ] **UG-AI-068** — **S12-T04** — Replace worker.run_generation placeholder with real DAG execution outside HTTP and persisted stage progress.
 - [ ] **UG-AI-069** — **S12-T04** — Add generation worker integration fixture covering success/failure and immutable successful results.
 - [ ] **UG-AI-070** — **S12-T05** — Add cooperative cancellation checks between stages/bounded units with consistent run/stage/job states.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..066 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-067. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..067 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-068. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
