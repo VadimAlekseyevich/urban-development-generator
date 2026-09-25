@@ -232,10 +232,30 @@ identity. It is only available after execution and remains the separate persiste
 `RunStageResult.output_fingerprint`. Therefore an output fingerprint is never substituted for
 the same stage's `input_hash` or `config_hash`.
 
-UG-AI-066 defines only the pure application-layer identity/hash contract. UG-AI-067 remains
-responsible for loading persisted `RunStageResult` candidates, requiring successful/non-null
-dependency and candidate output fingerprints, rejecting stale provenance, and deciding actual
-reuse.
+UG-AI-067 / S12-T03 implements persistence-side reuse through
+`backend.app.adapters.checkpoints.SqlAlchemyCheckpointStore`.
+
+Reuse is deliberately **same-run only**. Current generated tables and stage rows are run-scoped, so
+cross-run checkpoint lookup would claim reuse without copying/materializing run-owned outputs.
+Exact rerun/cross-run provenance remains S12-T11 work.
+
+For one stage resolution the store:
+
+- loads every declared direct dependency from the same `GenerationRun`;
+- requires each dependency row to be `succeeded` with non-null canonical
+  `output_fingerprint`;
+- returns dependency fingerprints in exact `Stage.dependencies` order;
+- rebuilds the current `CheckpointIdentity` from those dependency fingerprints plus the current
+  input/config parts;
+- looks up only the same run/stage candidate;
+- treats stage version, `input_hash` or `config_hash` mismatch as a cache miss;
+- treats any non-`succeeded` candidate as a cache miss;
+- requires an otherwise exact successful candidate to have a non-null canonical
+  `output_fingerprint`, otherwise provenance is incomplete and reuse is rejected with an error.
+
+A reuse hit returns typed checkpoint metadata and the persisted output fingerprint. It does not
+execute a stage, mutate its row, reconstruct typed stage output, or change status. Worker-owned
+execution/state transitions start in UG-AI-068.
 
 ## 9. Cancellation and retry
 
