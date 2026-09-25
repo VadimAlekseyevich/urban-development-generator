@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 import pytest
@@ -23,14 +24,15 @@ class FakeGenerationExecutionService:
         )
 
 
-@pytest.mark.asyncio
-async def test_run_generation_executes_configured_application_service() -> None:
+def test_run_generation_executes_configured_application_service() -> None:
     run_id = uuid.uuid4()
     service = FakeGenerationExecutionService()
 
-    result = await run_generation(
-        {"generation_execution_service": service},
-        str(run_id),
+    result = asyncio.run(
+        run_generation(
+            {"generation_execution_service": service},
+            str(run_id),
+        )
     )
 
     assert service.calls == [run_id]
@@ -43,10 +45,9 @@ async def test_run_generation_executes_configured_application_service() -> None:
     }
 
 
-@pytest.mark.asyncio
-async def test_run_generation_rejects_missing_runtime_configuration() -> None:
+def test_run_generation_rejects_missing_runtime_configuration() -> None:
     with pytest.raises(
         GenerationTaskConfigurationError,
         match="generation_execution_service is not configured",
     ):
-        await run_generation({}, str(uuid.uuid4()))
+        asyncio.run(run_generation({}, str(uuid.uuid4())))
