@@ -5,6 +5,7 @@ from typing import Any, cast
 from arq import Retry
 
 from backend.app.adapters import LocalArtifactStore
+from backend.app.application.generation_execution import GenerationExecutionService
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
 from backend.app.core.config import settings
 from backend.app.db.ingest_job_repository import SqlAlchemyIngestJobRepository
@@ -12,6 +13,10 @@ from backend.app.services.ingest_pipeline import DatasetIngestPipeline
 from core.urban_generator.domain.errors import TransientError
 
 _MAX_RETRY_DELAY_SECONDS = 300
+
+
+class GenerationTaskConfigurationError(RuntimeError):
+    """Raised when the worker has no canonical generation runtime configured."""
 
 
 class IngestTaskFailed(RuntimeError):
@@ -74,7 +79,24 @@ async def run_ingest(
     }
 
 
-async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, str]:
-    """S12 placeholder; validates run identity but does not execute the Stage DAG."""
+async def run_generation(
+    ctx: dict[str, Any],
+    run_id: str,
+) -> dict[str, object]:
+    """Execute one canonical generation DAG outside the HTTP process."""
+
     parsed_id = uuid.UUID(run_id)
-    return {"run_id": str(parsed_id), "status": "accepted"}
+    override = ctx.get("generation_execution_service")
+    if override is None:
+        raise GenerationTaskConfigurationError(
+            "generation_execution_service is not configured in worker context"
+        )
+    service = cast(GenerationExecutionService, override)
+    report = await asyncio.to_thread(service.run, run_id=parsed_id)
+    return {
+        "run_id": str(report.run_id),
+        "status": report.status,
+        "executed_stages": list(report.executed_stages),
+        "reused_stages": list(report.reused_stages),
+        "skipped_stages": list(report.skipped_stages),
+    }
