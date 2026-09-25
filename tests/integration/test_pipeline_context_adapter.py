@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO, cast
@@ -70,15 +71,15 @@ class RecordingConfigResolver:
     def resolve(
         self,
         *,
-        config_json: object,
+        config_json: Mapping[str, object],
         schema_version: str,
         source: ConfigRef,
     ) -> tuple[ResolvedConfigBinding, ...]:
-        assert isinstance(config_json, dict)
         self.schema_version = schema_version
         self.source = source
         self.observed_target_population = config_json.get("target_population")
-        config_json["mutated_by_resolver"] = True
+        mutable_config = cast(dict[str, object], config_json)
+        mutable_config["mutated_by_resolver"] = True
         return (
             ResolvedConfigBinding(
                 stage_name="roads",
@@ -287,12 +288,7 @@ def test_adapter_maps_supported_dataset_kinds_to_core_snapshot_layers(
             for ref in context.snapshot.layer_refs
             if ref.kind is expected_kind
         )
-        assert matching == (
-            cast(
-                object,
-                matching[0],
-            ),
-        )
+        assert len(matching) == 1
         assert matching[0].source_ref == f"dataset-version:{version.id}:v1"
 
 
