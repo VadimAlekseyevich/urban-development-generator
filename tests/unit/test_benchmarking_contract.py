@@ -1,12 +1,5 @@
 import pytest
 
-from core.urban_generator.metrics import (
-    CONSTRAINT_RAW_METRIC_IDS,
-    DEMOGRAPHY_RAW_METRIC_IDS,
-    INFRASTRUCTURE_RAW_METRIC_IDS,
-    LAND_BUILDING_RAW_METRIC_IDS,
-    ROAD_RAW_METRIC_IDS,
-)
 from core.urban_generator.domain import (
     CANONICAL_DIAGNOSTIC_IDS,
     CANONICAL_METRIC_REGISTRY,
@@ -28,6 +21,13 @@ from core.urban_generator.domain import (
     RawMetricId,
 )
 
+from core.urban_generator.metrics import (
+    CONSTRAINT_RAW_METRIC_IDS,
+    DEMOGRAPHY_RAW_METRIC_IDS,
+    INFRASTRUCTURE_RAW_METRIC_IDS,
+    LAND_BUILDING_RAW_METRIC_IDS,
+    ROAD_RAW_METRIC_IDS,
+)
 
 def _definition(
     metric_id: RawMetricId = RawMetricId.LAND_DEVELOPABLE_AREA_M2,
