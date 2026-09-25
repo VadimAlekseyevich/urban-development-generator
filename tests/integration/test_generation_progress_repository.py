@@ -7,7 +7,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import select, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.application.checkpoints import (
     CheckpointIdentity,
