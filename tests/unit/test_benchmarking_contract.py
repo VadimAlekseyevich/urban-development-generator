@@ -20,6 +20,13 @@ from core.urban_generator.domain import (
     MetricValueKind,
     RawMetricId,
 )
+from core.urban_generator.metrics import (
+    CONSTRAINT_RAW_METRIC_IDS,
+    DEMOGRAPHY_RAW_METRIC_IDS,
+    INFRASTRUCTURE_RAW_METRIC_IDS,
+    LAND_BUILDING_RAW_METRIC_IDS,
+    ROAD_RAW_METRIC_IDS,
+)
 
 
 def _definition(
@@ -49,6 +56,19 @@ def test_canonical_metric_catalog_has_stable_unique_ids() -> None:
     assert len(metric_ids) == len(set(metric_ids))
     assert RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT in metric_ids
     assert RawMetricId.INFRASTRUCTURE_NETWORK_DISTANCE_P90_M in metric_ids
+
+
+def test_s11_metric_adapter_families_partition_canonical_ids() -> None:
+    flattened = (
+        LAND_BUILDING_RAW_METRIC_IDS
+        + DEMOGRAPHY_RAW_METRIC_IDS
+        + ROAD_RAW_METRIC_IDS
+        + INFRASTRUCTURE_RAW_METRIC_IDS
+        + CONSTRAINT_RAW_METRIC_IDS
+    )
+
+    assert flattened == CANONICAL_RAW_METRIC_IDS
+    assert len(flattened) == len(set(flattened))
 
 
 def test_canonical_metric_registry_exposes_runtime_metadata() -> None:

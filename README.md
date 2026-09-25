@@ -118,13 +118,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/SCORE_SENSITIVITY.md` — S11 weight sensitivity over persisted evaluation snapshots without GIS rerun;
 - `docs/VIOLATIONS_LAYER.md` — S11 run-scoped canonical validation persistence, API and MapLibre violations UI;
 - `docs/METRICS_DASHBOARD.md` — S11 persisted score explanation API/UI with canonical raw metric units;
+- `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S10 / M1 Infrastructure Complete завершён; S11 реализован through UG-AI-060**: canonical validation/raw metrics, versioned normalization, explainable score и weight sensitivity дополнены run-scoped violations и persisted metrics dashboard API/UI без повторного вычисления GIS/score.
+**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт through UG-AI-061**: deterministic regression fixtures связывают canonical raw metrics, final validation и explainable score поверх уже стабилизированных S04–S10 outputs без второго execution path.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -140,8 +141,8 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
-Readiness остаётся **ACCEPTED**; M1 закрыт, и следующий ordered execution item —
-**`UG-AI-061 / S11-T15`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+Readiness остаётся **ACCEPTED**; M0–M2 закрыты, и следующий ordered execution item —
+**`UG-AI-062 / S12-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

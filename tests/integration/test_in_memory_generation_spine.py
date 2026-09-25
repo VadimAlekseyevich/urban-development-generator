@@ -1,6 +1,7 @@
 import uuid
 
 import numpy as np
+import pytest
 from shapely.geometry import LineString, MultiLineString, box
 
 from core.urban_generator.blocks import (
@@ -23,7 +24,16 @@ from core.urban_generator.buildings import (
     BuildingUse,
     RectangularPointFootprintSpec,
 )
-from core.urban_generator.constraints import ConstraintRegistry, RegisteredConstraintEngine
+from core.urban_generator.constraints import (
+    AggregateConstraintSubject,
+    AggregateMetricBound,
+    AggregateMetricBoundConstraint,
+    AggregateMetricValue,
+    ConstraintRegistry,
+    RegisteredConstraintEngine,
+    SoftAggregatePreference,
+    SoftAggregatePreferenceConstraint,
+)
 from core.urban_generator.demography import (
     AgeGroupShare,
     DemographicScenario,
@@ -35,13 +45,30 @@ from core.urban_generator.demography import (
 from core.urban_generator.domain import (
     ConfigRef,
     CorrelationMetadata,
+    MetricDirection,
     ProjectRef,
     ProjectSettings,
+    RawMetricId,
     RunContext,
     RunMode,
     SnapshotLayerKind,
     SnapshotLayerRef,
     TerritorySnapshot,
+    ValidationReport,
+)
+from core.urban_generator.metrics import (
+    CompositeScoreConfig,
+    CompositeScoreMetricWeight,
+    CompositeScoreRawMetric,
+    ConstraintMetricAdapter,
+    DemographyMetricAdapter,
+    LandBuildingMetricAdapter,
+    MetricNormalizationPolicy,
+    MetricNormalizationProfile,
+    NormalizationClampPolicy,
+    NormalizationMissingPolicy,
+    RoadMetricAdapter,
+    build_composite_score,
 )
 from core.urban_generator.roads import (
     CandidateRoadAnchorPolicy,
@@ -454,3 +481,324 @@ def test_expansion_spine_is_deterministic_end_to_end() -> None:
         item.fingerprint for item in second
     )
     assert first[-1].output.demand_profile == second[-1].output.demand_profile
+
+
+def _required_scalar(result, metric_id: RawMetricId) -> float:
+    value = result.require(metric_id).scalar_value
+    assert value is not None
+    return value
+
+
+def _reference_validation_report(
+    *,
+    coverage: float,
+    far: float,
+    density: float,
+) -> ValidationReport:
+    subject = AggregateConstraintSubject(
+        values=(
+            AggregateMetricValue(
+                metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+                value=coverage,
+            ),
+            AggregateMetricValue(
+                metric_id=RawMetricId.BUILDINGS_FAR,
+                value=far,
+            ),
+            AggregateMetricValue(
+                metric_id=RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+                value=density,
+            ),
+            AggregateMetricValue(
+                metric_id=RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
+                value=1.0,
+            ),
+        )
+    )
+    hard_bounds = (
+        AggregateMetricBound(
+            metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+            minimum=0.10,
+            maximum=0.22,
+        ),
+        AggregateMetricBound(
+            metric_id=RawMetricId.BUILDINGS_FAR,
+            minimum=0.20,
+            maximum=0.45,
+        ),
+        AggregateMetricBound(
+            metric_id=RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+            minimum=50_000.0,
+            maximum=120_000.0,
+        ),
+        AggregateMetricBound(
+            metric_id=RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
+            minimum=0.80,
+            maximum=1.0,
+        ),
+    )
+    hard_results = tuple(
+        AggregateMetricBoundConstraint(bound).evaluate(
+            subject=subject,
+            snapshot=_snapshot(),
+            context=_context(),
+        )
+        for bound in hard_bounds
+    )
+    soft_result = SoftAggregatePreferenceConstraint(
+        SoftAggregatePreference(
+            metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+            minimum=0.30,
+            weight=0.5,
+        )
+    ).evaluate(
+        subject=subject,
+        snapshot=_snapshot(),
+        context=_context(),
+    )
+    return ValidationReport(results=hard_results + (soft_result,))
+
+
+def _reference_score(
+    *,
+    coverage: float,
+    far: float,
+    density: float,
+    hard_violation_count: float,
+    weighted_soft_penalty: float,
+):
+    clamp = NormalizationClampPolicy.REJECT
+    missing = NormalizationMissingPolicy.REJECT
+    profile = MetricNormalizationProfile(
+        profile_id="s11.reference",
+        version="1",
+        policies=(
+            MetricNormalizationPolicy(
+                metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+                direction=MetricDirection.TARGET,
+                lower_bound=0.0,
+                upper_bound=0.5,
+                target_lower_bound=0.10,
+                target_upper_bound=0.22,
+                clamp_policy=clamp,
+                missing_policy=missing,
+                version="1",
+            ),
+            MetricNormalizationPolicy(
+                metric_id=RawMetricId.BUILDINGS_FAR,
+                direction=MetricDirection.TARGET,
+                lower_bound=0.0,
+                upper_bound=1.0,
+                target_lower_bound=0.20,
+                target_upper_bound=0.45,
+                clamp_policy=clamp,
+                missing_policy=missing,
+                version="1",
+            ),
+            MetricNormalizationPolicy(
+                metric_id=RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+                direction=MetricDirection.TARGET,
+                lower_bound=0.0,
+                upper_bound=200_000.0,
+                target_lower_bound=50_000.0,
+                target_upper_bound=120_000.0,
+                clamp_policy=clamp,
+                missing_policy=missing,
+                version="1",
+            ),
+            MetricNormalizationPolicy(
+                metric_id=RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+                direction=MetricDirection.LOWER_IS_BETTER,
+                lower_bound=0.0,
+                upper_bound=5.0,
+                clamp_policy=clamp,
+                missing_policy=missing,
+                version="1",
+            ),
+            MetricNormalizationPolicy(
+                metric_id=RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY,
+                direction=MetricDirection.LOWER_IS_BETTER,
+                lower_bound=0.0,
+                upper_bound=2.0,
+                clamp_policy=clamp,
+                missing_policy=missing,
+                version="1",
+            ),
+        ),
+    )
+    raw_metrics = (
+        CompositeScoreRawMetric(
+            metric_id=RawMetricId.BUILDINGS_COVERAGE_RATIO,
+            raw_value=coverage,
+        ),
+        CompositeScoreRawMetric(
+            metric_id=RawMetricId.BUILDINGS_FAR,
+            raw_value=far,
+        ),
+        CompositeScoreRawMetric(
+            metric_id=RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+            raw_value=density,
+        ),
+        CompositeScoreRawMetric(
+            metric_id=RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+            raw_value=hard_violation_count,
+        ),
+        CompositeScoreRawMetric(
+            metric_id=RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY,
+            raw_value=weighted_soft_penalty,
+        ),
+    )
+    config = CompositeScoreConfig(
+        config_id="s11.reference",
+        version="1",
+        weights=tuple(
+            CompositeScoreMetricWeight(metric_id=item.metric_id, weight=1.0)
+            for item in raw_metrics
+        ),
+    )
+    return build_composite_score(
+        raw_metrics,
+        normalization_profile=profile,
+        config=config,
+    )
+
+
+def test_s11_reference_fixture_preserves_metrics_validation_and_score_envelope() -> None:
+    (
+        _constraints,
+        suitability,
+        _zoning,
+        roads,
+        blocks,
+        buildings,
+        demography,
+    ) = _execute_spine()
+
+    land = LandBuildingMetricAdapter().adapt(
+        suitability=suitability.output,
+        blocks=blocks.output,
+        buildings=buildings.output,
+    )
+    road = RoadMetricAdapter().adapt(roads=roads.output)
+    population = DemographyMetricAdapter().adapt(demography=demography.output)
+
+    developable_area = _required_scalar(
+        land,
+        RawMetricId.LAND_DEVELOPABLE_AREA_M2,
+    )
+    developed_area = _required_scalar(
+        land,
+        RawMetricId.LAND_DEVELOPED_AREA_M2,
+    )
+    coverage = _required_scalar(
+        land,
+        RawMetricId.BUILDINGS_COVERAGE_RATIO,
+    )
+    far = _required_scalar(land, RawMetricId.BUILDINGS_FAR)
+    gfa = _required_scalar(land, RawMetricId.BUILDINGS_GFA_M2)
+    density = _required_scalar(
+        population,
+        RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+    )
+
+    assert developable_area == pytest.approx(100.0)
+    assert 90.0 <= developed_area <= 100.0
+    assert _required_scalar(
+        land,
+        RawMetricId.LAND_GREEN_RECREATION_SHARE,
+    ) == pytest.approx(0.0)
+    assert 0.10 <= coverage <= 0.22
+    assert 0.20 <= far <= 0.45
+    assert 20.0 <= gfa <= 45.0
+
+    archetypes = land.require(
+        RawMetricId.BUILDINGS_ARCHETYPE_DISTRIBUTION
+    ).archetype_distribution
+    assert sum(item.building_count for item in archetypes) > 0
+    assert sum(item.share for item in archetypes) == pytest.approx(1.0)
+    assert next(
+        item for item in archetypes if item.archetype is BuildingArchetype.POINT
+    ).share == pytest.approx(1.0)
+
+    assert _required_scalar(
+        road,
+        RawMetricId.ROADS_CONNECTED_COMPONENTS,
+    ) == pytest.approx(1.0)
+    assert 300.0 <= _required_scalar(
+        road,
+        RawMetricId.ROADS_LENGTH_DENSITY_KM_PER_KM2,
+    ) <= 1_500.0
+    assert 1.5 <= _required_scalar(
+        road,
+        RawMetricId.ROADS_AVERAGE_DEGREE,
+    ) <= 2.5
+    assert 0.0 <= _required_scalar(
+        road,
+        RawMetricId.ROADS_INTERSECTION_DENSITY_PER_KM2,
+    ) <= 30_000.0
+    circuity = road.require(RawMetricId.ROADS_CIRCUITY).scalar_value
+    assert circuity is not None
+    assert 1.0 <= circuity <= 1.2
+    assert 0.0 <= _required_scalar(
+        road,
+        RawMetricId.ROADS_DEAD_END_RATIO,
+    ) <= 0.4
+
+    assert _required_scalar(
+        population,
+        RawMetricId.DEMOGRAPHY_TOTAL_POPULATION,
+    ) == pytest.approx(8.0)
+    assert 50_000.0 <= density <= 120_000.0
+    assert _required_scalar(
+        population,
+        RawMetricId.DEMOGRAPHY_JOBS_ESTIMATE,
+    ) == pytest.approx(0.0)
+    age_distribution = population.require(
+        RawMetricId.DEMOGRAPHY_AGE_GROUP_DISTRIBUTION
+    ).age_distribution
+    assert sum(item.residents for item in age_distribution) == 8
+    assert sum(item.share for item in age_distribution) == pytest.approx(1.0)
+
+    validation = _reference_validation_report(
+        coverage=coverage,
+        far=far,
+        density=density,
+    )
+    assert validation.is_valid is True
+    assert len(validation.hard_failures) == 0
+    assert len(validation.soft_violations) == 1
+
+    constraint_metrics = ConstraintMetricAdapter().adapt(validation)
+    hard_count = _required_scalar(
+        constraint_metrics,
+        RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+    )
+    soft_penalty = _required_scalar(
+        constraint_metrics,
+        RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY,
+    )
+    assert hard_count == pytest.approx(0.0)
+    assert _required_scalar(
+        constraint_metrics,
+        RawMetricId.CONSTRAINTS_AFFECTED_AREA_M2,
+    ) == pytest.approx(0.0)
+    assert soft_penalty == pytest.approx(0.5)
+
+    score = _reference_score(
+        coverage=coverage,
+        far=far,
+        density=density,
+        hard_violation_count=hard_count,
+        weighted_soft_penalty=soft_penalty,
+    )
+    assert score.score == pytest.approx(0.95)
+    assert tuple(item.metric_id for item in score.metrics) == (
+        RawMetricId.BUILDINGS_COVERAGE_RATIO,
+        RawMetricId.BUILDINGS_FAR,
+        RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2,
+        RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+        RawMetricId.CONSTRAINTS_WEIGHTED_SOFT_PENALTY,
+    )
+    assert sum(item.contribution for item in score.metrics) == pytest.approx(
+        score.score
+    )

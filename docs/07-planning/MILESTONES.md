@@ -39,13 +39,19 @@ Exit:
 
 ## M2 — First Complete Deterministic Scenario
 
+**State: COMPLETE.** S11 regression evidence: PR #142 CI run `36125165479` was green on
+`9b21116ee5cb05737afec956829617e8775bf06e`; the run included full Python tests,
+reference benchmarks, frontend build and Docker Compose readiness.
+
 Exit:
 
 - S11 complete;
-- one scenario reaches final validation and canonical raw metrics;
-- hard/soft violations are explainable and spatially attributable where applicable;
-- score is derived from persisted raw metrics and is not the only result;
-- regression fixture detects algorithm drift.
+- one deterministic scenario reaches canonical raw metrics and aggregate final validation;
+- hard/soft violations remain independently explainable through canonical `ValidationReport`;
+- score is derived from the same raw metrics and remains decomposable into normalized values,
+  weights and contributions;
+- S10 synthetic-town infrastructure metrics remain in canonical registry order;
+- regression ranges/invariants detect algorithm drift without introducing a parallel execution path.
 
 ## M3 — Durable Generation Run
 
