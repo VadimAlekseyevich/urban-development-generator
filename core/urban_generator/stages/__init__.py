@@ -43,6 +43,7 @@ from core.urban_generator.stages.demography import (
     DemographyStageInput,
     DemographyStageOutput,
 )
+from core.urban_generator.stages.registry import StageRegistry, StageRegistryError
 from core.urban_generator.stages.roads import (
     FixedRoadStageInput,
     RoadStage,
@@ -96,6 +97,8 @@ __all__ = [
     "RoadStageInput",
     "RoadStageOutput",
     "PERSIST_MANIFEST_STAGE",
+    "StageRegistry",
+    "StageRegistryError",
     "PREPARE_SNAPSHOT_STAGE",
     "ROADS_STAGE",
     "SUITABILITY_STAGE",

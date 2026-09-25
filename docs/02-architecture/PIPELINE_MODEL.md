@@ -125,9 +125,17 @@ prepare_snapshot
  -> persist_manifest
 ```
 
-S12-T01 will implement executable DAG/skip semantics. Stabilization only fixes identity and adapter boundaries so S12 does not have to redesign already-completed stages.
+UG-AI-062 / S12-T01 implements `StageRegistry` directly over the existing canonical `Stage`
+protocol. Registry construction validates each stage's existing `name`, `version` and
+`dependencies` metadata, rejects duplicate stage names, rejects dependencies that are absent from
+the assembled registry, and rejects dependency cycles. Registry insertion order is retained only as
+assembly/debugging information and is explicitly not an execution order.
 
-No second enum such as legacy `PipelineStage` may become an independent source of stage identity.
+UG-AI-063 / S12-T01 remains responsible for deterministic topological ordering and explicit skip
+semantics. The registry validation task does not execute stages, decide skips or add worker state.
+
+No second enum, metadata vocabulary or execution contract such as legacy `PipelineStage` may
+become an independent source of stage identity.
 
 ## 8. Persistence mapping
 
