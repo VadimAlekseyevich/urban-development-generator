@@ -82,6 +82,31 @@ Cancellation tokens, loggers, DB sessions, repositories, queue clients, clocks, 
 
 Execution services may carry those concerns in a separate orchestration context. This separation prevents infrastructure leakage into algorithm code.
 
+### 5.1. PipelineContext assembly boundary
+
+UG-AI-064 / S12-T02 defines the immutable core `PipelineContext` consumed by later orchestration.
+It aggregates already-canonical contracts rather than introducing a second pipeline model:
+
+- `RunContext` for deterministic run identity/mode/seed/CRS/config provenance;
+- `TerritorySnapshot` for immutable fixed territory inputs;
+- typed resolved per-stage config objects;
+- infrastructure-neutral `PipelinePorts`.
+
+Each resolved config binding uses the canonical stage-name syntax, carries a `ConfigRef` that must
+already exist in `RunContext.config_refs`, and contains a typed core config object. A raw
+`dict`/mapping or `None` is not a resolved config and must be decoded/validated before crossing
+the core boundary. Callers retrieve config values with an explicit expected type.
+
+`PipelinePorts` reuses existing ports rather than defining adapter-specific interfaces:
+`ArtifactStore` is required, and `NetworkBackend` may be supplied when a compatible routable
+snapshot already exists. Port implementations are injected runtime capabilities; SQLAlchemy
+sessions/repositories, storage paths and queue clients are not pipeline-context fields.
+
+Assembly enforces one metric working CRS across `RunContext`, `TerritorySnapshot` and any
+provided `NetworkBackend`. The persistence adapter in UG-AI-065 is responsible for reading ORM
+state and constructing these core values; ORM entities and sessions must terminate at that adapter
+boundary and never appear in `PipelineContext`.
+
 ## 6. Stage adapters for existing capabilities
 
 Before new infrastructure feature work continues, completed algorithmic capabilities S04-S09 must have canonical adapters for the coarse pipeline stages:
