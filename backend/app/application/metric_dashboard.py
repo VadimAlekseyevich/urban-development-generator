@@ -5,10 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-from backend.app.db.run_metrics_writer import (
-    RUN_EVALUATION_METRICS_KEY,
-    RUN_EVALUATION_SCHEMA_VERSION,
-)
+RUN_EVALUATION_METRICS_KEY = "evaluation"
+RUN_EVALUATION_SCHEMA_VERSION = "1"
+
 from core.urban_generator.domain.benchmarking import (
     CANONICAL_METRIC_REGISTRY,
     MetricDirection,
