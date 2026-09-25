@@ -78,6 +78,21 @@ problem geometries transformed from the run working CRS to EPSG:4326 and keeps s
 Run lists are capped at 100 and violation/GeoJSON requests at 1,000 items.
 
 
+## Metrics dashboard read API
+
+S11-T14 exposes the persisted S11-T11 evaluation envelope as a bounded, explainable read model:
+
+- `GET /projects/{project_id}/metric-runs?limit=50`;
+- `GET /projects/{project_id}/metric-runs/{run_id}/metrics`.
+
+Run lists are capped at 100 and contain only runs with a persisted `evaluation` section. The
+detail response returns the persisted composite score, score/normalization provenance and, for
+every score metric, canonical raw value + unit, normalized value, configured/normalized weight,
+contribution and missing/clamped diagnostics. Units/scope/direction come from the canonical metric
+registry. An existing run without an evaluation envelope returns HTTP 409. Reads never rerun raw
+metric producers, normalization, GIS or scoring.
+
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
