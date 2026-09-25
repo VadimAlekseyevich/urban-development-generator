@@ -6,8 +6,10 @@ from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.application.metric_dashboard import MetricDashboardRunRecord
-from backend.app.db.run_metrics_writer import RUN_EVALUATION_METRICS_KEY
+from backend.app.application.metric_dashboard import (
+    RUN_EVALUATION_METRICS_KEY,
+    MetricDashboardRunRecord,
+)
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
 
