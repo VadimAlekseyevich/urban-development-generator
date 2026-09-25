@@ -190,6 +190,7 @@ class GenerationProgressStore(Protocol):
         *,
         run_id: uuid.UUID,
         stage_name: str,
+        stage_version: str,
         error: Exception,
     ) -> None:
         """Persist failure for the stage currently executing."""
@@ -244,6 +245,7 @@ class GenerationExecutionService:
             )
 
         current_stage_name: str | None = None
+        current_stage_version: str | None = None
         try:
             runtime = self._runtime_loader.load(run_id)
             if runtime.context.run.run_id != run_id:
@@ -260,6 +262,7 @@ class GenerationExecutionService:
             for entry in plan:
                 stage = entry.stage
                 current_stage_name = stage.name
+                current_stage_version = stage.version
 
                 if not entry.should_execute:
                     assert entry.skip_reason is not None
@@ -345,10 +348,11 @@ class GenerationExecutionService:
                 skipped_stages=tuple(skipped),
             )
         except Exception as exc:
-            if current_stage_name is not None:
+            if current_stage_name is not None and current_stage_version is not None:
                 self._progress_store.mark_stage_failed(
                     run_id=run_id,
                     stage_name=current_stage_name,
+                    stage_version=current_stage_version,
                     error=exc,
                 )
             self._progress_store.mark_run_failed(
