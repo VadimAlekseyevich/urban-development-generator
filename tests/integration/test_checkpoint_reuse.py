@@ -234,6 +234,35 @@ def test_store_rejects_stale_checkpoint_identity_as_cache_miss(
         assert resolution.reusable is None
 
 
+def test_store_does_not_reuse_non_succeeded_candidate() -> None:
+    with Session(engine, expire_on_commit=False) as session:
+        project = _project(session)
+        run = _run(session, project)
+        _persist_dependencies(session, run)
+        expected = _expected_identity()
+        _stage_result(
+            session,
+            run,
+            stage_name="infrastructure",
+            status="failed",
+            input_hash=expected.input_hash,
+            config_hash=expected.config_hash,
+            output_payload="failed-output",
+        )
+        session.commit()
+
+        resolution = SqlAlchemyCheckpointStore(session=session).resolve(
+            run_id=run.id,
+            stage_name="infrastructure",
+            stage_version="1.0.0",
+            input_parts=("snapshot:v1",),
+            config_parts=("infrastructure-config:v1",),
+            expected_dependencies=("demography", "roads"),
+        )
+
+        assert resolution.reusable is None
+
+
 def test_store_rejects_exact_succeeded_candidate_without_output_fingerprint() -> None:
     with Session(engine, expire_on_commit=False) as session:
         project = _project(session)
