@@ -27,7 +27,6 @@ from core.urban_generator.domain import (
     build_stage_fingerprint,
 )
 from core.urban_generator.stages import StageSkipReason
-from core.urban_generator.stages.registry import StageAny
 
 WORKING_SRID = 32637
 SessionFactory: Callable[[], Session] = sessionmaker(
