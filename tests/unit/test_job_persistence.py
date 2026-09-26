@@ -38,6 +38,7 @@ def test_job_persists_authoritative_state() -> None:
         "error_class",
         "error_code",
         "error_json",
+        "cancel_requested_at",
         "started_at",
         "finished_at",
         "created_at",
@@ -102,3 +103,4 @@ def test_cancelled_error_sets_cancelled_job_state() -> None:
     assert job.status == "cancelled"
     assert job.error_class == "cancelled"
     assert job.error_code == "cancelled.error"
+    assert Job.__table__.c.cancel_requested_at.nullable is True
