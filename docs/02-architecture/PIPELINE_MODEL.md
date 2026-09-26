@@ -306,9 +306,30 @@ respective later ordered tasks.
 
 Core algorithms remain deterministic pure/bounded computations as far as practical.
 
-Cooperative cancellation is checked by execution orchestration between bounded units. If a long algorithm later needs internal cancellation points, introduce an infrastructure-neutral cancellation port by ADR rather than importing worker state.
+UG-AI-070 / S12-T05 implements the accepted ADR-0002 boundary. The DB-authoritative
+`Job.cancel_requested_at` records a one-way request without overloading terminal Job
+status. `SqlAlchemyGenerationStateStore.request_cancel(run_id)` locks GenerationRun then its
+generation Job: queued runs transition immediately to cancelled without incrementing the
+attempt; running Jobs receive only the request timestamp. Duplicate requests and terminal
+runs (particularly immutable successful runs) are not modified.
 
-Retry is an application/worker concern. Completed immutable run/source data are never mutated to simulate retry.
+`GenerationJobService` observes the existing core `CancelledError` via the application-layer
+state port before runtime assembly, before each stage/skip, after each bounded `Stage.execute`,
+and before finalization. Persistence also checks the signal under run/job row locks
+while writing a stage transition or final run success, so an accepted request cannot race
+through to a later successful commit. Worker cancellation returns explicit `status=cancelled`
+rather than reporting permanent failure. If the active stage was still running, its row
+becomes `cancelled` with diagnostics and no output fingerprint; earlier successful stage
+fingerprints remain intact. Job/run terminal states become cancelled with the canonical
+`cancelled.error` taxonomy.
+
+The current synchronous `Stage.execute` call is one bounded unit: a request received
+during that call is observed when the call returns, before its output is persisted. It is not
+a process kill, and long monolithic algorithms are not forcibly interrupted. If a long
+algorithm later needs internal cancellation points, introduce an infrastructure-neutral
+cancellation port by ADR rather than importing worker state into core. External HTTP/UI
+cancellation exposure is separately scheduled. Retry/backoff remains UG-AI-071; completed
+immutable run/source data are never mutated to simulate retry.
 
 ## 10. Network ownership
 
