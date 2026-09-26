@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO
@@ -17,7 +18,6 @@ from backend.app.application.checkpoints import (
 from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
-    GenerationExecutionResult,
     GenerationJobService,
     GenerationRuntime,
     StageInvocation,
@@ -119,7 +119,7 @@ class FakeInputResolver:
         stage: StageAny,
         context: PipelineContext,
         config: object,
-        outputs: dict[str, object],
+        outputs: Mapping[str, object],
     ) -> StageInvocation:
         assert isinstance(config, str)
         assert context.run.run_id == RUN_ID
@@ -432,7 +432,11 @@ def test_worker_generation_task_does_not_report_failed_stage_as_success() -> Non
 
 def test_stage_invocation_requires_explicit_canonical_hash_parts() -> None:
     with pytest.raises(GenerationExecutionError, match="input_parts"):
-        StageInvocation(stage_input=1, input_parts=["raw"], config_parts=("v1",))  # type: ignore[arg-type]
+        StageInvocation(  # type: ignore[arg-type]
+            stage_input=1, input_parts=["raw"], config_parts=("v1",)
+        )
 
     with pytest.raises(GenerationExecutionError, match="config_parts"):
-        StageInvocation(stage_input=1, input_parts=("v1",), config_parts=(1,))  # type: ignore[arg-type]
+        StageInvocation(  # type: ignore[arg-type]
+            stage_input=1, input_parts=("v1",), config_parts=(1,)
+        )
