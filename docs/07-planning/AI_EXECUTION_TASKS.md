@@ -106,7 +106,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-067** — **S12-T03** — Implement persisted checkpoint eligibility/reuse requiring matching name/version/input/config provenance and non-null dependency/output fingerprints; add stale/missing-fingerprint rejection tests.
 - [x] **UG-AI-068** — **S12-T04** — Replace worker.run_generation placeholder with real DAG execution outside HTTP and persisted stage progress.
 - [x] **UG-AI-069** — **S12-T04** — Add generation worker integration fixture covering success/failure and immutable successful results.
-- [ ] **UG-AI-070** — **S12-T05** — Add cooperative cancellation checks between stages/bounded units with consistent run/stage/job states.
+- [x] **UG-AI-070** — **S12-T05** — Add cooperative cancellation checks between stages/bounded units with consistent run/stage/job states.
 - [ ] **UG-AI-071** — **S12-T06** — Implement transient/permanent/cancelled retry classification and bounded backoff around generation attempts.
 - [ ] **UG-AI-072** — **S12-T07** — Implement DB-authoritative outbox dispatcher recovery/claim loop and duplicate-delivery safety.
 - [ ] **UG-AI-073** — **S12-T08** — Implement artifact temporary→ready→referenced publication transaction boundary and bounded orphan GC job.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..069 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-070. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..070 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-071. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
