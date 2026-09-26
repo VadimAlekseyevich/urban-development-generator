@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T03 is complete through UG-AI-067 with exact checkpoint identity plus same-run persisted reuse requiring successful dependency/candidate provenance and non-null output fingerprints. The current ordered task is **UG-AI-068 / S12-T04**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-068 with persisted same-run checkpoint provenance and a worker-side canonical Stage DAG execution service that commits run/job/stage progress outside HTTP. The current ordered task is **UG-AI-069 / S12-T04**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-068 / S12-T04
-Replace worker.run_generation placeholder with real canonical Stage DAG execution outside HTTP and persisted stage progress.
+UG-AI-069 / S12-T04
+Add generation worker integration fixture covering success/failure and immutable successful results.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
