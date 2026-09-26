@@ -9,6 +9,7 @@ from typing import Protocol
 
 from backend.app.application.checkpoints import CheckpointIdentity, HashPart
 from core.urban_generator.domain import PipelineContext, StageResult
+from core.urban_generator.domain.errors import CancelledError
 from core.urban_generator.stages.registry import (
     StageAny,
     StageRegistry,
@@ -24,6 +25,7 @@ class GenerationClaimDisposition(StrEnum):
     STARTED = "started"
     ALREADY_SUCCEEDED = "already_succeeded"
     IN_PROGRESS = "in_progress"
+    CANCELLED = "cancelled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +86,13 @@ class GenerationStateStore(Protocol):
     """DB-authoritative lifecycle port; implementations commit stage progress individually."""
 
     def claim(self, *, run_id: uuid.UUID) -> GenerationClaimDisposition: ...
+
+    def check_cancelled(self, *, run_id: uuid.UUID) -> None:
+        """Raise canonical CancelledError when the DB request flag is set."""
+
+    def cancel_stage(self, *, run_id: uuid.UUID, stage_name: str) -> None: ...
+
+    def cancel_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None: ...
 
     def resolve_identity(
         self,
@@ -157,6 +166,8 @@ class GenerationJobService:
             return GenerationExecutionResult(run_id=run_id, status="already_succeeded")
         if claim is GenerationClaimDisposition.IN_PROGRESS:
             return GenerationExecutionResult(run_id=run_id, status="in_progress")
+        if claim is GenerationClaimDisposition.CANCELLED:
+            return GenerationExecutionResult(run_id=run_id, status="cancelled")
         if claim is not GenerationClaimDisposition.STARTED:
             raise GenerationExecutionError("unsupported generation claim disposition")
 
@@ -164,6 +175,7 @@ class GenerationJobService:
         succeeded: list[str] = []
         skipped: list[str] = []
         try:
+            self._store.check_cancelled(run_id=run_id)
             runtime = self._factory.create(run_id=run_id)
             if not isinstance(runtime, GenerationRuntime):
                 raise GenerationExecutionError("runtime factory must return GenerationRuntime")
@@ -174,6 +186,7 @@ class GenerationJobService:
             for entry in plan:
                 stage = entry.stage
                 active_stage = stage.name
+                self._store.check_cancelled(run_id=run_id)
                 if entry.skip_reason is not None:
                     self._store.skip_stage(
                         run_id=run_id,
@@ -224,6 +237,7 @@ class GenerationJobService:
                     stage_input=stage_input,
                     config=binding.value,
                 )
+                self._store.check_cancelled(run_id=run_id)
                 if not isinstance(result, StageResult):
                     raise GenerationExecutionError(
                         f"stage did not return canonical StageResult: {stage.name}"
@@ -237,9 +251,20 @@ class GenerationJobService:
                 succeeded.append(stage.name)
                 active_stage = None
 
+            self._store.check_cancelled(run_id=run_id)
             self._store.complete_run(
                 run_id=run_id,
                 expected_stage_names=tuple(item.stage.name for item in plan),
+            )
+        except CancelledError:
+            if active_stage is not None:
+                self._store.cancel_stage(run_id=run_id, stage_name=active_stage)
+            self._store.cancel_run(run_id=run_id, stage_name=active_stage)
+            return GenerationExecutionResult(
+                run_id=run_id,
+                status="cancelled",
+                succeeded_stages=tuple(succeeded),
+                skipped_stages=tuple(skipped),
             )
         except Exception as exc:
             if active_stage is not None:

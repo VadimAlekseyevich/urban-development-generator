@@ -24,7 +24,7 @@ from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import StageResult
-from core.urban_generator.domain.errors import PermanentError
+from core.urban_generator.domain.errors import CancelledError, PermanentError
 from core.urban_generator.stages.registry import StageAny, StageSkipReason
 
 _GENERATION_JOB_TYPE = "generation_run"
@@ -50,12 +50,15 @@ class SqlAlchemyGenerationStateStore:
                 job = self._job(session, run)
                 if run.status == "succeeded" and job.status == "succeeded":
                     return GenerationClaimDisposition.ALREADY_SUCCEEDED
+                if run.status == "cancelled" and job.status == "cancelled":
+                    return GenerationClaimDisposition.CANCELLED
                 if run.status == "running" and job.status == "running":
                     return GenerationClaimDisposition.IN_PROGRESS
                 if run.status != "queued" or job.status != "queued":
                     raise GenerationExecutionError(
                         "generation requires matching queued run and job states"
                     )
+                self._require_not_cancelled(job)
                 if job.attempt_count >= job.max_attempts:
                     raise GenerationExecutionError("generation job attempt budget exhausted")
                 if run.commit_sha is None or _COMMIT_RE.fullmatch(run.commit_sha) is None:
@@ -76,6 +79,115 @@ class SqlAlchemyGenerationStateStore:
                 job.error_code = None
                 job.error_json = None
                 return GenerationClaimDisposition.STARTED
+
+    def request_cancel(self, *, run_id: uuid.UUID) -> bool:
+        """Persist a one-way request; queued runs can be cancelled immediately.
+
+        False means the run is already terminal or was already requested. The worker
+        alone finalizes a running run at its next cooperative boundary.
+        """
+
+        with self._session_factory() as session:
+            with session.begin():
+                run = self._run(session, run_id)
+                job = self._job(session, run)
+                if run.status in {"succeeded", "failed", "cancelled"}:
+                    return False
+                if run.status not in {"queued", "running"} or job.status != run.status:
+                    raise GenerationExecutionError(
+                        "generation cancellation requires matching run and job states"
+                    )
+                if job.cancel_requested_at is not None:
+                    return False
+                now = self._clock()
+                job.cancel_requested_at = now
+                if run.status == "queued":
+                    self._set_cancelled(run, job, stage_name="queued", now=now)
+                return True
+
+    def check_cancelled(self, *, run_id: uuid.UUID) -> None:
+        """Observe a committed cancellation signal from any worker/session."""
+
+        with self._session_factory() as session:
+            with session.begin():
+                run = self._run(session, run_id)
+                job = self._job(session, run)
+                self._require_not_cancelled(job)
+
+    def cancel_stage(self, *, run_id: uuid.UUID, stage_name: str) -> None:
+        """Discard an unfinished stage result at a safe cancellation boundary."""
+
+        with self._session_factory() as session:
+            with session.begin():
+                run = self._run(session, run_id)
+                if run.status != "running":
+                    return
+                stage = session.scalar(
+                    select(RunStageResult)
+                    .where(
+                        RunStageResult.run_id == run_id,
+                        RunStageResult.stage_name == stage_name,
+                    )
+                    .with_for_update()
+                )
+                if stage is None or stage.status != "running":
+                    return
+                stage.status = "cancelled"
+                stage.finished_at = self._clock()
+                stage.output_fingerprint = None
+                stage.diagnostics_json = [
+                    {
+                        "code": "stage.cancelled",
+                        "message": "generation cancellation requested",
+                        "level": "INFO",
+                    }
+                ]
+
+    def cancel_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None:
+        """Finish the matching running run/job with canonical cancelled taxonomy."""
+
+        with self._session_factory() as session:
+            with session.begin():
+                run = self._run(session, run_id)
+                job = self._job(session, run)
+                if run.status == job.status == "cancelled":
+                    return
+                if run.status != "running" or job.status != "running":
+                    raise GenerationExecutionError(
+                        "only a matching running generation can be cancelled"
+                    )
+                now = self._clock()
+                if job.cancel_requested_at is None:
+                    job.cancel_requested_at = now
+                self._set_cancelled(run, job, stage_name=stage_name, now=now)
+
+    @staticmethod
+    def _require_not_cancelled(job: Job) -> None:
+        if job.cancel_requested_at is not None:
+            raise CancelledError("generation cancellation requested")
+
+    @staticmethod
+    def _set_cancelled(
+        run: GenerationRun,
+        job: Job,
+        *,
+        stage_name: str | None,
+        now: datetime,
+    ) -> None:
+        cancellation = CancelledError(
+            "generation cancelled",
+            details={"stage_name": stage_name or "assembly"},
+        )
+        run.status = "cancelled"
+        run.finished_at = now
+        run.error_json = {
+            "error_class": cancellation.category.value,
+            "error_code": cancellation.code.value,
+            "message": cancellation.message,
+            "details": dict(cancellation.details),
+        }
+        job.record_failure(cancellation)
+        job.finished_at = now
 
     def resolve_identity(
         self,
@@ -107,7 +219,8 @@ class SqlAlchemyGenerationStateStore:
     ) -> None:
         with self._session_factory() as session:
             with session.begin():
-                self._require_running(session, run_id)
+                run = self._require_running(session, run_id)
+                self._require_not_cancelled(self._job(session, run))
                 existing = session.scalar(
                     select(RunStageResult)
                     .where(
@@ -145,7 +258,8 @@ class SqlAlchemyGenerationStateStore:
     ) -> None:
         with self._session_factory() as session:
             with session.begin():
-                self._require_running(session, run_id)
+                run = self._require_running(session, run_id)
+                self._require_not_cancelled(self._job(session, run))
                 stage_row = self._stage(session, run_id, stage_name)
                 if stage_row.status != "running":
                     raise GenerationExecutionError(
@@ -174,7 +288,8 @@ class SqlAlchemyGenerationStateStore:
     ) -> None:
         with self._session_factory() as session:
             with session.begin():
-                self._require_running(session, run_id)
+                run = self._require_running(session, run_id)
+                self._require_not_cancelled(self._job(session, run))
                 previous = session.scalar(
                     select(RunStageResult).where(
                         RunStageResult.run_id == run_id,
@@ -254,6 +369,8 @@ class SqlAlchemyGenerationStateStore:
         with self._session_factory() as session:
             with session.begin():
                 run = self._require_running(session, run_id)
+                job = self._job(session, run)
+                self._require_not_cancelled(job)
                 rows = session.scalars(
                     select(RunStageResult).where(RunStageResult.run_id == run_id)
                 ).all()
@@ -273,7 +390,6 @@ class SqlAlchemyGenerationStateStore:
                     raise GenerationExecutionError(
                         "cannot complete generation without code commit SHA"
                     )
-                job = self._job(session, run)
                 if job.status != "running":
                     raise GenerationExecutionError(
                         "generation job must be running before completion"

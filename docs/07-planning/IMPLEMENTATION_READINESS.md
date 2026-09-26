@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T04 is complete through UG-AI-069: persisted same-run checkpoint provenance and canonical worker-side Stage DAG execution are covered by a PostgreSQL/PostGIS integration fixture proving success/failure transitions, committed stage progress, duplicate-delivery idempotency and successful-run immutability. The current ordered task is **UG-AI-070 / S12-T05**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T05 is complete through UG-AI-070: persisted same-run checkpoint provenance and canonical worker-side Stage DAG execution now support DB-authoritative cooperative cancellation requests, checked at stage boundaries and inside finalization transactions, with consistent cancelled run/job/stage state and prior success provenance preserved. The current ordered task is **UG-AI-071 / S12-T06**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-070 / S12-T05
-Add cooperative cancellation checks between stages/bounded units with consistent run/stage/job states.
+UG-AI-071 / S12-T06
+Implement transient/permanent/cancelled retry classification and bounded backoff around generation attempts.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

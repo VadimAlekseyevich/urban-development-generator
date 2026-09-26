@@ -35,6 +35,7 @@ from core.urban_generator.domain import (
     TerritorySnapshot,
     build_stage_fingerprint,
 )
+from core.urban_generator.domain.errors import CancelledError
 from core.urban_generator.stages import StageRegistry, StageSkipReason
 from core.urban_generator.stages.registry import StageAny
 
@@ -331,3 +332,61 @@ def test_runtime_factory_assembles_existing_persistence_to_core_contract(
     assert runtime.context.configured_stage_names == ("root",)
     assert runtime.context.require_config("root", str) == "fixture-config"
     assert runtime.registry.names == ("root",)
+
+
+def test_cancel_request_serializes_with_stage_completion_and_run_finalization() -> None:
+    run_id, job_id = _setup()
+    store = SqlAlchemyGenerationStateStore(session_factory=SessionFactory)
+    store.claim(run_id=run_id)
+    store.start_stage(run_id=run_id, identity=_identity(store, run_id))
+
+    assert store.request_cancel(run_id=run_id)
+    with pytest.raises(CancelledError, match="cancellation requested"):
+        store.complete_stage(
+            run_id=run_id,
+            stage_name="root",
+            result=StageResult(
+                output=2,
+                fingerprint=build_stage_fingerprint("root", "not-published"),
+            ),
+        )
+    with pytest.raises(CancelledError, match="cancellation requested"):
+        store.complete_run(run_id=run_id, expected_stage_names=("root",))
+
+    store.cancel_stage(run_id=run_id, stage_name="root")
+    store.cancel_run(run_id=run_id, stage_name="root")
+    run, job, stage = _rows(run_id, job_id)
+    assert stage is not None
+    assert (run.status, job.status, stage.status) == (
+        "cancelled", "cancelled", "cancelled"
+    )
+    assert stage.output_fingerprint is None
+    assert job.cancel_requested_at is not None
+    assert job.error_class == "cancelled"
+    assert store.claim(run_id=run_id) is GenerationClaimDisposition.CANCELLED
+
+
+def test_cancel_request_after_completed_stage_blocks_final_success() -> None:
+    run_id, job_id = _setup()
+    store = SqlAlchemyGenerationStateStore(session_factory=SessionFactory)
+    store.claim(run_id=run_id)
+    store.start_stage(run_id=run_id, identity=_identity(store, run_id))
+    store.complete_stage(
+        run_id=run_id,
+        stage_name="root",
+        result=StageResult(
+            output=2,
+            fingerprint=build_stage_fingerprint("root", "completed"),
+        ),
+    )
+    assert store.request_cancel(run_id=run_id)
+    with pytest.raises(CancelledError):
+        store.complete_run(run_id=run_id, expected_stage_names=("root",))
+    store.cancel_run(run_id=run_id, stage_name=None)
+
+    run, job, stage = _rows(run_id, job_id)
+    assert stage is not None and stage.status == "succeeded"
+    assert stage.output_fingerprint is not None
+    assert run.status == job.status == "cancelled"
+    assert run.error_json is not None
+    assert run.error_json["details"]["stage_name"] == "assembly"
