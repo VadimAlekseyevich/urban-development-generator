@@ -5,8 +5,14 @@ from typing import Any, cast
 from arq import Retry
 
 from backend.app.adapters import LocalArtifactStore
+from backend.app.application.generation import (
+    GenerationExecutionError,
+    GenerationJobService,
+    GenerationRuntimeFactory,
+)
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
 from backend.app.core.config import settings
+from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.ingest_job_repository import SqlAlchemyIngestJobRepository
 from backend.app.services.ingest_pipeline import DatasetIngestPipeline
 from core.urban_generator.domain.errors import TransientError
@@ -74,7 +80,39 @@ async def run_ingest(
     }
 
 
-async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, str]:
-    """S12 placeholder; validates run identity but does not execute the Stage DAG."""
+class GenerationTaskConfigurationError(RuntimeError):
+    """The worker has no explicit typed stage/runtime composition for generation."""
+
+
+class GenerationTaskFailed(RuntimeError):
+    """The DB-authoritative generation attempt failed; never report a false success."""
+
+
+async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
+    """Execute a configured canonical Stage DAG in a worker thread, not HTTP."""
     parsed_id = uuid.UUID(run_id)
-    return {"run_id": str(parsed_id), "status": "accepted"}
+    service_override = ctx.get("generation_job_service")
+    if service_override is not None:
+        service = cast(GenerationJobService, service_override)
+    else:
+        factory = ctx.get("generation_runtime_factory")
+        if factory is None:
+            raise GenerationTaskConfigurationError(
+                "generation_runtime_factory must supply typed stage/config/input composition"
+            )
+        service = GenerationJobService(
+            state_store=SqlAlchemyGenerationStateStore(),
+            runtime_factory=cast(GenerationRuntimeFactory, factory),
+        )
+
+    try:
+        result = await asyncio.to_thread(service.run, run_id=parsed_id)
+    except GenerationExecutionError as exc:
+        raise GenerationTaskFailed(f"generation run {parsed_id} failed") from exc
+
+    return {
+        "run_id": str(result.run_id),
+        "status": result.status,
+        "succeeded_stages": list(result.succeeded_stages),
+        "skipped_stages": list(result.skipped_stages),
+    }
