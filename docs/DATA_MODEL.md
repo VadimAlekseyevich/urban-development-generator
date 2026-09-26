@@ -48,6 +48,8 @@ Lifecycle состоит из состояний `temporary`, `ready`, `referenc
 
 Повторная постановка логически той же работы не создаёт вторую запись: уникальность обеспечивается по `(project_id, job_type, idempotency_key)`. Счётчик попыток не может быть отрицательным или превышать `max_attempts`; `max_attempts` всегда положителен. Поддерживаются состояния `queued`, `running`, `succeeded`, `failed`, `cancelled`.
 
+Для generation Job nullable `cancel_requested_at` хранит DB-authoritative однонаправленный запрос отмены (ADR-0002). Для queued run запрос завершает run/job как `cancelled` без выполнения; для running run только сигнализирует worker, который завершает состояния на безопасной границе. Повторный запрос не перезаписывает исходный timestamp; terminal run/job не изменяются запросом.
+
 Ошибки сохраняются без разбора текста исключения: `error_class` соответствует стабильной core taxonomy (`domain`, `config`, `data`, `transient`, `permanent`, `cancelled`), `error_code` хранит машинный code, а `error_json` — message/details и признаки `retryable`/`cancelled`.
 
 ## JobOutbox
