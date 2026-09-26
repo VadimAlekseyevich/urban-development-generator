@@ -285,9 +285,22 @@ UG-AI-068 / S12-T04 implements the first worker-owned execution path:
 
 The runtime factory must be explicitly registered in worker context; a missing provider is a
 configuration error, not a successful no-op. Rich stage policies cannot be fabricated from
-persisted generic `config_json`. UG-AI-069 supplies the full worker success/failure/immutability
-integration fixture. Cooperative cancellation, retry/backoff, outbox recovery and artifact
-publication/GC remain their respective later ordered tasks.
+persisted generic `config_json`.
+
+UG-AI-069 / S12-T04 adds `tests/integration/test_generation_worker_e2e.py` as the PostgreSQL/
+PostGIS-backed acceptance path through `worker.tasks.run_generation` (using its actual runtime
+factory and state store, not a mocked persistence layer). Small canonical synthetic stages make
+committed `running` stage progress visible in another DB session during execution, verify the
+independent checkpoint input/config hashes and ordered persisted dependency fingerprints, and
+assert successful final run/job/stage provenance. The fixture also covers deterministic requested
+and dependency-propagated skips, a failure after earlier stages have committed success, a failure
+of persistence-to-core assembly, idempotent redelivery of a successful run, and PostgreSQL guards
+against mutating the successful run, its stage results or linked dataset-version refs. Synthetic
+stages deliberately test the orchestration boundary rather than claiming a complete real-territory
+GIS execution; that acceptance remains a later milestone gate.
+
+Cooperative cancellation, retry/backoff, outbox recovery and artifact publication/GC remain their
+respective later ordered tasks.
 
 ## 9. Cancellation and retry
 
