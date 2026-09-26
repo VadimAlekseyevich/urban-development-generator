@@ -254,8 +254,40 @@ For one stage resolution the store:
   `output_fingerprint`, otherwise provenance is incomplete and reuse is rejected with an error.
 
 A reuse hit returns typed checkpoint metadata and the persisted output fingerprint. It does not
-execute a stage, mutate its row, reconstruct typed stage output, or change status. Worker-owned
-execution/state transitions start in UG-AI-068.
+execute a stage, mutate its row, reconstruct typed stage output, or change status.
+
+UG-AI-068 / S12-T04 implements the first worker-owned execution path:
+
+- `GenerationJobService` consumes an explicitly assembled `GenerationRuntime`: immutable
+  `PipelineContext`, canonical validated `StageRegistry`, typed `GenerationInputResolver`,
+  and optional canonical skip requests. `SqlAlchemyGenerationRuntimeFactory` composes that
+  runtime through the existing persistence-to-core adapter.
+- The resolver returns `StageInvocation` with one candidate stage input and canonical
+  `input_parts`/`config_parts`. The executor uses the existing `Stage.validate_input()` and
+  the typed resolved config binding from `PipelineContext`; completed typed dependency outputs
+  are exposed through a read-only mapping. It executes exactly the registry's deterministic
+  topological/skip plan, without introducing another Stage vocabulary.
+- `SqlAlchemyGenerationStateStore` claims a matching queued `GenerationRun` and
+  DB-authoritative `generation_run` Job with row locking. It requires real persisted
+  `commit_sha`, records the attempt, and commits run/job `running` before any stage.
+  Each stage `running`, `succeeded` or `skipped` transition commits separately, with exact
+  checkpoint input/config hashes and the successful `StageResult.fingerprint` as separate
+  `RunStageResult.output_fingerprint`. Skips retain explicit reason diagnostics and never
+  invent output fingerprints.
+- Each executable stage resolves its input identity using **persisted**, successful direct
+  dependency fingerprints in `Stage.dependencies` order. A metadata-only reusable checkpoint
+  cannot stand in for an in-memory typed stage output; until typed output hydration exists, such a
+  candidate is rejected rather than silently reused.
+- A run succeeds only when the expected stage rows are all completed or explicitly skipped.
+  Stage/attempt errors record failure in the authoritative stage/run/job rows, and ARQ never
+  reports the former fake `accepted` response. A duplicate delivery of an already succeeded
+  or currently running run does not start another attempt.
+
+The runtime factory must be explicitly registered in worker context; a missing provider is a
+configuration error, not a successful no-op. Rich stage policies cannot be fabricated from
+persisted generic `config_json`. UG-AI-069 supplies the full worker success/failure/immutability
+integration fixture. Cooperative cancellation, retry/backoff, outbox recovery and artifact
+publication/GC remain their respective later ordered tasks.
 
 ## 9. Cancellation and retry
 
