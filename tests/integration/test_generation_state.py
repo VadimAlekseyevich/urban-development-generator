@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from geoalchemy2.elements import WKTElement
 from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
+from backend.app.adapters import (
+    LocalArtifactStore,
+    SqlAlchemyGenerationRuntimeFactory,
+)
 from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
@@ -21,12 +27,16 @@ from backend.app.models.job import Job
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import (
+    ConfigRef,
+    PipelineContext,
+    ResolvedConfigBinding,
     RunContext,
     StageResult,
     TerritorySnapshot,
     build_stage_fingerprint,
 )
-from core.urban_generator.stages import StageSkipReason
+from core.urban_generator.stages import StageRegistry, StageSkipReason
+from core.urban_generator.stages.registry import StageAny
 
 WORKING_SRID = 32637
 SessionFactory: Callable[[], Session] = sessionmaker(
@@ -73,6 +83,10 @@ def _setup(*, commit_sha: str | None = "a" * 40) -> tuple[uuid.UUID, uuid.UUID]:
             name="Generation state integration",
             working_srid=WORKING_SRID,
             boundary_metadata={},
+            boundary=WKTElement(
+                "MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))",
+                srid=WORKING_SRID,
+            ),
         )
         session.add(project)
         session.flush()
@@ -256,3 +270,64 @@ def test_checkpoint_metadata_hit_is_not_treated_as_typed_output_rehydration() ->
 
     with pytest.raises(GenerationExecutionError, match="typed output hydration"):
         _identity(store, run_id)
+
+
+
+class FixtureConfigResolver:
+    def resolve(
+        self,
+        *,
+        config_json: Mapping[str, object],
+        schema_version: str,
+        source: ConfigRef,
+    ) -> tuple[ResolvedConfigBinding, ...]:
+        assert config_json["scenario"] == "fixture"
+        assert schema_version == "test-v1"
+        return (
+            ResolvedConfigBinding(
+                stage_name="root",
+                source=source,
+                value="fixture-config",
+            ),
+        )
+
+
+class FixtureInputResolver:
+    def resolve(
+        self,
+        *,
+        stage: StageAny,
+        context: PipelineContext,
+        config: object,
+        outputs: Mapping[str, object],
+    ) -> StageInvocation:
+        assert stage.name == "root"
+        assert config == "fixture-config"
+        assert context.snapshot.settings.working_srid == WORKING_SRID
+        assert not outputs
+        return StageInvocation(
+            stage_input=1,
+            input_parts=("fixture:input:v1",),
+            config_parts=("fixture-config",),
+        )
+
+
+def test_runtime_factory_assembles_existing_persistence_to_core_contract(
+    tmp_path: Path,
+) -> None:
+    run_id, _job_id = _setup()
+    factory = SqlAlchemyGenerationRuntimeFactory(
+        session_factory=SessionFactory,
+        artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
+        config_resolver=FixtureConfigResolver(),
+        registry=StageRegistry(stages=(DummyStage(),)),
+        input_resolver=FixtureInputResolver(),
+    )
+
+    runtime = factory.create(run_id=run_id)
+
+    assert runtime.context.run.run_id == run_id
+    assert runtime.context.snapshot.snapshot_id == run_id
+    assert runtime.context.configured_stage_names == ("root",)
+    assert runtime.context.require_config("root", str) == "fixture-config"
+    assert runtime.registry.names == ("root",)
