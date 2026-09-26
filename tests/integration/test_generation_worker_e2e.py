@@ -27,6 +27,7 @@ from backend.app.application.checkpoints import (
     build_resolved_input_hash,
 )
 from backend.app.application.generation import StageInvocation
+from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
@@ -71,6 +72,7 @@ class ExecutionProbe:
     job_id: uuid.UUID
     calls: list[str] = field(default_factory=list)
     seen_inputs: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)
+    cancel_on_stage: str | None = None
 
 
 @dataclass(slots=True)
@@ -127,6 +129,10 @@ class FixtureStage:
                 assert completed.output_fingerprint is not None
 
         self.probe.calls.append(self.name)
+        if self.probe.cancel_on_stage == self.name:
+            assert SqlAlchemyGenerationStateStore(
+                session_factory=SessionFactory
+            ).request_cancel(run_id=self.probe.run_id)
         if self.fail:
             raise RuntimeError("injected stage execution failure")
         return StageResult(
@@ -502,3 +508,103 @@ def test_successful_worker_results_are_database_immutable(tmp_path: Path) -> Non
         persisted = session.get(GenerationRun, run_id)
         assert persisted is not None
         assert tuple(version.id for version in persisted.dataset_versions) == (version_id,)
+
+
+
+def test_cancelled_queued_worker_does_not_start_or_assemble_runtime(
+    tmp_path: Path,
+) -> None:
+    run_id, job_id, _ = _setup()
+    store = SqlAlchemyGenerationStateStore(session_factory=SessionFactory)
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+
+    assert store.request_cancel(run_id=run_id)
+    assert not store.request_cancel(run_id=run_id)
+    result = _invoke(run_id, _factory(tmp_path, probe))
+
+    assert result == {
+        "run_id": str(run_id),
+        "status": "cancelled",
+        "succeeded_stages": [],
+        "skipped_stages": [],
+    }
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "cancelled"
+    assert job.attempt_count == 0
+    assert run.started_at is None and job.started_at is None
+    assert run.finished_at is not None and job.finished_at is not None
+    assert job.cancel_requested_at is not None
+    assert job.error_class == "cancelled"
+    assert job.error_code == "cancelled.error"
+    assert job.error_json is not None and job.error_json["retryable"] is False
+    assert run.error_json is not None
+    assert run.error_json["details"]["stage_name"] == "queued"
+    assert stages == {} and probe.calls == []
+
+
+@pytest.mark.parametrize(
+    ("cancel_on_stage", "completed_names"),
+    (
+        ("alpha", ("root",)),
+        ("joined", ("root", "alpha", "beta")),
+    ),
+)
+def test_worker_observes_cancel_during_bounded_stage_and_preserves_provenance(
+    tmp_path: Path,
+    cancel_on_stage: str,
+    completed_names: tuple[str, ...],
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(
+        run_id=run_id,
+        job_id=job_id,
+        cancel_on_stage=cancel_on_stage,
+    )
+
+    result = _invoke(run_id, _factory(tmp_path, probe))
+
+    assert result["status"] == "cancelled"
+    assert result["succeeded_stages"] == list(completed_names)
+    assert result["skipped_stages"] == []
+    assert probe.calls == [*completed_names, cancel_on_stage]
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "cancelled"
+    assert job.cancel_requested_at is not None
+    assert job.attempt_count == 1
+    assert job.error_class == "cancelled"
+    assert job.error_code == "cancelled.error"
+    assert run.error_json is not None
+    assert run.error_json["details"]["stage_name"] == cancel_on_stage
+    assert set(stages) == {*completed_names, cancel_on_stage}
+    for name in completed_names:
+        assert stages[name].status == "succeeded"
+        assert stages[name].output_fingerprint is not None
+    active = stages[cancel_on_stage]
+    assert active.status == "cancelled"
+    assert active.progress_percent == 0
+    assert active.output_fingerprint is None
+    assert active.diagnostics_json[0]["code"] == "stage.cancelled"
+    assert active.finished_at is not None
+    assert not SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory
+    ).request_cancel(run_id=run_id)
+
+
+def test_cancel_request_after_worker_success_is_a_noop(tmp_path: Path) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    _invoke(run_id, _factory(tmp_path, probe))
+    before_run, before_job, before_stages = _persisted(run_id, job_id)
+
+    assert not SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory
+    ).request_cancel(run_id=run_id)
+
+    after_run, after_job, after_stages = _persisted(run_id, job_id)
+    assert after_run.status == after_job.status == "succeeded"
+    assert after_job.cancel_requested_at is None
+    assert after_job.attempt_count == before_job.attempt_count == 1
+    assert after_run.finished_at == before_run.finished_at
+    assert {name: row.output_fingerprint for name, row in after_stages.items()} == {
+        name: row.output_fingerprint for name, row in before_stages.items()
+    }
