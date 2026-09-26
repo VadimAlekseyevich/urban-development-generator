@@ -41,6 +41,7 @@ from core.urban_generator.domain import (
     TerritorySnapshot,
     build_stage_fingerprint,
 )
+from core.urban_generator.domain.errors import CancelledError
 from core.urban_generator.stages import StageRegistry, StageSkipReason
 from core.urban_generator.stages.registry import StageAny
 from worker.tasks import (
@@ -144,10 +145,24 @@ class FakeStateStore:
         self.run_completed = False
         self.run_failed = False
         self.failed_stage: str | None = None
+        self.run_cancelled = False
+        self.cancel_requested = False
+        self.cancel_on_start: str | None = None
 
     def claim(self, *, run_id: uuid.UUID) -> GenerationClaimDisposition:
         assert run_id == RUN_ID
         return self.disposition
+
+    def check_cancelled(self, *, run_id: uuid.UUID) -> None:
+        if self.cancel_requested:
+            raise CancelledError("fixture cancellation request")
+
+    def cancel_stage(self, *, run_id: uuid.UUID, stage_name: str) -> None:
+        if self.records.get(stage_name, ("", None))[0] == "running":
+            self.records[stage_name] = ("cancelled", None)
+
+    def cancel_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None:
+        self.run_cancelled = True
 
     def resolve_identity(
         self,
@@ -188,6 +203,8 @@ class FakeStateStore:
     ) -> None:
         self.records[identity.stage_name] = ("running", None)
         self.order.append(identity.stage_name)
+        if self.cancel_on_start == identity.stage_name:
+            self.cancel_requested = True
 
     def complete_stage(
         self,
@@ -380,6 +397,7 @@ def test_generation_executor_rejects_wrong_assembled_run_identity() -> None:
     (
         GenerationClaimDisposition.ALREADY_SUCCEEDED,
         GenerationClaimDisposition.IN_PROGRESS,
+        GenerationClaimDisposition.CANCELLED,
     ),
 )
 def test_generation_executor_does_not_reexecute_an_existing_attempt(
@@ -393,6 +411,36 @@ def test_generation_executor_does_not_reexecute_an_existing_attempt(
     ).run(run_id=RUN_ID)
 
     assert result.status == disposition.value
+    assert factory.calls == 0
+
+
+def test_generation_cancellation_between_bounded_stages_is_not_failure() -> None:
+    runtime, _ = _runtime(
+        (DummyStage("child", ("root",)), DummyStage("root"))
+    )
+    store = FakeStateStore()
+    store.cancel_on_start = "child"
+
+    result = GenerationJobService(
+        state_store=store, runtime_factory=StaticFactory(runtime)
+    ).run(run_id=RUN_ID)
+
+    assert result.status == "cancelled"
+    assert result.succeeded_stages == ("root",)
+    assert store.records["root"][0] == "succeeded"
+    assert store.records["child"] == ("cancelled", None)
+    assert store.run_cancelled and not store.run_failed and not store.run_completed
+
+
+def test_cancelled_queued_generation_does_not_assemble_runtime() -> None:
+    runtime, _ = _runtime((DummyStage("root"),))
+    factory = StaticFactory(runtime)
+    result = GenerationJobService(
+        state_store=FakeStateStore(GenerationClaimDisposition.CANCELLED),
+        runtime_factory=factory,
+    ).run(run_id=RUN_ID)
+
+    assert result.status == "cancelled"
     assert factory.calls == 0
 
 
