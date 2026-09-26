@@ -86,6 +86,9 @@ class Job(Base):
     error_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_json: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
