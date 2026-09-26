@@ -18,7 +18,7 @@ from alembic.config import Config
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.adapters import LocalArtifactStore, SqlAlchemyGenerationRuntimeFactory
 from backend.app.application.checkpoints import (
