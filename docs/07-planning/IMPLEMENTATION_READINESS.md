@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-072 / S12-T07
-Implement DB-authoritative outbox dispatcher recovery/claim loop and duplicate-delivery safety.
+UG-AI-073 / S12-T08
+Implement artifact temporary→ready→referenced publication transaction boundary and bounded orphan GC job.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
