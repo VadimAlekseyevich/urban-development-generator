@@ -61,10 +61,13 @@ class ScenarioConfigVariant:
             raise ScenarioMatrixError("variant config must be valid JSON") from exc
         if not isinstance(config, dict):
             raise ScenarioMatrixError("variant config must be a JSON object")
-        normalized = json.dumps(
-            config, sort_keys=True, separators=(",", ":"),
-            ensure_ascii=False, allow_nan=False,
-        )
+        try:
+            normalized = json.dumps(
+                config, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ScenarioMatrixError("variant config must be valid JSON") from exc
         if normalized != self.canonical_config_json:
             raise ScenarioMatrixError("variant config must use canonical JSON encoding")
 
