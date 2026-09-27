@@ -60,7 +60,21 @@ Dispatcher выбирает только due `pending` rows ограниченн
 
 Доставка имеет семантику at-least-once. Queue identity детерминирована как `job:<job_id>`. Если Redis принял сообщение, но процесс упал до commit состояния `dispatched`, следующий проход может повторить enqueue с тем же identity. PostgreSQL остаётся source of truth; Redis не определяет lifecycle `Job`. Это сознательно устраняет окно потери работы между независимыми DB и Redis транзакциями.
 
-S02-T07 фиксирует persistence и dispatcher contract, но не привязывает его к конкретному ARQ client lifecycle. Реальный Redis adapter может реализовать `RedisJobEnqueuer`, используя deterministic queue identity, не меняя DB-модель.
+UG-AI-072 / S12-T07 завершает путь доставки: `SqlAlchemyOutboxDispatcher.dispatch_due()`
+атомарно блокирует due rows существующим `FOR UPDATE SKIP LOCKED` и удерживает lock
+до bounded Redis enqueue и фиксации результата в той же транзакции. Default batch — 25,
+верхний bound — 500; отдельный процесс `python -m worker.outbox_dispatcher` сканирует
+pending rows при старте и в polling loop. При ошибке попытка сохраняется как pending с
+экспоненциальным backoff 30/60/120/240/300 секунд. Redis call ограничен timeout 5 секунд.
+`ArqJobEnqueuer` допускает только `run_generation` и `run_ingest` с валидным UUID payload,
+использует стабильный `_job_id=job:<job_id>` и считает ARQ duplicate-ID (null result)
+подтверждённым enqueue. Логические `default`/`generation`/`ingest` пока направляются в
+текущую единую physical ARQ queue `arq:queue`; выделенные очереди — S14-T01.
+
+Риск между Redis acceptance и DB commit остаётся сознательно at-least-once: restart повторяет
+тот же ключ, а worker независимо проверяет authoritative Job/Run claim. ADR-0004 фиксирует
+транзакционный trade-off; эта задача не добавляет новых producer-path или unsafe restart
+частично завершённой генерации.
 
 ## Generated entities
 
