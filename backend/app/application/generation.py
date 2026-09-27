@@ -9,7 +9,11 @@ from typing import Protocol
 
 from backend.app.application.checkpoints import CheckpointIdentity, HashPart
 from core.urban_generator.domain import PipelineContext, StageResult
-from core.urban_generator.domain.errors import CancelledError
+from core.urban_generator.domain.errors import (
+    CancelledError,
+    PermanentError,
+    UrbanGeneratorError,
+)
 from core.urban_generator.stages.registry import (
     StageAny,
     StageRegistry,
@@ -19,6 +23,24 @@ from core.urban_generator.stages.registry import (
 
 class GenerationExecutionError(ValueError):
     """Raised when a generation attempt cannot follow the canonical DAG."""
+
+
+class GenerationRetryScheduled(GenerationExecutionError):
+    """A safe transient attempt is queued and must honor DB-backed backoff."""
+
+    def __init__(self, delay_seconds: int) -> None:
+        if not isinstance(delay_seconds, int) or isinstance(delay_seconds, bool) or delay_seconds < 1:
+            raise ValueError("retry delay must be a positive integer")
+        self.delay_seconds = delay_seconds
+        super().__init__(f"generation retry deferred for {delay_seconds} seconds")
+
+
+def generation_retry_delay_seconds(attempt_count: int) -> int:
+    """Deterministic bounded exponential backoff: 30, 60, 120, 240, 300 seconds."""
+
+    if not isinstance(attempt_count, int) or isinstance(attempt_count, bool) or attempt_count < 1:
+        raise ValueError("attempt_count must be a positive integer")
+    return min(30 * (2 ** min(attempt_count - 1, 4)), 300)
 
 
 class GenerationClaimDisposition(StrEnum):
@@ -135,7 +157,14 @@ class GenerationStateStore(Protocol):
         expected_stage_names: tuple[str, ...],
     ) -> None: ...
 
-    def fail_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None: ...
+    def fail_run(
+        self,
+        *,
+        run_id: uuid.UUID,
+        stage_name: str | None,
+        error: UrbanGeneratorError,
+    ) -> int | None:
+        """Persist taxonomy; return backoff only for a replay-safe transient failure."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,19 +286,26 @@ class GenerationJobService:
                 expected_stage_names=tuple(item.stage.name for item in plan),
             )
         except CancelledError:
-            if active_stage is not None:
-                self._store.cancel_stage(run_id=run_id, stage_name=active_stage)
-            self._store.cancel_run(run_id=run_id, stage_name=active_stage)
-            return GenerationExecutionResult(
-                run_id=run_id,
-                status="cancelled",
-                succeeded_stages=tuple(succeeded),
-                skipped_stages=tuple(skipped),
-            )
+            return self._cancelled_result(run_id, active_stage, succeeded, skipped)
         except Exception as exc:
-            if active_stage is not None:
-                self._store.fail_stage(run_id=run_id, stage_name=active_stage)
-            self._store.fail_run(run_id=run_id, stage_name=active_stage)
+            error = (
+                exc
+                if isinstance(exc, UrbanGeneratorError)
+                else PermanentError("generation execution failed")
+            )
+            try:
+                self._store.check_cancelled(run_id=run_id)
+                if active_stage is not None:
+                    self._store.fail_stage(run_id=run_id, stage_name=active_stage)
+                retry_after = self._store.fail_run(
+                    run_id=run_id,
+                    stage_name=active_stage,
+                    error=error,
+                )
+            except CancelledError:
+                return self._cancelled_result(run_id, active_stage, succeeded, skipped)
+            if retry_after is not None:
+                raise GenerationRetryScheduled(retry_after) from exc
             raise GenerationExecutionError(
                 f"generation execution failed at stage: {active_stage or 'assembly'}"
             ) from exc
@@ -277,6 +313,23 @@ class GenerationJobService:
         return GenerationExecutionResult(
             run_id=run_id,
             status="succeeded",
+            succeeded_stages=tuple(succeeded),
+            skipped_stages=tuple(skipped),
+        )
+
+    def _cancelled_result(
+        self,
+        run_id: uuid.UUID,
+        active_stage: str | None,
+        succeeded: list[str],
+        skipped: list[str],
+    ) -> GenerationExecutionResult:
+        if active_stage is not None:
+            self._store.cancel_stage(run_id=run_id, stage_name=active_stage)
+        self._store.cancel_run(run_id=run_id, stage_name=active_stage)
+        return GenerationExecutionResult(
+            run_id=run_id,
+            status="cancelled",
             succeeded_stages=tuple(succeeded),
             skipped_stages=tuple(skipped),
         )
