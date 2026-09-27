@@ -49,3 +49,42 @@ FastAPI/Starlette multipart parser может использовать `SpooledT
 ### Known boundary
 
 Blob storage и PostgreSQL не образуют общей distributed transaction. Компенсирующее удаление покрывает штатную DB failure path, но авария процесса между filesystem promote и DB commit всё ещё может оставить orphan; lifecycle cleanup/orphan reconciliation должен обнаруживать такие объекты отдельно.
+
+
+## S12 stage artifact publication and orphan reconciliation
+
+S12-T08 uses the existing `ArtifactStore` and `Artifact` lifecycle, not an alternate
+blob or provenance model; see [ADR-0005](adr/0005-stage-artifact-publication-gc.md).
+Stage producers write their own unique logical
+`runs/<run UUID>/stages/<stage name>/<artifact name>` key with
+`ArtifactStore.put(temporary_ref, source)`, then call
+`SqlAlchemyStageArtifactPublisher.publish(run_id, stage_name, temporary_stat)`
+while the run and stage are **running**. The publisher checks content identity,
+records an unowned temporary DB row, promotes the blob, and commits both
+`temporary -> ready -> referenced` DB transitions and the relational
+`run_stage_result_artifacts` link in one transaction. The intermediate ready
+state is flushed to satisfy the existing DB lifecycle trigger, but is not
+committed separately. An exact duplicate call is idempotent; wrong provenance
+or terminal stage/run is rejected. Blob promotion is separately retryable and
+resumes an interrupted payload/metadata move; failure leaves an unowned
+temporary DB row until retry or aged cleanup. The returned `PublishedStageArtifact`
+contains only stable ID/stage-result ID and ready `ArtifactStat`.
+
+`worker.tasks.gc_orphan_artifacts` is registered hourly via ARQ and uses
+`SqlAlchemyArtifactGc` with default two-hour age floor, 50 DB-row/physical-key
+batch and 5,000 directory-entry local scan budget. PostgreSQL row locks and
+`SKIP LOCKED` protect authoritative state from conflicting publication. GC
+removes only stale, unowned, unlinked run-stage temporary/ready rows and local
+blob/metadata residue (including half-promoted and unregistered objects).
+`LocalArtifactStore.stale_run_refs()` scans only `runs/` without following
+symlinks and rechecks all storage namespaces before deletion. Already referenced
+objects, recent writes and uploads are never collected. Missing physical blobs
+may still expire abandoned temporary DB metadata. Since storage and DB do not
+share a transaction, GC failures remain retryable and the next bounded pass
+can reconcile crash residue. This scanner is local-adapter-specific and does not
+expand the storage-neutral core port.
+
+This does not automatically infer generated artifacts from `StageResult` or
+retrofit existing upload/ingest code. The publishing stage or its typed
+application adapter must explicitly invoke the publisher before completing
+its stage; further backend/store adapter parity remains future work.
