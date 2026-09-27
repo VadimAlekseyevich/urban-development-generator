@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -148,3 +149,33 @@ def test_missing_metadata_and_payload_size_mismatch_are_rejected(tmp_path: Path)
     payload.write_bytes(b"tampered-and-longer")
     with pytest.raises(ArtifactContractError, match="size does not match"):
         store.stat(ref)
+
+
+def test_stale_scan_advances_past_prior_candidates_with_bounded_budget(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "artifacts"
+    store = LocalArtifactStore(root)
+    old = datetime.now(UTC) - timedelta(hours=4)
+    refs = (
+        ArtifactRef("runs/00000000-0000-0000-0000-000000000001/stages/root/a.bin"),
+        ArtifactRef("runs/00000000-0000-0000-0000-000000000001/stages/root/b.bin"),
+    )
+    for ref in refs:
+        store.put(ref, BytesIO(b"old"))
+        for path in (
+            root / "temporary" / ref.key,
+            root / ".metadata" / "temporary" / f"{ref.key}.json",
+        ):
+            os.utime(path, (old.timestamp(), old.timestamp()))
+
+    seen: set[str] = set()
+    for _ in range(30):
+        candidates = store.stale_run_refs(
+            older_than=datetime.now(UTC) - timedelta(hours=2),
+            max_scan=1,
+            max_results=1,
+        )
+        assert len(candidates) <= 1
+        seen.update(item.key for item in candidates)
+    assert seen == {ref.key for ref in refs}
