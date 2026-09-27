@@ -152,15 +152,7 @@ class SqlAlchemyArtifactGc:
         )
 
     def _has_storage(self, ref: ArtifactRef) -> bool:
-        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
-            state_ref = ArtifactRef(ref.key, state=state)
-            try:
-                self._store.stat(state_ref)
-            except KeyError:
-                continue
-            else:
-                return True
-        return False
+        return self._store.has_run_ref(ref)
 
     def _delete_if_stale(self, ref: ArtifactRef, *, cutoff: datetime) -> bool:
         if not self._store.is_stale_run_ref(ref, older_than=cutoff):
