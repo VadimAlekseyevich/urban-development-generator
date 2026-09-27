@@ -77,7 +77,9 @@ batch and 5,000 directory-entry local scan budget. PostgreSQL row locks and
 removes only stale, unowned, unlinked run-stage temporary/ready rows and local
 blob/metadata residue (including half-promoted and unregistered objects).
 `LocalArtifactStore.stale_run_refs()` scans only `runs/` without following
-symlinks and rechecks all storage namespaces before deletion. Already referenced
+symlinks, preserves a process-local scan cursor between hourly worker runs to avoid
+reexamining the same referenced prefix indefinitely, and rechecks all storage
+namespaces before deletion. Already referenced
 objects, recent writes and uploads are never collected. Missing physical blobs
 may still expire abandoned temporary DB metadata. Since storage and DB do not
 share a transaction, GC failures remain retryable and the next bounded pass
