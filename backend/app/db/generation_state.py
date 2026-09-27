@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from math import ceil
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,14 +18,16 @@ from backend.app.application.checkpoints import (
 from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
+    GenerationRetryScheduled,
     StageInvocation,
+    generation_retry_delay_seconds,
 )
 from backend.app.db.session import SessionLocal
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import StageResult
-from core.urban_generator.domain.errors import CancelledError, PermanentError
+from core.urban_generator.domain.errors import CancelledError, UrbanGeneratorError
 from core.urban_generator.stages.registry import StageAny, StageSkipReason
 
 _GENERATION_JOB_TYPE = "generation_run"
@@ -59,6 +62,19 @@ class SqlAlchemyGenerationStateStore:
                         "generation requires matching queued run and job states"
                     )
                 self._require_not_cancelled(job)
+                if (
+                    job.error_class == "transient"
+                    and job.error_json is not None
+                    and job.error_json.get("retryable") is True
+                    and job.finished_at is not None
+                ):
+                    remaining = (
+                        job.finished_at
+                        + timedelta(seconds=generation_retry_delay_seconds(job.attempt_count))
+                        - self._clock()
+                    ).total_seconds()
+                    if remaining > 0:
+                        raise GenerationRetryScheduled(max(1, ceil(remaining)))
                 if job.attempt_count >= job.max_attempts:
                     raise GenerationExecutionError("generation job attempt budget exhausted")
                 if run.commit_sha is None or _COMMIT_RE.fullmatch(run.commit_sha) is None:
@@ -130,7 +146,7 @@ class SqlAlchemyGenerationStateStore:
                     )
                     .with_for_update()
                 )
-                if stage is None or stage.status != "running":
+                if stage is None or stage.status not in {"running", "failed"}:
                     return
                 stage.status = "cancelled"
                 stage.finished_at = self._clock()
@@ -350,6 +366,7 @@ class SqlAlchemyGenerationStateStore:
                 )
                 if stage_row is None or stage_row.status != "running":
                     return
+                self._require_not_cancelled(self._job(session, run))
                 stage_row.status = "failed"
                 stage_row.finished_at = self._clock()
                 stage_row.diagnostics_json = [
@@ -403,30 +420,60 @@ class SqlAlchemyGenerationStateStore:
                 job.error_code = None
                 job.error_json = None
 
-    def fail_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None:
+    def fail_run(
+        self,
+        *,
+        run_id: uuid.UUID,
+        stage_name: str | None,
+        error: UrbanGeneratorError,
+    ) -> int | None:
+        """Retry a transient attempt only if no stage row/side-effect checkpoint exists.
+
+        A stage row implies execution may have produced run-owned side effects; until
+        typed output hydration and artifact rollback exist, it cannot be replayed.
+        """
+        if not isinstance(error, UrbanGeneratorError):
+            raise TypeError("error must belong to the canonical error taxonomy")
         with self._session_factory() as session:
             with session.begin():
                 run = self._run(session, run_id)
                 if run.status != "running":
-                    return
+                    raise GenerationExecutionError("generation run must be running to record failure")
                 job = self._job(session, run)
-                failure = PermanentError(
-                    "generation execution failed",
-                    details={
-                        "stage_name": stage_name or "assembly",
-                    },
+                if job.status != "running":
+                    raise GenerationExecutionError("generation job must be running to record failure")
+                self._require_not_cancelled(job)
+                has_stage_rows = session.scalar(
+                    select(RunStageResult.id)
+                    .where(RunStageResult.run_id == run_id)
+                    .limit(1)
+                ) is not None
+                retryable = (
+                    error.retryable
+                    and not error.cancelled
+                    and not has_stage_rows
+                    and job.attempt_count < job.max_attempts
                 )
                 now = self._clock()
-                run.status = "failed"
+                run.status = "queued" if retryable else "failed"
                 run.finished_at = now
+                details = {"stage_name": stage_name or "assembly", **dict(error.details)}
                 run.error_json = {
-                    "error_class": failure.category.value,
-                    "error_code": failure.code.value,
-                    "message": failure.message,
-                    "details": dict(failure.details),
+                    "error_class": error.category.value,
+                    "error_code": error.code.value,
+                    "message": error.message,
+                    "details": details,
+                    "retryable": retryable,
                 }
-                job.record_failure(failure)
+                job.record_failure(error)
+                job.status = "queued" if retryable else "failed"
+                assert job.error_json is not None
+                job.error_json = {**job.error_json, "details": details, "retryable": retryable}
                 job.finished_at = now
+                return (
+                    generation_retry_delay_seconds(job.attempt_count)
+                    if retryable else None
+                )
 
     @staticmethod
     def _run(session: Session, run_id: uuid.UUID) -> GenerationRun:
