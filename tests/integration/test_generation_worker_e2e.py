@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from arq import Retry
 from alembic import command
 from alembic.config import Config
+from arq import Retry
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
@@ -216,7 +216,9 @@ def clean_database(migrated_database: None) -> None:
         connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
 
 
-def _setup(*, boundary: bool = True, max_attempts: int = 3) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+def _setup(
+    *, boundary: bool = True, max_attempts: int = 3
+) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
     with SessionFactory() as session:
         project = Project(
             name="Generation worker integration",
