@@ -438,10 +438,14 @@ class SqlAlchemyGenerationStateStore:
             with session.begin():
                 run = self._run(session, run_id)
                 if run.status != "running":
-                    raise GenerationExecutionError("generation run must be running to record failure")
+                    raise GenerationExecutionError(
+                        "generation run must be running to record failure"
+                    )
                 job = self._job(session, run)
                 if job.status != "running":
-                    raise GenerationExecutionError("generation job must be running to record failure")
+                    raise GenerationExecutionError(
+                        "generation job must be running to record failure"
+                    )
                 self._require_not_cancelled(job)
                 has_stage_rows = session.scalar(
                     select(RunStageResult.id)
