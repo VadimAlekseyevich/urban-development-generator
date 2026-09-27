@@ -18,6 +18,7 @@ from backend.app.models.artifact import Artifact, ArtifactLifecycleState
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import (
+    ArtifactContractError,
     ArtifactRef,
     ArtifactStat,
     ArtifactState,
@@ -148,8 +149,12 @@ class SqlAlchemyStageArtifactPublisher:
     def _storage_stat(self, ref: ArtifactRef) -> ArtifactStat:
         try:
             return self._store.stat(ref)
-        except KeyError:
-            return self._store.stat(ref.as_ready())
+        except (KeyError, ArtifactContractError):
+            try:
+                return self._store.stat(ref.as_ready())
+            except (KeyError, ArtifactContractError):
+                # Resume a crash between the payload and metadata moves.
+                return self._store.promote(ref)
 
     @staticmethod
     def _require_same_metadata(expected: ArtifactStat, actual: ArtifactStat) -> None:
