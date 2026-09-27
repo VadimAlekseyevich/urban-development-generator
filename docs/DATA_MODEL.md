@@ -51,8 +51,31 @@ children — `running` после первого старта, затем при
 иначе `succeeded`. PostgreSQL проверяет terminal aggregate и его
 неизменяемость. Reconciliation можно повторить после worker crash.
 
-Создание seed/config matrix, распределённый batch scheduler, HTTP API,
-cross-run reuse и UI не входят в UG-AI-074; см. ADR-0006 и следующие S12 tasks.
+UG-AI-075 / S12-T10 добавляет `ScenarioMatrixSpec` и
+`SqlAlchemyScenarioBatchStore.create_matrix()`: явное декартово произведение
+**уникальных seed × полных именованных JSON-конфигураций**, ограниченное 3–10
+children. Варианты упорядочены по стабильному имени, seed — по возрастанию,
+JSON ключи — канонически; перестановка входного tuple не меняет семантическую
+последовательность. Seed ограничен знаковым PostgreSQL BIGINT (0..2^63-1),
+поскольку core допускает более широкий uint64. Частичные patch-конфигурации,
+NaN/Infinity, повторные имена/полные конфигурации и невалидный commit SHA
+отклоняются. Каждый child хранит **полный** config JSON, schema version,
+seed, code commit, выбранные ready DatasetVersion одного проекта и normal
+queued run status; variant label служит лишь для детерминированного порядка.
+
+Все children, generation Jobs, pending JobOutbox (`run_generation` с
+каноническим run UUID), membership и перевод batch `draft -> queued`
+фиксируются **в одной DB-транзакции**. Redis-отправка выполняется уже
+существующим outbox dispatcher отдельно после commit. Если не существует
+проекта, boundary не согласован с metric working SRID, dataset version
+недоступна/не готова/чужая или не проходит batch guard, не создаётся ни
+одного частичного child/job/outbox. Каждая повторная экспансия такого же
+spec создаёт отдельную группу с новыми UUID, но идентичными ordered
+семантическими inputs. Параллелизм по-прежнему ограничивает S12-T09 parent
+row admission, не новый scheduler. См. ADR-0006 и ADR-0007.
+
+HTTP API, distributed scheduler, exact rerun и cross-run reuse остаются
+последующими S12 work items.
 
 ## RunStageResult
 
