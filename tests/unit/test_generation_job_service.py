@@ -22,8 +22,8 @@ from backend.app.application.generation import (
     GenerationJobService,
     GenerationRetryScheduled,
     GenerationRuntime,
-    generation_retry_delay_seconds,
     StageInvocation,
+    generation_retry_delay_seconds,
 )
 from core.urban_generator.domain import (
     ArtifactRef,
