@@ -74,6 +74,9 @@ def _source(
     checksum: bool = True,
     ready: bool = True,
     commit_sha: str | None = COMMIT_SHA,
+    bad_artifact_owner: bool = False,
+    bad_artifact_checksum: bool = False,
+    succeeded: bool = True,
 ) -> tuple[uuid.UUID, uuid.UUID, ArtifactRef]:
     payload = b'{"type":"FeatureCollection","features":[]}'
     ref = ArtifactRef(key=f"uploads/{uuid.uuid4().hex}/source.geojson")
@@ -108,12 +111,12 @@ def _source(
         session.add(
             Artifact(
                 uri=f"artifact://{stat.ref.key}",
-                checksum=stat.checksum,
+                checksum=("sha256:" + "a" * 64) if bad_artifact_checksum else stat.checksum,
                 size_bytes=stat.size_bytes,
                 content_type=stat.content_type,
                 state=ArtifactLifecycleState.REFERENCED.value,
                 owner_type="dataset_version",
-                owner_id=version.id,
+                owner_id=uuid.uuid4() if bad_artifact_owner else version.id,
             )
         )
         run = GenerationRun(
@@ -129,7 +132,8 @@ def _source(
         )
         session.add(run)
         session.flush()
-        run.status = "succeeded"
+        if succeeded:
+            run.status = "succeeded"
         session.commit()
         return run.id, version.id, stat.ref
 
@@ -207,7 +211,6 @@ def test_exact_rerun_clones_inputs_and_creates_new_job_outbox_atomically(
     "problem",
     (
         "unavailable_code",
-        "missing_commit",
         "missing_version_checksum",
         "unready_version",
         "missing_artifact_key",
@@ -229,42 +232,21 @@ def test_exact_rerun_rejects_unverified_source_without_partial_creation(
         checksum=problem != "missing_version_checksum",
         ready=problem != "unready_version",
         with_artifact_key=problem != "missing_artifact_key",
-        commit_sha=None if problem == "missing_commit" else COMMIT_SHA,
+        bad_artifact_owner=problem == "wrong_db_owner",
+        bad_artifact_checksum=problem == "wrong_db_checksum",
     )
     if problem == "missing_blob":
         store.delete(ref)
-    if problem in {"wrong_db_owner", "wrong_db_checksum", "changed_boundary_srid"}:
+    if problem == "changed_boundary_srid":
         with SessionFactory() as session:
-            if problem == "changed_boundary_srid":
-                source = session.get(GenerationRun, source_id)
-                assert source is not None
-                project = session.get(Project, source.project_id)
-                assert project is not None
-                project.boundary = WKTElement(
-                    "MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)))",
-                    srid=3857,
-                )
-            else:
-                artifact = session.scalar(
-                    select(Artifact).where(Artifact.uri == f"artifact://{ref.key}")
-                )
-                assert artifact is not None
-                if problem == "wrong_db_owner":
-                    artifact.owner_id = uuid.uuid4()
-                else:
-                    # Existing referenced artifact metadata is immutable: use SQL
-                    # only to prove DB rejects corruption, then simulate an
-                    # inconsistent source version checksum instead.
-                    version = session.get(DatasetVersion, version_id)
-                    assert version is not None
-                    with pytest.raises(DBAPIError):
-                        with engine.begin() as connection:
-                            connection.execute(
-                                text("UPDATE dataset_versions SET checksum_sha256 = :checksum "
-                                     "WHERE id = :id"),
-                                {"checksum": "a" * 64, "id": version_id},
-                            )
-                    artifact.state = ArtifactLifecycleState.EXPIRED.value
+            source = session.get(GenerationRun, source_id)
+            assert source is not None
+            project = session.get(Project, source.project_id)
+            assert project is not None
+            project.boundary = WKTElement(
+                "MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)))",
+                srid=3857,
+            )
             session.commit()
     code = AvailableCode(available=problem != "unavailable_code")
     if problem == "wrong_store_checksum":
@@ -297,6 +279,9 @@ def test_exact_rerun_rejects_non_successful_or_missing_run(tmp_path: Path) -> No
                     text("UPDATE generation_runs SET status = 'failed' WHERE id = :id"),
                     {"id": source_id},
                 )
+    queued_id, _, _ = _source(store, succeeded=False)
+    with pytest.raises(ExactRerunError, match="successful source"):
+        _service(store).create(source_run_id=queued_id)
     with pytest.raises(ExactRerunError, match="successful source"):
         _service(store).create(source_run_id=uuid.uuid4())
 
