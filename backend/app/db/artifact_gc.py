@@ -122,7 +122,7 @@ class SqlAlchemyArtifactGc:
                     candidate = session.scalar(
                         select(Artifact)
                         .where(Artifact.uri == f"artifact://{ref.key}")
-                        .with_for_update(skip_locked=True)
+                        .with_for_update()
                     )
                     if candidate is not None:
                         # A referenced, recently touched, expired, or locked row
