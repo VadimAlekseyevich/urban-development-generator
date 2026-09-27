@@ -237,7 +237,8 @@ UG-AI-067 / S12-T03 implements persistence-side reuse through
 
 Reuse is deliberately **same-run only**. Current generated tables and stage rows are run-scoped, so
 cross-run checkpoint lookup would claim reuse without copying/materializing run-owned outputs.
-Exact rerun/cross-run provenance remains S12-T11 work.
+Exact rerun creates a new run with the original persisted inputs (UG-AI-076),
+not a cross-run checkpoint reuse hit. Persisted output hydration remains unimplemented.
 
 For one stage resolution the store:
 
@@ -301,6 +302,21 @@ GIS execution; that acceptance remains a later milestone gate.
 
 Cooperative cancellation, retry/backoff, outbox recovery and artifact publication/GC remain their
 respective later ordered tasks.
+
+### Exact input replay (UG-AI-076 / S12-T11)
+
+`SqlAlchemyExactRerunService` creates a **new** queued run, ordinary generation Job and
+pending JobOutbox from a successful source run in one transaction, with permanent
+`rerun_source_id` lineage. It copies the recorded canonical config/schema, seed, mode,
+working SRID, commit SHA and exact DatasetVersion refs, not stage outputs or generated rows.
+Availability is checked against referenced source artifact metadata and the actual SHA-256
+payload bytes via the existing `ArtifactStore`, plus a required injected executable code
+revision verifier; unavailable/malformed legacy provenance fails closed. The service checks
+current project boundary and CRS, but cannot prove an original boundary content hash from
+historical runs because that unversioned field was not snapshotted. It claims exact recorded
+input cloning, **not** silent cross-run cache hydration or proven bitwise output equivalence.
+See [ADR-0008](../adr/0008-verified-exact-rerun.md) and
+[DATA_MODEL](../DATA_MODEL.md) for the canonical persistence contract.
 
 ## 9. Stage artifact publication (UG-AI-073 / S12-T08)
 
