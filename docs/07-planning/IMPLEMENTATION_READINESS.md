@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12-T05 is complete through UG-AI-070: persisted same-run checkpoint provenance and canonical worker-side Stage DAG execution now support DB-authoritative cooperative cancellation requests, checked at stage boundaries and inside finalization transactions, with consistent cancelled run/job/stage state and prior success provenance preserved. The current ordered task is **UG-AI-071 / S12-T06**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-073, including DB-authoritative cancellation/retry, outbox dispatch recovery and stage artifact publication with bounded local run-stage orphan GC (ADR-0005). The current ordered task is **UG-AI-074 / S12-T09**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-073 / S12-T08
-Implement artifact temporary→ready→referenced publication transaction boundary and bounded orphan GC job.
+UG-AI-074 / S12-T09
+Add ScenarioBatch persistence/state model with 3–10 child run bound and concurrency limit.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
