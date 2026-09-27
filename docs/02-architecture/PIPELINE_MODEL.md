@@ -302,7 +302,22 @@ GIS execution; that acceptance remains a later milestone gate.
 Cooperative cancellation, retry/backoff, outbox recovery and artifact publication/GC remain their
 respective later ordered tasks.
 
-## 9. Cancellation and retry
+## 9. Stage artifact publication (UG-AI-073 / S12-T08)
+
+The stage execution boundary must not infer relational artifact ownership from
+a typed `StageResult` or from a storage-only `ArtifactStore.promote()`.
+Stage producers supply temporary `ArtifactStat` values under their run/stage
+namespace to the explicit `SqlAlchemyStageArtifactPublisher` before marking a
+stage succeeded. It validates persisted run/stage state, registers temporary
+provenance, resumes storage promotion on retry and commits ready/reference
+transitions plus the canonical stage-artifact relation in a single PostgreSQL
+transaction. A partially published blob is not a completed checkpoint and an
+already succeeded run cannot be mutated to attach artifacts. See the canonical
+[artifact storage specification](../ARTIFACT_STORAGE.md) and
+[ADR-0005](../adr/0005-stage-artifact-publication-gc.md) for precise failure and
+bounded GC semantics. Neither GC nor blob ownership belongs to core StageResult.
+
+## 10. Cancellation and retry
 
 Core algorithms remain deterministic pure/bounded computations as far as practical.
 
@@ -350,25 +365,25 @@ terminates it immediately, and successful runs remain immutable. No new schema,
 second stage identity or retry status vocabulary is introduced. Automatic resume of
 partially executed stages, crash recovery and artifact rollback remain later work.
 
-## 10. Network ownership
+## 11. Network ownership
 
 Infrastructure stages must depend on `NetworkBackend`, not NetworkX or `SpatialSnapIndex` directly.
 
 S10-T06 therefore means adapting demand/facility/site points to the existing `NetworkBackend.snap()` contract with bounded batch semantics. It does **not** create another nearest-neighbor index.
 
-## 11. Metrics ownership
+## 12. Metrics ownership
 
 S11 extends the already-existing `RawMetricId` / `MetricDefinition` vocabulary from `domain.benchmarking`. It must not introduce an unrelated metric ID registry.
 
 The S11 registry adds runtime metadata needed for evaluation (scope, direction, source/version, normalization policy) around canonical raw metric IDs.
 
-## 12. Validation ownership
+## 13. Validation ownership
 
 The existing Constraint/ConstraintEngine/ValidationReport contract remains authoritative.
 
 S11-T01 may extend violation detail with entity references/problem geometry, but must preserve the shared engine and hard/soft semantics. Stage-specific ad-hoc validation formats are prohibited.
 
-## 13. Stabilization exit criteria
+## 14. Stabilization exit criteria
 
 Feature work after S10-T05 remains blocked until:
 

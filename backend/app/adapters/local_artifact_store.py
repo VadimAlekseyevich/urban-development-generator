@@ -2,7 +2,10 @@ import hashlib
 import json
 import os
 import tempfile
+from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from typing import BinaryIO, Final
 
 from core.urban_generator.domain import (
@@ -34,6 +37,10 @@ class LocalArtifactStore:
         root_path.mkdir(parents=True, exist_ok=True)
         self._root = root_path.resolve()
         self._chunk_size = chunk_size
+        # Resume bounded orphan discovery across hourly passes, rather than always
+        # rescanning the same first N referenced keys and starving later orphans.
+        self._gc_scan_lock = Lock()
+        self._gc_scan_iter: Iterator[ArtifactRef | None] | None = None
         self._payload_roots = {
             ArtifactState.TEMPORARY: self._root / "temporary",
             ArtifactState.READY: self._root / "ready",
@@ -192,6 +199,111 @@ class LocalArtifactStore:
             self._metadata_roots[ArtifactState.TEMPORARY],
         )
         return self.stat(ready_ref)
+
+    def stale_run_refs(
+        self,
+        *,
+        older_than: datetime,
+        max_scan: int = 5000,
+        max_results: int = 50,
+    ) -> tuple[ArtifactRef, ...]:
+        """Resume a bounded safe local run-blob scan across calls on this adapter.
+
+        Directory entries, including skipped files/subdirectories, count toward
+        max_scan. The process-local cursor avoids starvation behind referenced
+        objects; a worker restart begins a new full pass. DB ownership and age
+        must still be rechecked by the collector before deleting anything.
+        """
+        if older_than.tzinfo is None or older_than.utcoffset() is None:
+            raise ValueError("older_than must be timezone-aware")
+        if not 1 <= max_results <= 500 or not 1 <= max_scan <= 100_000:
+            raise ValueError("GC scan limits are out of bounds")
+        candidates: list[ArtifactRef] = []
+        seen: set[str] = set()
+        with self._gc_scan_lock:
+            if self._gc_scan_iter is None:
+                self._gc_scan_iter = self._iter_run_entries()
+            for _ in range(max_scan):
+                if len(candidates) >= max_results:
+                    break
+                try:
+                    ref = next(self._gc_scan_iter)
+                except StopIteration:
+                    self._gc_scan_iter = None
+                    break
+                if ref is None or ref.key in seen:
+                    continue
+                if self.is_stale_run_ref(ref, older_than=older_than):
+                    seen.add(ref.key)
+                    candidates.append(ref)
+        return tuple(candidates)
+
+    def _iter_run_entries(self) -> Iterator[ArtifactRef | None]:
+        """Yield one item per scanned directory entry without following symlinks."""
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            for base, is_metadata in (
+                (self._payload_roots[state], False),
+                (self._metadata_roots[state], True),
+            ):
+                root = self._safe_path(base, "runs")
+                if not root.exists():
+                    continue
+                if root.is_symlink() or not root.is_dir():
+                    raise ArtifactContractError("artifact GC root must be a real directory")
+                pending = [root]
+                while pending:
+                    directory = pending.pop()
+                    with os.scandir(directory) as entries:
+                        for entry in entries:
+                            if entry.is_symlink():
+                                yield None
+                                continue
+                            if entry.is_dir(follow_symlinks=False):
+                                pending.append(Path(entry.path))
+                                yield None
+                                continue
+                            if not entry.is_file(follow_symlinks=False):
+                                yield None
+                                continue
+                            relative = Path(entry.path).relative_to(base).as_posix()
+                            if is_metadata:
+                                if not relative.endswith(".json"):
+                                    yield None
+                                    continue
+                                relative = relative[:-5]
+                            if relative.endswith(".tmp"):
+                                yield None
+                                continue
+                            yield ArtifactRef(relative)
+
+    def has_run_ref(self, ref: ArtifactRef) -> bool:
+        """Check any half-published run payload or sidecar without requiring both."""
+        if not ref.key.startswith("runs/"):
+            raise ArtifactContractError("GC may inspect only the runs namespace")
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            state_ref = ArtifactRef(ref.key, state=state)
+            for path in (self._payload_path(state_ref), self._metadata_path(state_ref)):
+                if self._regular_file_exists(path):
+                    return True
+        return False
+
+    def is_stale_run_ref(self, ref: ArtifactRef, *, older_than: datetime) -> bool:
+        """Recheck both storage namespaces before GC deletes a run-scoped key."""
+        if not ref.key.startswith("runs/"):
+            raise ArtifactContractError("GC may inspect only the runs namespace")
+        if older_than.tzinfo is None or older_than.utcoffset() is None:
+            raise ValueError("older_than must be timezone-aware")
+        cutoff = older_than.timestamp()
+        exists = False
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            state_ref = ArtifactRef(ref.key, state=state)
+            for path in (self._payload_path(state_ref), self._metadata_path(state_ref)):
+                if not self._regular_file_exists(path):
+                    continue
+                exists = True
+                if path.stat().st_mtime > cutoff:
+                    return False
+        return exists
 
     def _stage_payload(self, destination: Path, source: BinaryIO) -> tuple[Path, int, str]:
         digest = hashlib.sha256()

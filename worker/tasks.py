@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from functools import lru_cache
 from typing import Any, cast
 
 from arq import Retry
@@ -13,6 +14,7 @@ from backend.app.application.generation import (
 )
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
 from backend.app.core.config import settings
+from backend.app.db.artifact_gc import SqlAlchemyArtifactGc
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.ingest_job_repository import SqlAlchemyIngestJobRepository
 from backend.app.services.ingest_pipeline import DatasetIngestPipeline
@@ -118,4 +120,26 @@ async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
         "status": result.status,
         "succeeded_stages": list(result.succeeded_stages),
         "skipped_stages": list(result.skipped_stages),
+    }
+
+
+@lru_cache(maxsize=1)
+def _build_artifact_gc() -> SqlAlchemyArtifactGc:
+    """Reuse one local scan cursor throughout this worker process."""
+    return SqlAlchemyArtifactGc(store=LocalArtifactStore(settings.storage_root))
+
+
+async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
+    """Hourly bounded cleanup of aged run-stage blobs and temporary DB rows."""
+    override = ctx.get("artifact_gc")
+    collector = (
+        cast(SqlAlchemyArtifactGc, override)
+        if override is not None
+        else _build_artifact_gc()
+    )
+    result = await asyncio.to_thread(collector.collect)
+    return {
+        "expired_rows": result.expired_rows,
+        "untracked_keys": result.untracked_keys,
+        "examined_candidates": result.examined_candidates,
     }
