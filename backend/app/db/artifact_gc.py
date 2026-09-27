@@ -95,17 +95,24 @@ class SqlAlchemyArtifactGc:
                     ref = self._ref(row.uri)
                     if ref is None or self._is_linked(session, row.id):
                         continue
-                    if self._delete_if_stale(ref, cutoff=cutoff):
+                    if (
+                        not self._has_storage(ref)
+                        or self._delete_if_stale(ref, cutoff=cutoff)
+                    ):
                         row.transition_to(ArtifactLifecycleState.EXPIRED)
                         expired += 1
 
         # The storage pass finds both metadata-only and payload-only residue,
         # including a crash after put() but before inserting a DB row.
         untracked = 0
-        candidates = self._store.stale_run_refs(
-            older_than=cutoff,
-            max_scan=max_scan,
-            max_results=max_batch,
+        remaining = max_batch - expired
+        candidates = (
+            self._store.stale_run_refs(
+                older_than=cutoff,
+                max_scan=max_scan,
+                max_results=remaining,
+            )
+            if remaining else ()
         )
         for ref in candidates:
             if self._ref(f"artifact://{ref.key}") is None:
@@ -121,10 +128,7 @@ class SqlAlchemyArtifactGc:
                         # A referenced, recently touched, expired, or locked row
                         # must never be treated as a storage-only orphan.
                         if (
-                            row.state not in {
-                                ArtifactLifecycleState.TEMPORARY.value,
-                                ArtifactLifecycleState.READY.value,
-                            }
+                            row.state == ArtifactLifecycleState.REFERENCED.value
                             or row.owner_id is not None
                             or row.created_at > cutoff
                             or row.updated_at > cutoff
@@ -132,7 +136,11 @@ class SqlAlchemyArtifactGc:
                         ):
                             continue
                         if self._delete_if_stale(ref, cutoff=cutoff):
-                            row.transition_to(ArtifactLifecycleState.EXPIRED)
+                            if row.state in {
+                                ArtifactLifecycleState.TEMPORARY.value,
+                                ArtifactLifecycleState.READY.value,
+                            }:
+                                row.transition_to(ArtifactLifecycleState.EXPIRED)
                             expired += 1
                     elif self._delete_if_stale(ref, cutoff=cutoff):
                         untracked += 1
@@ -142,6 +150,17 @@ class SqlAlchemyArtifactGc:
             untracked_keys=untracked,
             examined_candidates=len(candidates),
         )
+
+    def _has_storage(self, ref: ArtifactRef) -> bool:
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            state_ref = ArtifactRef(ref.key, state=state)
+            try:
+                self._store.stat(state_ref)
+            except KeyError:
+                continue
+            else:
+                return True
+        return False
 
     def _delete_if_stale(self, ref: ArtifactRef, *, cutoff: datetime) -> bool:
         if not self._store.is_stale_run_ref(ref, older_than=cutoff):
