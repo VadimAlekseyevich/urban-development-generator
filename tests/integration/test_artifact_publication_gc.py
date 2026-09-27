@@ -212,7 +212,9 @@ def test_publication_rejects_wrong_metadata_owner_and_finished_stage(tmp_path: P
             run_id=uuid.uuid4(), stage_name="roads", temporary_stat=stat
         )
     with SessionFactory() as session:
-        assert session.scalar(select(Artifact).where(Artifact.uri == f"artifact://{ref.key}")) is None
+        assert session.scalar(
+            select(Artifact).where(Artifact.uri == f"artifact://{ref.key}")
+        ) is None
         stage = session.get(RunStageResult, stage_id)
         assert stage is not None
         stage.status = "succeeded"
@@ -222,7 +224,9 @@ def test_publication_rejects_wrong_metadata_owner_and_finished_stage(tmp_path: P
     with pytest.raises(StageArtifactPublicationError, match="running stage"):
         publisher.publish(run_id=run_id, stage_name="roads", temporary_stat=stat)
     with SessionFactory() as session:
-        assert session.scalar(select(Artifact).where(Artifact.uri == f"artifact://{ref.key}")) is None
+        assert session.scalar(
+            select(Artifact).where(Artifact.uri == f"artifact://{ref.key}")
+        ) is None
 
 
 def test_gc_expires_stale_temporary_rows_and_storage_only_orphans(
