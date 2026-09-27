@@ -29,7 +29,11 @@ class GenerationRetryScheduled(GenerationExecutionError):
     """A safe transient attempt is queued and must honor DB-backed backoff."""
 
     def __init__(self, delay_seconds: int) -> None:
-        if not isinstance(delay_seconds, int) or isinstance(delay_seconds, bool) or delay_seconds < 1:
+        if (
+            not isinstance(delay_seconds, int)
+            or isinstance(delay_seconds, bool)
+            or delay_seconds < 1
+        ):
             raise ValueError("retry delay must be a positive integer")
         self.delay_seconds = delay_seconds
         super().__init__(f"generation retry deferred for {delay_seconds} seconds")
