@@ -10,8 +10,16 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.app.application.scenario_matrix import (
+    ScenarioMatrixSpec,
+    expand_scenario_matrix,
+)
 from backend.app.db.session import SessionLocal
+from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
+from backend.app.models.job import Job
+from backend.app.models.job_outbox import JobOutbox
+from backend.app.models.project import Project
 from backend.app.models.scenario_batch import ScenarioBatch, ScenarioBatchRun
 
 MIN_BATCH_RUNS = 3
@@ -22,6 +30,14 @@ _TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
 
 class ScenarioBatchError(ValueError):
     """The batch composition or persisted lifecycle is inconsistent."""
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioMatrixCreation:
+    """New sealed batch and its matrix children in canonical position order."""
+
+    batch_id: uuid.UUID
+    run_ids: tuple[uuid.UUID, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,22 +110,125 @@ class SqlAlchemyScenarioBatchStore:
                 )
                 if linked:
                     raise ScenarioBatchError("a child run already belongs to a batch")
-                batch = ScenarioBatch(
-                    id=uuid.uuid4(),
+                return self._seal(
+                    session,
                     project_id=project_id,
-                    status="draft",
+                    run_ids=run_ids,
                     concurrency_limit=concurrency_limit,
                 )
-                session.add(batch)
-                session.flush()
-                session.add_all(
-                    ScenarioBatchRun(batch_id=batch.id, run_id=run_id, position=position)
-                    for position, run_id in enumerate(run_ids)
+
+    def create_matrix(self, *, spec: ScenarioMatrixSpec) -> ScenarioMatrixCreation:
+        """Create full-config × explicit-seed runs, jobs, outbox and batch atomically.
+
+        No Redis call happens in this transaction. The existing outbox dispatcher
+        handles repeatable delivery after the committed membership is sealed.
+        """
+
+        children = expand_scenario_matrix(spec)
+        with self._session_factory() as session:
+            with session.begin():
+                project = session.scalar(
+                    select(Project)
+                    .where(Project.id == spec.project_id)
+                    .with_for_update(read=True)
                 )
+                if project is None:
+                    raise ScenarioBatchError("matrix project does not exist")
+                if project.boundary is None or project.boundary.srid != project.working_srid:
+                    raise ScenarioBatchError(
+                        "matrix project needs a boundary in its metric working SRID"
+                    )
+                version_ids = tuple(sorted(spec.dataset_version_ids))
+                versions = session.scalars(
+                    select(DatasetVersion)
+                    .join(Dataset, Dataset.id == DatasetVersion.dataset_id)
+                    .where(
+                        DatasetVersion.id.in_(version_ids),
+                        Dataset.project_id == spec.project_id,
+                        DatasetVersion.status == "ready",
+                    )
+                    .order_by(DatasetVersion.id)
+                    .with_for_update(of=DatasetVersion, read=True)
+                ).all()
+                if len(versions) != len(version_ids):
+                    raise ScenarioBatchError(
+                        "matrix dataset versions must all be ready and project-owned"
+                    )
+
+                run_ids: list[uuid.UUID] = []
+                for child in children:
+                    run_id = uuid.uuid4()
+                    job_id = uuid.uuid4()
+                    session.add(
+                        GenerationRun(
+                            id=run_id,
+                            project_id=spec.project_id,
+                            status="queued",
+                            mode=spec.mode.value,
+                            seed=child.seed,
+                            working_srid=project.working_srid,
+                            config_json=child.config_json,
+                            config_schema_version=spec.config_schema_version,
+                            commit_sha=spec.commit_sha,
+                            dataset_versions=list(versions),
+                        )
+                    )
+                    session.add(
+                        Job(
+                            id=job_id,
+                            project_id=spec.project_id,
+                            run_id=run_id,
+                            job_type="generation_run",
+                            idempotency_key=f"run:{run_id}",
+                            status="queued",
+                            attempt_count=0,
+                            max_attempts=3,
+                        )
+                    )
+                    session.add(
+                        JobOutbox(
+                            job_id=job_id,
+                            queue_name="generation",
+                            payload={"task": "run_generation", "run_id": str(run_id)},
+                            status="pending",
+                        )
+                    )
+                    run_ids.append(run_id)
+                # Ensure FK/association insertion before linking the sealed batch.
                 session.flush()
-                # The PostgreSQL transition guard checks the committed minimum count.
-                batch.status = "queued"
-                return batch.id
+                batch_id = self._seal(
+                    session,
+                    project_id=spec.project_id,
+                    run_ids=tuple(run_ids),
+                    concurrency_limit=spec.concurrency_limit,
+                )
+                return ScenarioMatrixCreation(batch_id=batch_id, run_ids=tuple(run_ids))
+
+    @staticmethod
+    def _seal(
+        session: Session,
+        *,
+        project_id: uuid.UUID,
+        run_ids: tuple[uuid.UUID, ...],
+        concurrency_limit: int,
+    ) -> uuid.UUID:
+        """One final transition/trigger path for manual and matrix creation."""
+
+        batch = ScenarioBatch(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            status="draft",
+            concurrency_limit=concurrency_limit,
+        )
+        session.add(batch)
+        session.flush()
+        session.add_all(
+            ScenarioBatchRun(batch_id=batch.id, run_id=run_id, position=position)
+            for position, run_id in enumerate(run_ids)
+        )
+        session.flush()
+        batch.status = "queued"
+        return batch.id
 
     def refresh(self, *, batch_id: uuid.UUID) -> ScenarioBatchSnapshot:
         """Recompute parent status under one batch lock from persisted child states."""
