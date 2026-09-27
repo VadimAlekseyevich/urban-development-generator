@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from functools import lru_cache
 from typing import Any, cast
 
 from arq import Retry
@@ -122,13 +123,19 @@ async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
     }
 
 
+@lru_cache(maxsize=1)
+def _build_artifact_gc() -> SqlAlchemyArtifactGc:
+    """Reuse one local scan cursor throughout this worker process."""
+    return SqlAlchemyArtifactGc(store=LocalArtifactStore(settings.storage_root))
+
+
 async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
     """Hourly bounded cleanup of aged run-stage blobs and temporary DB rows."""
     override = ctx.get("artifact_gc")
     collector = (
         cast(SqlAlchemyArtifactGc, override)
         if override is not None
-        else SqlAlchemyArtifactGc(store=LocalArtifactStore(settings.storage_root))
+        else _build_artifact_gc()
     )
     result = await asyncio.to_thread(collector.collect)
     return {
