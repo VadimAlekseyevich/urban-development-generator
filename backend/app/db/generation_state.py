@@ -22,6 +22,10 @@ from backend.app.application.generation import (
     StageInvocation,
     generation_retry_delay_seconds,
 )
+from backend.app.db.scenario_batch import (
+    locked_batch_for_run,
+    require_batch_capacity,
+)
 from backend.app.db.session import SessionLocal
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
@@ -49,6 +53,7 @@ class SqlAlchemyGenerationStateStore:
     def claim(self, *, run_id: uuid.UUID) -> GenerationClaimDisposition:
         with self._session_factory() as session:
             with session.begin():
+                batch = locked_batch_for_run(session, run_id=run_id)
                 run = self._run(session, run_id)
                 job = self._job(session, run)
                 if run.status == "succeeded" and job.status == "succeeded":
@@ -82,7 +87,12 @@ class SqlAlchemyGenerationStateStore:
                         "generation requires a persisted 40-character code commit SHA"
                     )
 
+                if batch is not None:
+                    require_batch_capacity(session, batch=batch)
                 now = self._clock()
+                if batch is not None and batch.status == "queued":
+                    batch.status = "running"
+                    batch.started_at = now
                 run.status = "running"
                 run.started_at = now
                 run.finished_at = None
