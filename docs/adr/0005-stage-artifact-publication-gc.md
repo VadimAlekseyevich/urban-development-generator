@@ -65,5 +65,7 @@ the publisher with its explicit run/stage identity; merely returning a core
 run-stage namespace only: legacy uploaded unreferenced ready data and other
 storage providers need their own ownership/reconciliation policies. Bounded
 scans limit work per pass, so very large backlogs require repeated hourly runs.
+The local scan cursor is process-local and restarts at the beginning after a
+worker restart.
 S13 storage adapter parity extends this accepted lifecycle without imposing
 filesystem enumeration on the canonical port.
