@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Final
 
@@ -192,6 +193,89 @@ class LocalArtifactStore:
             self._metadata_roots[ArtifactState.TEMPORARY],
         )
         return self.stat(ready_ref)
+
+    def stale_run_refs(
+        self,
+        *,
+        older_than: datetime,
+        max_scan: int = 5000,
+        max_results: int = 50,
+    ) -> tuple[ArtifactRef, ...]:
+        """Bounded local-only scan for aged run-stage blobs/sidecars, including orphan bytes.
+
+        The scan never descends into links, never visits uploads, and counts directory
+        entries as well as files toward max_scan. Missing payload/sidecar pairs are
+        candidates too; callers must still consult authoritative DB lifecycle.
+        """
+        if older_than.tzinfo is None or older_than.utcoffset() is None:
+            raise ValueError("older_than must be timezone-aware")
+        if not 1 <= max_results <= 500 or not 1 <= max_scan <= 100_000:
+            raise ValueError("GC scan limits are out of bounds")
+        cutoff = older_than.timestamp()
+        examined = 0
+        candidates: list[ArtifactRef] = []
+        seen: set[str] = set()
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            for base, is_metadata in (
+                (self._payload_roots[state], False),
+                (self._metadata_roots[state], True),
+            ):
+                root = self._safe_path(base, "runs")
+                if not root.exists():
+                    continue
+                if root.is_symlink() or not root.is_dir():
+                    raise ArtifactContractError("artifact GC root must be a real directory")
+                pending = [root]
+                while pending and examined < max_scan and len(candidates) < max_results:
+                    directory = pending.pop()
+                    with os.scandir(directory) as entries:
+                        for entry in entries:
+                            examined += 1
+                            if examined > max_scan:
+                                break
+                            if entry.is_symlink():
+                                continue
+                            if entry.is_dir(follow_symlinks=False):
+                                pending.append(Path(entry.path))
+                                continue
+                            if not entry.is_file(follow_symlinks=False):
+                                continue
+                            relative = Path(entry.path).relative_to(base).as_posix()
+                            if is_metadata:
+                                if not relative.endswith(".json"):
+                                    continue
+                                relative = relative[:-5]
+                            if relative in seen or relative.endswith(".tmp"):
+                                continue
+                            ref = ArtifactRef(relative)
+                            if self.is_stale_run_ref(ref, older_than=older_than):
+                                seen.add(relative)
+                                candidates.append(ref)
+                                if len(candidates) >= max_results:
+                                    break
+                if examined >= max_scan or len(candidates) >= max_results:
+                    break
+            if examined >= max_scan or len(candidates) >= max_results:
+                break
+        return tuple(candidates)
+
+    def is_stale_run_ref(self, ref: ArtifactRef, *, older_than: datetime) -> bool:
+        """Recheck both storage namespaces before GC deletes a run-scoped key."""
+        if not ref.key.startswith("runs/"):
+            raise ArtifactContractError("GC may inspect only the runs namespace")
+        if older_than.tzinfo is None or older_than.utcoffset() is None:
+            raise ValueError("older_than must be timezone-aware")
+        cutoff = older_than.timestamp()
+        exists = False
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            state_ref = ArtifactRef(ref.key, state=state)
+            for path in (self._payload_path(state_ref), self._metadata_path(state_ref)):
+                if not self._regular_file_exists(path):
+                    continue
+                exists = True
+                if path.stat().st_mtime > cutoff:
+                    return False
+        return exists
 
     def _stage_payload(self, destination: Path, source: BinaryIO) -> tuple[Path, int, str]:
         digest = hashlib.sha256()
