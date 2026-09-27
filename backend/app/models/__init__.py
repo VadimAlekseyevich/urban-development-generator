@@ -13,6 +13,7 @@ from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
+from backend.app.models.scenario_batch import ScenarioBatch, ScenarioBatchRun
 from backend.app.models.source_layer import (
     SourceBuilding,
     SourceConstraint,
@@ -37,6 +38,8 @@ __all__ = [
     "JobOutbox",
     "Project",
     "RunStageResult",
+    "ScenarioBatch",
+    "ScenarioBatchRun",
     "SourceBuilding",
     "SourceConstraint",
     "SourceFacility",
