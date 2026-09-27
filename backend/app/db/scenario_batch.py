@@ -156,6 +156,8 @@ class SqlAlchemyScenarioBatchStore:
                     )
 
                 run_ids: list[uuid.UUID] = []
+                jobs: list[Job] = []
+                outbox_messages: list[JobOutbox] = []
                 for child in children:
                     run_id = uuid.uuid4()
                     job_id = uuid.uuid4()
@@ -173,7 +175,7 @@ class SqlAlchemyScenarioBatchStore:
                             dataset_versions=list(versions),
                         )
                     )
-                    session.add(
+                    jobs.append(
                         Job(
                             id=job_id,
                             project_id=spec.project_id,
@@ -185,7 +187,7 @@ class SqlAlchemyScenarioBatchStore:
                             max_attempts=3,
                         )
                     )
-                    session.add(
+                    outbox_messages.append(
                         JobOutbox(
                             job_id=job_id,
                             queue_name="generation",
@@ -194,8 +196,14 @@ class SqlAlchemyScenarioBatchStore:
                         )
                     )
                     run_ids.append(run_id)
-                # Ensure FK/association insertion before linking the sealed batch.
-                session.flush()
+                # UUID-only foreign keys do not tell the ORM the insert dependency
+                # graph. Explicit flush boundaries enforce PostgreSQL FK order
+                # without committing any partially constructed batch.
+                session.flush()  # runs and their immutable dataset-version refs
+                session.add_all(jobs)
+                session.flush()  # job.run_id -> persisted GenerationRun
+                session.add_all(outbox_messages)
+                session.flush()  # outbox.job_id -> persisted Job
                 batch_id = self._seal(
                     session,
                     project_id=spec.project_id,
