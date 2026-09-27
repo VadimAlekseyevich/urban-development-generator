@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-074, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, and bounded ScenarioBatch persistence with serializable parent-row admission (ADR-0006). The current ordered task is **UG-AI-075 / S12-T10**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-075, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, and deterministic seed/full-config matrix expansion with atomic child Job/Outbox persistence (ADR-0006/0007). The current ordered task is **UG-AI-076 / S12-T11**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-075 / S12-T10
-Implement deterministic batch seed/config matrix expansion.
+UG-AI-076 / S12-T11
+Implement exact rerun from immutable dataset/config/seed/code provenance with availability/hash validation.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
