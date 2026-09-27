@@ -211,7 +211,6 @@ class LocalArtifactStore:
             raise ValueError("older_than must be timezone-aware")
         if not 1 <= max_results <= 500 or not 1 <= max_scan <= 100_000:
             raise ValueError("GC scan limits are out of bounds")
-        cutoff = older_than.timestamp()
         examined = 0
         candidates: list[ArtifactRef] = []
         seen: set[str] = set()
