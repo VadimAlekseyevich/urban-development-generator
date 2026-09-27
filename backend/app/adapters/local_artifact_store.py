@@ -259,6 +259,17 @@ class LocalArtifactStore:
                 break
         return tuple(candidates)
 
+    def has_run_ref(self, ref: ArtifactRef) -> bool:
+        """Check any half-published run payload or sidecar without requiring both."""
+        if not ref.key.startswith("runs/"):
+            raise ArtifactContractError("GC may inspect only the runs namespace")
+        for state in (ArtifactState.TEMPORARY, ArtifactState.READY):
+            state_ref = ArtifactRef(ref.key, state=state)
+            for path in (self._payload_path(state_ref), self._metadata_path(state_ref)):
+                if self._regular_file_exists(path):
+                    return True
+        return False
+
     def is_stale_run_ref(self, ref: ArtifactRef, *, older_than: datetime) -> bool:
         """Recheck both storage namespaces before GC deletes a run-scoped key."""
         if not ref.key.startswith("runs/"):
