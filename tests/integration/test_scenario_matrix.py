@@ -212,7 +212,9 @@ def test_same_matrix_spec_has_same_semantic_order_but_distinct_run_ownership() -
         assert _counts() == (2, 8, 8, 8, 8)
 
 
-@pytest.mark.parametrize("failure", ("missing_project", "missing_version", "foreign", "unready", "boundary"))
+@pytest.mark.parametrize(
+    "failure", ("missing_project", "missing_version", "foreign", "unready", "boundary")
+)
 def test_failed_matrix_preflight_rolls_back_all_children_and_outbox(failure: str) -> None:
     project_id, version_id = _project(boundary=failure != "boundary")
     foreign_project_id, foreign_version_id = _project()
