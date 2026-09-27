@@ -288,6 +288,32 @@ def test_gc_expires_stale_temporary_rows_and_storage_only_orphans(
         assert stage is not None and not stage.artifacts
 
 
+def test_gc_reconciles_untracked_ready_and_sidecar_only_storage(
+    tmp_path: Path,
+) -> None:
+    run_id, _ = _running_stage()
+    root = tmp_path / "storage"
+    store = LocalArtifactStore(root)
+    old = datetime.now(UTC) - timedelta(hours=4)
+    ready_ref = _ref(run_id, "ready-orphan.json")
+    partial_ref = _ref(run_id, "sidecar-only.json")
+    store.put(ready_ref, BytesIO(b"promoted-before-db-commit"))
+    store.promote(ready_ref)
+    store.put(partial_ref, BytesIO(b"lost-payload"))
+    (root / "temporary" / partial_ref.key).unlink()
+    for ref in (ready_ref, partial_ref):
+        _age_storage(root, ref, old)
+
+    collected = SqlAlchemyArtifactGc(
+        store=store, session_factory=SessionFactory
+    ).collect(max_batch=2, max_scan=1000)
+
+    assert collected.untracked_keys == 2
+    assert collected.expired_rows == 0
+    assert not store.has_run_ref(ready_ref)
+    assert not store.has_run_ref(partial_ref)
+
+
 def test_gc_never_deletes_referenced_or_fresh_blob(tmp_path: Path) -> None:
     run_id, stage_id = _running_stage()
     root = tmp_path / "storage"
