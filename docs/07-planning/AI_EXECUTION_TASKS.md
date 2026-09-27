@@ -110,7 +110,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-071** — **S12-T06** — Implement transient/permanent/cancelled retry classification and bounded backoff around generation attempts.
 - [x] **UG-AI-072** — **S12-T07** — Implement DB-authoritative outbox dispatcher recovery/claim loop and duplicate-delivery safety.
 - [x] **UG-AI-073** — **S12-T08** — Implement artifact temporary→ready→referenced publication transaction boundary and bounded orphan GC job.
-- [ ] **UG-AI-074** — **S12-T09** — Add ScenarioBatch persistence/state model with 3–10 child run bound and concurrency limit.
+- [x] **UG-AI-074** — **S12-T09** — Add ScenarioBatch persistence/state model with 3–10 child run bound and concurrency limit.
 - [ ] **UG-AI-075** — **S12-T10** — Implement deterministic batch seed/config matrix expansion.
 - [ ] **UG-AI-076** — **S12-T11** — Implement exact rerun from immutable dataset/config/seed/code provenance with availability/hash validation.
 - [ ] **UG-AI-077** — **S12-T12** — Generate canonical provenance manifest for data/config/code/stages/artifacts/raw metrics.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..073 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-074. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..074 are complete, M0–M2 are complete, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-075. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

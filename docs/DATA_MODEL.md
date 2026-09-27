@@ -24,6 +24,36 @@ Legacy datasets из ранней схемы мигрируют в `version = 1`
 
 Миграция legacy `GenerationRun` присваивает историческим строкам `mode = EXPANSION`, `config_schema_version = legacy-v0` и копирует `working_srid` из проекта. Старое `code_version` переносится в `commit_sha` только если уже является 40-символьным hex commit SHA; неизвестная или произвольная версия не подменяется фиктивным SHA.
 
+## ScenarioBatch (S12-T09)
+
+`ScenarioBatch` хранит `id`, `project_id`, `status`
+(`draft/queued/running/succeeded/failed/cancelled`), целочисленный
+`concurrency_limit` и timestamps. Отдельная таблица `scenario_batch_runs`
+ссылается на существующие `GenerationRun` и хранит позиции `0..9`;
+`run_id` уникален глобально, а `(batch_id, position)` — внутри группы.
+Это не второй тип запуска и не дублирование seed/config/dataset provenance.
+
+Группа формируется только из уникальных `queued` runs одного проекта.
+Переход `draft -> queued` атомарно требует **3–10 дочерних запусков** и
+`1 <= concurrency_limit <= число запусков`. PostgreSQL trigger запрещает
+менять membership или limit после queueing, а диапазон уникальных позиций
+обеспечивает upper bound даже при прямом SQL. Каждый child продолжает иметь
+свой DB-authoritative `Job`, status, attempts и error taxonomy.
+
+При generation claim worker блокирует parent batch row **до** блокировки
+child run, проверяет число уже `running` children и атомарно резервирует
+слот. При заполнении лимита child остаётся `queued`, attempt count не
+увеличивается, ARQ получает ограниченный deferral. Независимые runs не
+затрагиваются. После выполнения `SqlAlchemyScenarioBatchStore.refresh()`
+переcчитывает parent status из child states: пока остаются non-terminal
+children — `running` после первого старта, затем при all-terminal:
+`failed` если есть failure, иначе `cancelled` если есть cancellation,
+иначе `succeeded`. PostgreSQL проверяет terminal aggregate и его
+неизменяемость. Reconciliation можно повторить после worker crash.
+
+Создание seed/config matrix, распределённый batch scheduler, HTTP API,
+cross-run reuse и UI не входят в UG-AI-074; см. ADR-0006 и следующие S12 tasks.
+
 ## RunStageResult
 
 Каждая алгоритмическая стадия конкретного запуска имеет одну запись `RunStageResult`, уникальную по `(run_id, stage_name)`. Запись фиксирует `stage_version`, lifecycle `status`, `progress_percent`, SHA-256 hash входов и stage-конфигурации, timestamps, структурированные diagnostics и ссылки на созданные stage artifacts.
