@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 
 import pytest
@@ -126,7 +125,7 @@ def test_rejects_noncanonical_encoded_json_and_bad_names() -> None:
     with pytest.raises(ScenarioMatrixError, match="lowercase"):
         _variant("Not Stable", {"ok": True})
     with pytest.raises(ScenarioMatrixError, match="valid JSON"):
-        ScenarioConfigVariant(name="one", canonical_config_json=json.dumps(float("nan")))
+        ScenarioConfigVariant(name="one", canonical_config_json='{"x": NaN}')
 
 
 def test_rejects_invalid_concurrency_and_provenance() -> None:
