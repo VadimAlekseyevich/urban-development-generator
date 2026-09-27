@@ -119,28 +119,28 @@ class SqlAlchemyArtifactGc:
                 continue
             with self._session_factory() as session:
                 with session.begin():
-                    row = session.scalar(
+                    candidate = session.scalar(
                         select(Artifact)
                         .where(Artifact.uri == f"artifact://{ref.key}")
                         .with_for_update(skip_locked=True)
                     )
-                    if row is not None:
+                    if candidate is not None:
                         # A referenced, recently touched, expired, or locked row
                         # must never be treated as a storage-only orphan.
                         if (
-                            row.state == ArtifactLifecycleState.REFERENCED.value
-                            or row.owner_id is not None
-                            or row.created_at > cutoff
-                            or row.updated_at > cutoff
-                            or self._is_linked(session, row.id)
+                            candidate.state == ArtifactLifecycleState.REFERENCED.value
+                            or candidate.owner_id is not None
+                            or candidate.created_at > cutoff
+                            or candidate.updated_at > cutoff
+                            or self._is_linked(session, candidate.id)
                         ):
                             continue
                         if self._delete_if_stale(ref, cutoff=cutoff):
-                            if row.state in {
+                            if candidate.state in {
                                 ArtifactLifecycleState.TEMPORARY.value,
                                 ArtifactLifecycleState.READY.value,
                             }:
-                                row.transition_to(ArtifactLifecycleState.EXPIRED)
+                                candidate.transition_to(ArtifactLifecycleState.EXPIRED)
                             expired += 1
                     elif self._delete_if_stale(ref, cutoff=cutoff):
                         untracked += 1
