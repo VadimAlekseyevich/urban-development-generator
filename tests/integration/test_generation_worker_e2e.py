@@ -10,11 +10,13 @@ import asyncio
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from arq import Retry
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
@@ -26,7 +28,11 @@ from backend.app.application.checkpoints import (
     build_config_hash,
     build_resolved_input_hash,
 )
-from backend.app.application.generation import StageInvocation
+from backend.app.application.generation import (
+    GenerationJobService,
+    GenerationRetryScheduled,
+    StageInvocation,
+)
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -45,6 +51,7 @@ from core.urban_generator.domain import (
     TerritorySnapshot,
     build_stage_fingerprint,
 )
+from core.urban_generator.domain.errors import TransientError, UrbanGeneratorError
 from core.urban_generator.stages import StageRegistry
 from core.urban_generator.stages.registry import StageAny
 from worker.tasks import GenerationTaskFailed, run_generation
@@ -81,6 +88,7 @@ class FixtureStage:
     dependencies: tuple[str, ...]
     probe: ExecutionProbe
     fail: bool = False
+    failure: UrbanGeneratorError | None = None
     version: str = "fixture-v1"
 
     def validate_input(self, value: object) -> int:
@@ -133,6 +141,8 @@ class FixtureStage:
             assert SqlAlchemyGenerationStateStore(
                 session_factory=SessionFactory
             ).request_cancel(run_id=self.probe.run_id)
+        if self.failure is not None:
+            raise self.failure
         if self.fail:
             raise RuntimeError("injected stage execution failure")
         return StageResult(
@@ -206,7 +216,9 @@ def clean_database(migrated_database: None) -> None:
         connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
 
 
-def _setup(*, boundary: bool = True) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+def _setup(
+    *, boundary: bool = True, max_attempts: int = 3
+) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
     with SessionFactory() as session:
         project = Project(
             name="Generation worker integration",
@@ -254,7 +266,7 @@ def _setup(*, boundary: bool = True) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
             idempotency_key=f"run:{run.id}",
             status="queued",
             attempt_count=0,
-            max_attempts=3,
+            max_attempts=max_attempts,
         )
         session.add(job)
         session.commit()
@@ -266,20 +278,23 @@ def _factory(
     probe: ExecutionProbe,
     *,
     fail_stage: str | None = None,
+    stage_error: UrbanGeneratorError | None = None,
+    config_resolver: FixtureConfigResolver | None = None,
     skip_stages: tuple[str, ...] = (),
 ) -> SqlAlchemyGenerationRuntimeFactory:
     names = TOPOLOGICAL_NAMES
     return SqlAlchemyGenerationRuntimeFactory(
         session_factory=SessionFactory,
         artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
-        config_resolver=FixtureConfigResolver(names),
+        config_resolver=config_resolver or FixtureConfigResolver(names),
         registry=StageRegistry(
             stages=tuple(
                 FixtureStage(
                     name=name,
                     dependencies=STAGE_DEPENDENCIES[name],
                     probe=probe,
-                    fail=name == fail_stage,
+                    fail=name == fail_stage and stage_error is None,
+                    failure=stage_error if name == fail_stage else None,
                 )
                 for name in reversed(names)
             )
@@ -608,3 +623,152 @@ def test_cancel_request_after_worker_success_is_a_noop(tmp_path: Path) -> None:
     assert {name: row.output_fingerprint for name, row in after_stages.items()} == {
         name: row.output_fingerprint for name, row in before_stages.items()
     }
+
+
+class FlakyConfigResolver(FixtureConfigResolver):
+    def __init__(self, stage_names: tuple[str, ...], *, failures: int) -> None:
+        super().__init__(stage_names)
+        self.failures = failures
+        self.calls = 0
+
+    def resolve(
+        self,
+        *,
+        config_json: Mapping[str, object],
+        schema_version: str,
+        source: ConfigRef,
+    ) -> tuple[ResolvedConfigBinding, ...]:
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise TransientError("temporary config source unavailable")
+        return super().resolve(
+            config_json=config_json,
+            schema_version=schema_version,
+            source=source,
+        )
+
+
+def test_worker_retries_stage_free_transient_attempts_with_db_backoff(
+    tmp_path: Path,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    resolver = FlakyConfigResolver(TOPOLOGICAL_NAMES, failures=2)
+    factory = _factory(tmp_path, probe, config_resolver=resolver)
+    now = [datetime(2026, 9, 27, 10, 0, tzinfo=UTC)]
+    store = SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory, clock=lambda: now[0]
+    )
+    service = GenerationJobService(state_store=store, runtime_factory=factory)
+
+    def attempt() -> dict[str, object]:
+        return asyncio.run(
+            run_generation({"generation_job_service": service}, str(run_id))
+        )
+
+    for number, delay in ((1, 30), (2, 60)):
+        with pytest.raises(Retry):
+            attempt()
+        run, job, rows = _persisted(run_id, job_id)
+        assert run.status == job.status == "queued"
+        assert job.attempt_count == number
+        assert job.error_class == "transient"
+        assert job.error_code == "transient.error"
+        assert job.error_json is not None and job.error_json["retryable"] is True
+        assert run.error_json is not None and run.error_json["retryable"] is True
+        assert rows == {}
+        assert resolver.calls == number
+        with pytest.raises(GenerationRetryScheduled) as blocked:
+            store.claim(run_id=run_id)
+        assert blocked.value.delay_seconds == delay
+        assert _persisted(run_id, job_id)[1].attempt_count == number
+        now[0] += timedelta(seconds=delay)
+
+    result = attempt()
+    assert result["status"] == "succeeded"
+    assert result["succeeded_stages"] == list(TOPOLOGICAL_NAMES)
+    run, job, rows = _persisted(run_id, job_id)
+    assert run.status == job.status == "succeeded"
+    assert job.attempt_count == job.max_attempts == 3
+    assert job.error_class is None and job.error_json is None
+    assert run.error_json is None
+    assert len(rows) == len(TOPOLOGICAL_NAMES)
+    assert resolver.calls == 3
+    assert attempt()["status"] == "already_succeeded"
+    assert _persisted(run_id, job_id)[1].attempt_count == 3
+
+
+def test_worker_transient_assembly_failure_exhausts_attempt_budget(
+    tmp_path: Path,
+) -> None:
+    run_id, job_id, _ = _setup(max_attempts=2)
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    resolver = FlakyConfigResolver(TOPOLOGICAL_NAMES, failures=3)
+    factory = _factory(tmp_path, probe, config_resolver=resolver)
+    now = [datetime(2026, 9, 27, 10, 0, tzinfo=UTC)]
+    store = SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory, clock=lambda: now[0]
+    )
+    service = GenerationJobService(state_store=store, runtime_factory=factory)
+
+    with pytest.raises(Retry):
+        asyncio.run(run_generation({"generation_job_service": service}, str(run_id)))
+    now[0] += timedelta(seconds=30)
+    with pytest.raises(GenerationTaskFailed, match=str(run_id)):
+        asyncio.run(run_generation({"generation_job_service": service}, str(run_id)))
+
+    run, job, rows = _persisted(run_id, job_id)
+    assert run.status == job.status == "failed"
+    assert job.attempt_count == job.max_attempts == 2
+    assert job.error_class == "transient"
+    assert job.error_json is not None and job.error_json["retryable"] is False
+    assert run.error_json is not None and run.error_json["retryable"] is False
+    assert rows == {} and not probe.calls
+    assert resolver.calls == 2
+
+
+def test_worker_does_not_replay_transient_failure_after_persisted_stage_progress(
+    tmp_path: Path,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    factory = _factory(
+        tmp_path,
+        probe,
+        fail_stage="beta",
+        stage_error=TransientError("temporary stage storage failure"),
+    )
+    with pytest.raises(GenerationTaskFailed, match=str(run_id)):
+        _invoke(run_id, factory)
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "failed"
+    assert job.attempt_count == 1
+    assert job.error_class == "transient"
+    assert job.error_json is not None and job.error_json["retryable"] is False
+    assert run.error_json is not None and run.error_json["retryable"] is False
+    assert stages["root"].status == stages["alpha"].status == "succeeded"
+    assert stages["beta"].status == "failed"
+    assert stages["beta"].output_fingerprint is None
+    assert probe.calls == ["root", "alpha", "beta"]
+
+
+def test_queued_retry_can_be_cancelled_without_starting_another_attempt(
+    tmp_path: Path,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    resolver = FlakyConfigResolver(TOPOLOGICAL_NAMES, failures=1)
+    factory = _factory(tmp_path, probe, config_resolver=resolver)
+    store = SqlAlchemyGenerationStateStore(session_factory=SessionFactory)
+    service = GenerationJobService(state_store=store, runtime_factory=factory)
+
+    with pytest.raises(Retry):
+        asyncio.run(run_generation({"generation_job_service": service}, str(run_id)))
+    assert store.request_cancel(run_id=run_id)
+    assert asyncio.run(
+        run_generation({"generation_job_service": service}, str(run_id))
+    )["status"] == "cancelled"
+    run, job, rows = _persisted(run_id, job_id)
+    assert run.status == job.status == "cancelled"
+    assert job.attempt_count == 1 and job.error_class == "cancelled"
+    assert resolver.calls == 1 and rows == {}

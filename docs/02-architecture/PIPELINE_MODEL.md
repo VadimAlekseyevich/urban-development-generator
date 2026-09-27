@@ -328,8 +328,27 @@ during that call is observed when the call returns, before its output is persist
 a process kill, and long monolithic algorithms are not forcibly interrupted. If a long
 algorithm later needs internal cancellation points, introduce an infrastructure-neutral
 cancellation port by ADR rather than importing worker state into core. External HTTP/UI
-cancellation exposure is separately scheduled. Retry/backoff remains UG-AI-071; completed
-immutable run/source data are never mutated to simulate retry.
+cancellation exposure is separately scheduled.
+
+UG-AI-071 / S12-T06 implements the bounded retry policy in ADR-0003. The generation
+application preserves canonical `UrbanGeneratorError` classification (transient,
+permanent and cancelled); unexpected untyped execution errors map to permanent. A
+transient failed attempt may requeue the same run/job **only before any stage row has
+been persisted**, within `Job.max_attempts`. Attempts with stage rows may already
+have written run-scoped side effects, so they retain terminal failed state and
+successful prior stage provenance; there is no claim of typed checkpoint hydration
+or side-effect rollback. An exhausted transient failure is terminal but retains
+its `transient.error` category with `error_json.retryable=false`.
+
+Replay-safe failures persist matching queued run/job states and canonical transient
+diagnostics. `Job.finished_at` of the last failed attempt plus bounded delays of
+30/60/120/240/300 seconds and the committed `attempt_count` define DB-authoritative
+retry eligibility. A duplicate/early claim raises a remaining-delay signal without
+consuming an attempt; the ARQ worker translates it to `Retry(defer=...)`. Subsequent
+success clears old error fields. A cancellation request during a queued retry
+terminates it immediately, and successful runs remain immutable. No new schema,
+second stage identity or retry status vocabulary is introduced. Automatic resume of
+partially executed stages, crash recovery and artifact rollback remain later work.
 
 ## 10. Network ownership
 

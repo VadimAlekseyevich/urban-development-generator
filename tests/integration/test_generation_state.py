@@ -35,7 +35,7 @@ from core.urban_generator.domain import (
     TerritorySnapshot,
     build_stage_fingerprint,
 )
-from core.urban_generator.domain.errors import CancelledError
+from core.urban_generator.domain.errors import CancelledError, PermanentError
 from core.urban_generator.stages import StageRegistry, StageSkipReason
 from core.urban_generator.stages.registry import StageAny
 
@@ -192,7 +192,11 @@ def test_failed_stage_and_run_are_persisted_without_false_success() -> None:
     store.claim(run_id=run_id)
     store.start_stage(run_id=run_id, identity=_identity(store, run_id))
     store.fail_stage(run_id=run_id, stage_name="root")
-    store.fail_run(run_id=run_id, stage_name="root")
+    store.fail_run(
+        run_id=run_id,
+        stage_name="root",
+        error=PermanentError("generation execution failed"),
+    )
 
     run, job, stage = _rows(run_id, job_id)
     assert stage is not None and stage.status == "failed"
