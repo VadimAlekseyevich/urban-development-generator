@@ -8,6 +8,7 @@ from backend.app.adapters import LocalArtifactStore
 from backend.app.application.generation import (
     GenerationExecutionError,
     GenerationJobService,
+    GenerationRetryScheduled,
     GenerationRuntimeFactory,
 )
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
@@ -107,6 +108,8 @@ async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
 
     try:
         result = await asyncio.to_thread(service.run, run_id=parsed_id)
+    except GenerationRetryScheduled as exc:
+        raise Retry(defer=exc.delay_seconds) from exc
     except GenerationExecutionError as exc:
         raise GenerationTaskFailed(f"generation run {parsed_id} failed") from exc
 
