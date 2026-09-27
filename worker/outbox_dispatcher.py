@@ -40,6 +40,7 @@ class ArqJobEnqueuer:
         if message.queue_name not in _SUPPORTED_LOGICAL_QUEUES:
             raise ValueError("unsupported logical outbox queue")
         task = message.payload.get("task")
+        args: tuple[str, ...]
         if task == "run_generation":
             if set(message.payload) != {"task", "run_id"}:
                 raise ValueError("invalid generation outbox payload")
