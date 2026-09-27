@@ -111,10 +111,19 @@ def upgrade() -> None:
         RETURNS trigger AS $$
         DECLARE
             child_count integer;
+            terminal_count integer;
+            failed_count integer;
+            cancelled_count integer;
         BEGIN
+            IF OLD.status IN ('succeeded', 'failed', 'cancelled')
+                AND to_jsonb(NEW) IS DISTINCT FROM to_jsonb(OLD)
+            THEN
+                RAISE EXCEPTION 'terminal scenario batch is immutable';
+            END IF;
             IF OLD.status <> 'draft' AND (
                 NEW.project_id IS DISTINCT FROM OLD.project_id OR
-                NEW.concurrency_limit IS DISTINCT FROM OLD.concurrency_limit
+                NEW.concurrency_limit IS DISTINCT FROM OLD.concurrency_limit OR
+                NEW.created_at IS DISTINCT FROM OLD.created_at
             ) THEN
                 RAISE EXCEPTION 'queued scenario batch ownership and limit are immutable';
             END IF;
@@ -138,9 +147,31 @@ def upgrade() -> None:
             ELSE
                 RAISE EXCEPTION 'invalid scenario batch lifecycle transition';
             END IF;
+            IF NEW.status IN ('succeeded', 'failed', 'cancelled') THEN
+                SELECT count(*),
+                    count(*) FILTER (WHERE gr.status IN ('succeeded', 'failed', 'cancelled')),
+                    count(*) FILTER (WHERE gr.status = 'failed'),
+                    count(*) FILTER (WHERE gr.status = 'cancelled')
+                INTO child_count, terminal_count, failed_count, cancelled_count
+                FROM scenario_batch_runs AS br
+                JOIN generation_runs AS gr ON gr.id = br.run_id
+                WHERE br.batch_id = OLD.id;
+                IF terminal_count <> child_count OR child_count NOT BETWEEN 3 AND 10 THEN
+                    RAISE EXCEPTION 'scenario batch terminal state requires all children terminal';
+                END IF;
+                IF (NEW.status = 'succeeded' AND (failed_count > 0 OR cancelled_count > 0))
+                    OR (NEW.status = 'failed' AND failed_count = 0)
+                    OR (NEW.status = 'cancelled' AND (failed_count > 0 OR cancelled_count = 0))
+                THEN
+                    RAISE EXCEPTION 'scenario batch terminal state conflicts with child results';
+                END IF;
+                IF NEW.finished_at IS NULL THEN
+                    RAISE EXCEPTION 'terminal scenario batch requires finished_at';
+                END IF;
+            END IF;
             RETURN NEW;
         END;
-        $$ LANGUAGE plpgsql
+        $ LANGUAGE plpgsql
         """
     )
     op.execute(
