@@ -31,6 +31,7 @@ IMMUTABLE_SUCCEEDED_RUN_FIELDS = frozenset(
     {
         "id",
         "project_id",
+        "rerun_source_id",
         "status",
         "mode",
         "seed",
@@ -73,6 +74,10 @@ class GenerationRun(Base):
     __tablename__ = "generation_runs"
     __table_args__ = (
         CheckConstraint(
+            "rerun_source_id IS NULL OR rerun_source_id <> id",
+            name="ck_generation_runs_rerun_not_self",
+        ),
+        CheckConstraint(
             "mode IN ('EXPANSION', 'FROM_SCRATCH')",
             name="ck_generation_runs_mode",
         ),
@@ -105,6 +110,12 @@ class GenerationRun(Base):
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    rerun_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("generation_runs.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     status: Mapped[str] = mapped_column(

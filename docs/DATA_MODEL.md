@@ -22,6 +22,8 @@ Legacy datasets из ранней схемы мигрируют в `version = 1`
 
 `mode` ограничен значениями `EXPANSION` и `FROM_SCRATCH`. Успешный run (`status = succeeded`) должен иметь commit SHA. S11-T13 добавляет nullable `validation_json`: это JSONB-представление versioned canonical `ValidationReport` codec, а не отдельная violation-модель. Writer ограничивает report 10 000 results и требует совпадения problem-geometry SRID с snapshot `working_srid`. После перехода в успешное состояние scalar-поля run, включая `validation_json`, и набор ссылок на `DatasetVersion` неизменяемы; защита существует как в ORM, так и на уровне PostgreSQL trigger. Добавить или удалить dataset-version ref успешного запуска нельзя. DatasetVersion, уже используемую запуском, нельзя удалить через FK `RESTRICT`.
 
+UG-AI-076 / S12-T11 добавляет nullable `rerun_source_id` — ссылку на исходный успешный run с `ON DELETE RESTRICT`, self-reference guard и индексом. Поле фиксируется при создании клона и становится неизменяемым после успеха вместе с прочими scalar-полями. `SqlAlchemyExactRerunService` создаёт новую queued run/job/pending outbox в одной транзакции, не копируя stage rows, outputs или metrics. Прежде чем клонировать immutable mode/seed/working SRID/полную canonical JSON config/schema/code SHA и те же DatasetVersion refs, он требует готовые project-owned версии с SHA-256, корректный source `artifact_key`, referenced DB artifact данного DatasetVersion и совпадение его storage metadata и SHA-256 фактических bytes при потоковой проверке. Code SHA проходит обязательный внешний `CodeRevisionAvailability` check на исполнимую версию. Missing blob, устаревшая версия, legacy NULL checksum, content mismatch и недоступный commit отклоняются без частичной постановки. Проектная boundary должна существовать в той же metric CRS; исторический fingerprint её изменяемой геометрии в старом run не хранится, поэтому полноту исходного пространственного snapshot пока нельзя доказать (ADR-0008). Повторный запрос — новый run, не cross-run checkpoint reuse.
+
 Миграция legacy `GenerationRun` присваивает историческим строкам `mode = EXPANSION`, `config_schema_version = legacy-v0` и копирует `working_srid` из проекта. Старое `code_version` переносится в `commit_sha` только если уже является 40-символьным hex commit SHA; неизвестная или произвольная версия не подменяется фиктивным SHA.
 
 ## ScenarioBatch (S12-T09)
@@ -74,8 +76,8 @@ spec создаёт отдельную группу с новыми UUID, но �
 семантическими inputs. Параллелизм по-прежнему ограничивает S12-T09 parent
 row admission, не новый scheduler. См. ADR-0006 и ADR-0007.
 
-HTTP API, distributed scheduler, exact rerun и cross-run reuse остаются
-последующими S12 work items.
+HTTP API, distributed scheduler и cross-run reuse остаются
+последующими S12 work items. Verified input-only exact rerun описан выше и в ADR-0008.
 
 ## RunStageResult
 
