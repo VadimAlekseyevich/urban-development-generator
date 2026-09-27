@@ -8,6 +8,7 @@ from io import BytesIO
 from typing import BinaryIO
 
 import pytest
+from arq import Retry
 
 from backend.app.application.checkpoints import (
     CheckpointIdentity,
@@ -19,7 +20,9 @@ from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
     GenerationJobService,
+    GenerationRetryScheduled,
     GenerationRuntime,
+    generation_retry_delay_seconds,
     StageInvocation,
 )
 from core.urban_generator.domain import (
@@ -41,7 +44,12 @@ from core.urban_generator.domain import (
     TerritorySnapshot,
     build_stage_fingerprint,
 )
-from core.urban_generator.domain.errors import CancelledError
+from core.urban_generator.domain.errors import (
+    CancelledError,
+    PermanentError,
+    TransientError,
+    UrbanGeneratorError,
+)
 from core.urban_generator.stages import StageRegistry, StageSkipReason
 from core.urban_generator.stages.registry import StageAny
 from worker.tasks import (
@@ -83,6 +91,7 @@ class DummyStage:
     dependencies: tuple[str, ...] = ()
     version: str = "1"
     should_fail: bool = False
+    failure: UrbanGeneratorError | None = None
 
     def validate_input(self, value: object) -> int:
         if not isinstance(value, int):
@@ -98,6 +107,8 @@ class DummyStage:
         config: str,
     ) -> StageResult[int]:
         assert snapshot.settings.working_srid == context.working_srid
+        if self.failure is not None:
+            raise self.failure
         if self.should_fail:
             raise RuntimeError("synthetic stage failure")
         return StageResult(
@@ -145,6 +156,8 @@ class FakeStateStore:
         self.run_completed = False
         self.run_failed = False
         self.failed_stage: str | None = None
+        self.failure_error: UrbanGeneratorError | None = None
+        self.retry_after_seconds: int | None = None
         self.run_cancelled = False
         self.cancel_requested = False
         self.cancel_on_start: str | None = None
@@ -241,8 +254,16 @@ class FakeStateStore:
         assert set(expected_stage_names) == set(self.records)
         self.run_completed = True
 
-    def fail_run(self, *, run_id: uuid.UUID, stage_name: str | None) -> None:
+    def fail_run(
+        self,
+        *,
+        run_id: uuid.UUID,
+        stage_name: str | None,
+        error: UrbanGeneratorError,
+    ) -> int | None:
         self.run_failed = True
+        self.failure_error = error
+        return self.retry_after_seconds
 
 
 class StaticFactory:
@@ -488,3 +509,63 @@ def test_stage_invocation_requires_explicit_canonical_hash_parts() -> None:
         StageInvocation(  # type: ignore[arg-type]
             stage_input=1, input_parts=("v1",), config_parts=(1,)
         )
+
+
+@pytest.mark.parametrize(
+    ("attempt", "delay"),
+    ((1, 30), (2, 60), (3, 120), (4, 240), (5, 300), (8, 300)),
+)
+def test_generation_retry_backoff_is_bounded(attempt: int, delay: int) -> None:
+    assert generation_retry_delay_seconds(attempt) == delay
+
+
+@pytest.mark.parametrize("attempt", (0, -1, True))
+def test_generation_retry_backoff_rejects_invalid_attempt(attempt: int) -> None:
+    with pytest.raises(ValueError, match="attempt_count"):
+        generation_retry_delay_seconds(attempt)
+
+
+def test_typed_transient_generation_error_is_preserved_without_stage_replay() -> None:
+    runtime, _ = _runtime(
+        (DummyStage("root", failure=TransientError("temporary source read")),)
+    )
+    store = FakeStateStore()
+    service = GenerationJobService(state_store=store, runtime_factory=StaticFactory(runtime))
+
+    with pytest.raises(GenerationExecutionError, match="stage: root"):
+        service.run(run_id=RUN_ID)
+
+    assert isinstance(store.failure_error, TransientError)
+    assert store.failed_stage == "root"
+    assert store.records["root"] == ("failed", None)
+
+
+def test_untyped_stage_error_maps_to_permanent_failure() -> None:
+    runtime, _ = _runtime((DummyStage("root", should_fail=True),))
+    store = FakeStateStore()
+    with pytest.raises(GenerationExecutionError):
+        GenerationJobService(
+            state_store=store, runtime_factory=StaticFactory(runtime)
+        ).run(run_id=RUN_ID)
+    assert isinstance(store.failure_error, PermanentError)
+
+
+class TransientAssemblyFactory:
+    def create(self, *, run_id: uuid.UUID) -> GenerationRuntime:
+        raise TransientError("temporary runtime assembly unavailable")
+
+
+def test_retryable_assembly_failure_requests_bounded_worker_retry() -> None:
+    store = FakeStateStore()
+    store.retry_after_seconds = 30
+    service = GenerationJobService(
+        state_store=store, runtime_factory=TransientAssemblyFactory()
+    )
+    with pytest.raises(GenerationRetryScheduled) as exc:
+        service.run(run_id=RUN_ID)
+    assert exc.value.delay_seconds == 30
+    assert isinstance(store.failure_error, TransientError)
+    assert store.run_failed and store.records == {}
+
+    with pytest.raises(Retry):
+        asyncio.run(run_generation({"generation_job_service": service}, str(RUN_ID)))
