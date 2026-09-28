@@ -174,6 +174,9 @@ def _seed(
         )
         session.add(produced)
         roads.artifacts.append(produced)
+        # Complete the relational publication before the successful-run guard
+        # begins rejecting new stage/artifact links.
+        session.flush()
         if status == "succeeded":
             run.status = "succeeded"
         elif status != "running":
