@@ -140,6 +140,15 @@ map panels to one selected compared run ID. Absent run-layer read models are
 shown as empty; no other run is substituted. No new HTTP endpoint.
 See `docs/COMPARE_UI.md`.
 
+## LayerCatalog contract (S13-T01)
+
+The typed, owner-qualified, versioned catalog lives in
+`backend/app/application/layer_catalog.py` and is specified in
+`docs/LAYER_CATALOG.md`. Its 18 definitions reference existing routes
+and do not assert data materialization or bypass existing project/run/dataset
+authorization. This is an application contract only: S13-T01 does not add a
+catalog HTTP endpoint; generalized bbox delivery is S13-T02.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
