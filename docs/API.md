@@ -113,12 +113,28 @@ canonical data. No score/normalization/validation/GIS computation is rerun. The
 transport and semantic contract is in `docs/RUN_COMPARE.md`.
 
 
+## Run control and progress API
+
+S12-T14 adds DB-authoritative run creation, cancellation, manual terminal retry and
+stage progress snapshots:
+
+- `POST /projects/{project_id}/runs` — create one queued run/job/outbox from
+  full config, seed, mode, ready project-owned dataset versions and commit SHA;
+- `GET /projects/{project_id}/runs?limit=50` — bounded newest project runs;
+- `GET /projects/{project_id}/runs/{run_id}` — persisted job/stage progress;
+- `POST /projects/{project_id}/runs/{run_id}/cancel` — one-way cancellation;
+- `POST /projects/{project_id}/runs/{run_id}/retry` — idempotent fresh child of
+  a failed/cancelled source, never mutating/reusing its outputs.
+
+Request, state and polling semantics are in `docs/RUN_CONTROL.md`. HTTP never
+executes GIS or directly enqueues Redis. A running cancellation remains pending
+until the worker's cooperative boundary. 404 = project-scoped missing resource,
+409 = invalid persisted lifecycle/inputs, 422 = invalid request bounds.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
 - `/projects/{id}/layers` — нормализованные слои;
-- `/projects/{id}/runs` — создание вариантов;
-- `/runs/{id}` и `/runs/{id}/stages` — статус и прогресс;
 - `/runs/{id}/metrics` — показатели;
 - `/runs/{id}/export` — экспорт;
 
