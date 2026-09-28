@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError, replace
 from urllib.parse import urlsplit
 
 import pytest
+
 from backend.app.api.v1.router import api_router
 from backend.app.application.layer_catalog import (
     CANONICAL_LAYER_DEFINITIONS,
