@@ -131,6 +131,15 @@ executes GIS or directly enqueues Redis. A running cancellation remains pending
 until the worker's cooperative boundary. 404 = project-scoped missing resource,
 409 = invalid persisted lifecycle/inputs, 422 = invalid request bounds.
 
+## Compare UI and map switching
+
+S12-T15 adds a frontend consumer of existing `GET /metric-runs` and
+`POST /compare` routes. It displays 2–10 persisted run metric, score and
+validation columns with explicit baseline, and switches all generated/validation
+map panels to one selected compared run ID. Absent run-layer read models are
+shown as empty; no other run is substituted. No new HTTP endpoint.
+See `docs/COMPARE_UI.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

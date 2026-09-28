@@ -1,7 +1,9 @@
+import { resolveMapRunId } from './compareSelection'
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
 } from 'react'
@@ -68,6 +70,7 @@ type DemographyPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
 }
 
 function metricProperty(mode: MetricMode): string {
@@ -193,9 +196,12 @@ export function DemographyPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
 }: DemographyPanelProps) {
   const [runs, setRuns] = useState<DemographyRunSummary[]>([])
-  const [runId, setRunId] = useState('')
+  const [localRunId, setRunId] = useState('')
+  const runId = resolveMapRunId(runs, localRunId, pinnedRunId)
+  const viewportAbortRef = useRef<AbortController | null>(null)
   const [metrics, setMetrics] = useState<DemographyMetrics | null>(null)
   const [metricMode, setMetricMode] = useState<MetricMode>('density')
   const [visible, setVisible] = useState(true)
@@ -211,6 +217,15 @@ export function DemographyPanel({
     () => runs.find((run) => run.id === runId) ?? null,
     [runId, runs],
   )
+
+  useEffect(() => {
+    viewportAbortRef.current?.abort()
+    setSelected(null)
+    setMetrics(null)
+    setFeatureCount(0)
+    setTruncated(false)
+    if (map) setData(map, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -335,7 +350,13 @@ export function DemographyPanel({
   }, [apiBase, projectId, runId])
 
   const loadViewport = useCallback(async () => {
-    if (!map || !projectId || !runId || !visible) return
+    if (!map || !projectId || !runId || !visible) {
+      if (map) setData(map, EMPTY_FEATURE_COLLECTION)
+      return
+    }
+    viewportAbortRef.current?.abort()
+    const controller = new AbortController()
+    viewportAbortRef.current = controller
     const bounds = map.getBounds()
     const bbox = bboxParam(
       viewportBounds(
@@ -355,7 +376,7 @@ export function DemographyPanel({
       encodeURIComponent(bbox) +
       '&limit=' +
       String(VIEWPORT_LIMIT)
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) {
       throw new Error(
         'Demography viewport: HTTP ' +
@@ -365,6 +386,7 @@ export function DemographyPanel({
       )
     }
     const result = (await response.json()) as DemographyResponse
+    if (controller.signal.aborted) return
     setData(map, {
       type: 'FeatureCollection',
       features: result.features,
@@ -377,6 +399,7 @@ export function DemographyPanel({
     if (!map || !runId || !visible) return
     const refresh = () => {
       void loadViewport().catch((error: unknown) => {
+        if (error instanceof Error && error.name === 'AbortError') return
         setStatus('error')
         setMessage(error instanceof Error ? error.message : String(error))
       })
@@ -385,6 +408,7 @@ export function DemographyPanel({
     refresh()
     return () => {
       map.off('moveend', refresh)
+      viewportAbortRef.current?.abort()
     }
   }, [loadViewport, map, runId, visible])
 
@@ -412,8 +436,9 @@ export function DemographyPanel({
         <select
           value={runId}
           onChange={onRunChange}
-          disabled={runs.length === 0}
+          disabled={pinnedRunId !== null || runs.length === 0}
         >
+          {pinnedRunId !== null && !runId && <option value="">Нет demography результатов для run</option>}
           {runs.length === 0 && <option value="">Нет demography runs</option>}
           {runs.map((run) => (
             <option key={run.id} value={run.id}>

@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import {
   useCallback,
   useEffect,
@@ -145,6 +146,7 @@ type InfrastructurePanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
 }
 
 const GENERATED_CATEGORY_COLOR: ExpressionSpecification = [
@@ -489,13 +491,15 @@ export function InfrastructurePanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
 }: InfrastructurePanelProps) {
   const runsAbortRef = useRef<AbortController | null>(null)
   const viewportAbortRef = useRef<AbortController | null>(null)
   const metricsAbortRef = useRef<AbortController | null>(null)
 
   const [runs, setRuns] = useState<InfrastructureRunSummary[]>([])
-  const [runId, setRunId] = useState('')
+  const [localRunId, setRunId] = useState('')
+  const runId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [runsStatus, setRunsStatus] = useState<LoadStatus>('idle')
   const [runsMessage, setRunsMessage] = useState(
     'Выберите проект с infrastructure run.',
@@ -535,6 +539,19 @@ export function InfrastructurePanel({
     () => runs.find((run) => run.id === runId) ?? null,
     [runId, runs],
   )
+  useEffect(() => {
+    viewportAbortRef.current?.abort()
+    metricsAbortRef.current?.abort()
+    setMetrics(null)
+    setRunSelectionNotice(null)
+    setSelected(null)
+    setSelectedDemand(null)
+    setViewportLayers(emptyViewportLayerStates())
+    if (!map) return
+    setSourceData(map, FACILITY_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+    setSourceData(map, DEMAND_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
+
   const readModelReady = readModelStatus === 'ready'
 
   const truncatedLayers = useMemo(
@@ -1080,8 +1097,9 @@ export function InfrastructurePanel({
           <select
             value={runId}
             onChange={changeRun}
-            disabled={runsStatus === 'loading' || runs.length === 0}
+            disabled={pinnedRunId !== null || runsStatus === 'loading' || runs.length === 0}
           >
+            {pinnedRunId !== null && !runId && <option value="">Нет infrastructure результатов для run</option>}
             {runs.length === 0 && <option value="">Нет infrastructure runs</option>}
             {runs.map((run) => (
               <option value={run.id} key={run.id}>

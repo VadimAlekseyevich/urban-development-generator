@@ -10,13 +10,12 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-079, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. The current ordered task is **UG-AI-080 / S12-T15**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. The current ordered task is **UG-AI-081 / S13-T01**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
 
-It does **not** mean S12 orchestration, S13 delivery, S14 hardening or S15 experiments are already
-implemented; those remain normal future roadmap work.
+M3/M4 S12 integration contracts are closed with synthetic worker/persistence and API acceptance (see `MILESTONES.md`). This does **not** assert a real-territory browser E2E, production hardening, S13 delivery or S15 experiment results; those remain future roadmap work.
 
 ## 2. Accepted architecture decisions
 
@@ -65,10 +64,8 @@ threaten the stabilized cross-cutting architecture.
 
 Do not pull these forward merely because M0 is complete:
 
-- executable persistent DAG/checkpoints — S12;
-- production generation worker — S12;
-- cancellation/retry execution policy — S12;
-- scenario batches/exact rerun/provenance manifest — S12;
+- real-territory browser E2E across complete workspace — S13;
+- real-territory output reproducibility/tolerance experiments — S15;
 - MVT/export/workspace generalization — S13;
 - production reliability/performance hardening — S14;
 - experiments/research/demo package — S15.
@@ -102,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-080 / S12-T15
-Add 2–N compare UI and map run switching; complete M3/M4 gates.
+UG-AI-081 / S13-T01
+Define canonical LayerCatalog entry ownership/version/source-kind/render metadata contract.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
