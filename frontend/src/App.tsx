@@ -14,6 +14,7 @@ import maplibregl, {
 } from 'maplibre-gl'
 
 import { BlockParcelsPanel } from './BlockParcelsPanel'
+import { ComparePanel } from './ComparePanel'
 import { BuildingsPanel } from './BuildingsPanel'
 import { DemographyPanel } from './DemographyPanel'
 import { InfrastructurePanel } from './InfrastructurePanel'
@@ -233,6 +234,7 @@ function App() {
   const [layerStats, setLayerStats] = useState<LayerStats>(EMPTY_STATS)
   const [boundaryAvailable, setBoundaryAvailable] = useState(false)
   const [selected, setSelected] = useState<SelectedFeature | null>(null)
+  const [mapRunId, setMapRunId] = useState<string | null>(null)
 
   const activeLayerCount = useMemo(
     () => SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer]).length,
@@ -461,6 +463,7 @@ function App() {
 
     setContextError(null)
     setSelected(null)
+    setMapRunId(null)
     setLayerStats(EMPTY_STATS)
     setContext(next)
     const url = new URL(window.location.href)
@@ -606,9 +609,18 @@ function App() {
           datasetVersionId={context?.datasetVersionId ?? null}
         />
 
+        <ComparePanel
+          key={context?.projectId ?? 'no-compare-project'}
+          apiBase={API_BASE}
+          projectId={context?.projectId ?? null}
+          mapRunId={mapRunId}
+          onMapRunChange={setMapRunId}
+        />
+
         <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
 
         <ZoningPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
@@ -616,6 +628,7 @@ function App() {
         />
 
         <RoadsPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
@@ -623,24 +636,28 @@ function App() {
         />
 
         <BlockParcelsPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
         />
 
         <BuildingsPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
         />
 
         <DemographyPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
         />
 
         <InfrastructurePanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
@@ -652,6 +669,7 @@ function App() {
         />
 
         <ViolationsPanel
+          pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
@@ -699,7 +717,7 @@ function App() {
       <section className="map-shell" aria-label="Карта исходных слоёв и suitability">
         <div className="map-overlay">
           <span className={`map-state map-state-${loadStatus}`}>
-            {context ? context.datasetVersionId.slice(0, 8) : 'no dataset'}
+            {mapRunId ? `run ${mapRunId.slice(0, 8)}` : context ? context.datasetVersionId.slice(0, 8) : 'no dataset'}
           </span>
         </div>
         <div ref={mapContainer} className="map" />
