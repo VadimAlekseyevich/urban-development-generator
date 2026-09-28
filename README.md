@@ -129,7 +129,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 
 ## Статус
 
-**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-080**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
+**Sprint S11 и S12 завершены; M0–M4 contract/integration gates закрыты. S12 реализован through UG-AI-080**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -145,7 +145,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
-Readiness остаётся **ACCEPTED**; S12-T15 adds bounded comparison and map-run switching, следующий ordered execution item —
+Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Сквозной браузерный E2E на реальном датасете остаётся S13-T14, эксперименты воспроизводимости — S15. Следующий ordered execution item —
 **`UG-AI-081 / S13-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
