@@ -211,7 +211,7 @@ def test_manifest_is_canonical_reproducible_and_does_not_mutate_run() -> None:
     assert value["run"]["seed"] == 42
     assert value["run"]["working_srid"] == WORKING_SRID
     assert value["code"] == {"commit_sha": "c" * 40}
-    config_bytes = '{"a":{"x":1,"z":2},"б":"тест"}'.encode("utf-8")
+    config_bytes = '{"a":{"x":1,"z":2},"б":"тест"}'.encode()
     assert value["config"]["checksum"] == "sha256:" + hashlib.sha256(
         config_bytes
     ).hexdigest()
