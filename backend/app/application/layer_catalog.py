@@ -297,6 +297,9 @@ class LayerCatalog:
         keys = tuple(entry.instance_key for entry in self.entries)
         if len(keys) != len(set(keys)):
             raise LayerCatalogError("duplicate owner-qualified layer identity")
+        logical_ids = tuple(entry.definition.layer_id for entry in self.entries)
+        if len(logical_ids) != len(set(logical_ids)):
+            raise LayerCatalogError("duplicate logical layer across different owners")
         canonical_order = {
             definition.layer_id: i
             for i, definition in enumerate(CANONICAL_LAYER_DEFINITIONS)
