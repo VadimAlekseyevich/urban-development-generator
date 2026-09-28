@@ -102,7 +102,9 @@ class SqlAlchemyProvenanceManifestService:
                         name="provenance", config_json=run.config_json
                     )
                 except ScenarioMatrixError as exc:
-                    raise ProvenanceManifestError("run config is not canonical finite JSON") from exc
+                    raise ProvenanceManifestError(
+                        "run config is not canonical finite JSON"
+                    ) from exc
                 if not run.config_schema_version:
                     raise ProvenanceManifestError("run config schema version is missing")
                 config_bytes = config.canonical_config_json.encode("utf-8")
