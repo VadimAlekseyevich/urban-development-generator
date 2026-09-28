@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
@@ -12,6 +13,7 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from backend.app.db.run_metrics_writer import composite_score_payload
 from backend.app.db.session import engine
 from backend.app.main import app
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -20,6 +22,12 @@ from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
+from core.urban_generator.domain import ValidationReport, serialize_validation_report
+from core.urban_generator.domain.benchmarking import RawMetricId
+from core.urban_generator.metrics.score import (
+    CompositeScoreMetricResult,
+    CompositeScoreResult,
+)
 
 WORKING_SRID = 32637
 COMMIT = "a" * 40
@@ -253,3 +261,90 @@ def test_failed_source_retry_revalidates_ready_versions_and_preserves_source() -
     with Session(engine) as session:
         source = session.get(GenerationRun, run_id)
         assert source is not None and source.status == "failed"
+
+
+def _persisted_score(raw_area: float, score: float) -> dict[str, object]:
+    metric = CompositeScoreMetricResult(
+        metric_id=RawMetricId.LAND_DEVELOPED_AREA_M2,
+        raw_value=raw_area,
+        normalized_value=score,
+        normalization_policy_version="1",
+        configured_weight=1.0,
+        normalized_weight=1.0,
+        contribution=score,
+        was_clamped=False,
+        was_missing=False,
+    )
+    return {
+        "evaluation": composite_score_payload(
+            CompositeScoreResult(
+                score=score,
+                score_config_id="workflow-fixture",
+                score_config_version="1",
+                normalization_profile_id="workflow-profile",
+                normalization_profile_version="1",
+                metrics=(metric,),
+            )
+        )
+    }
+
+
+def test_m4_created_runs_compare_only_persisted_inputs_without_mutation() -> None:
+    """Integration gate: create -> persisted success -> compare -> scoped read."""
+    project_id, version_id = _fixture()
+    foreign_project, _foreign_version = _fixture()
+    first = _create(project_id, version_id)
+    second = _create(project_id, version_id)
+    assert first.status_code == second.status_code == 201
+    ids = (uuid.UUID(first.json()["id"]), uuid.UUID(second.json()["id"]))
+
+    # Simulate canonical worker publication after the API's atomic job/outbox
+    # creation. This acceptance checks persistence/HTTP wiring, not GIS execution.
+    with Session(engine) as session:
+        with session.begin():
+            for run_id, area, score in zip(ids, (10.0, 20.0), (0.5, 0.75), strict=True):
+                run = session.get(GenerationRun, run_id)
+                job = session.scalar(select(Job).where(Job.run_id == run_id))
+                assert run is not None and job is not None
+                run.status = job.status = "running"
+                session.flush()
+                run.metrics_json = _persisted_score(area, score)
+                run.validation_json = json.loads(
+                    serialize_validation_report(ValidationReport(results=()))
+                )
+                run.status = job.status = "succeeded"
+
+    before = _counts()
+    response = client.post(
+        f"/api/v1/projects/{project_id}/compare",
+        json={"run_ids": [str(ids[0]), str(ids[1])]},
+    )
+    assert response.status_code == 200, response.text
+    compared = response.json()
+    assert compared["run_ids"] == [str(run_id) for run_id in ids]
+    assert compared["baseline_run_id"] == str(ids[0])
+    assert compared["scores_comparable"] is True
+    assert [run["score_rank"] for run in compared["runs"]] == [2, 1]
+    area_metric = next(
+        metric for metric in compared["metrics"]
+        if metric["metric_id"] == RawMetricId.LAND_DEVELOPED_AREA_M2.value
+    )
+    assert area_metric["values"][1]["delta_from_baseline"] == 10.0
+    assert all(run["validation"]["violation_count"] == 0 for run in compared["runs"])
+    assert _counts() == before
+
+    for run_id in ids:
+        snapshot = client.get(f"/api/v1/projects/{project_id}/runs/{run_id}")
+        assert snapshot.status_code == 200
+        assert snapshot.json()["status"] == snapshot.json()["job"]["status"] == "succeeded"
+        assert client.post(
+            f"/api/v1/projects/{project_id}/runs/{run_id}/cancel"
+        ).json()["status"] == "succeeded"
+        assert client.post(
+            f"/api/v1/projects/{project_id}/runs/{run_id}/retry"
+        ).status_code == 409
+    assert client.post(
+        f"/api/v1/projects/{foreign_project}/compare",
+        json={"run_ids": [str(run_id) for run_id in ids]},
+    ).status_code == 404
+    assert _counts() == before
