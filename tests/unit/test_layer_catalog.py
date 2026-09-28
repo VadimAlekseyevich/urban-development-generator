@@ -7,8 +7,7 @@ from dataclasses import FrozenInstanceError, replace
 from urllib.parse import urlsplit
 
 import pytest
-from fastapi.routing import APIRoute
-
+from backend.app.api.v1.router import api_router
 from backend.app.application.layer_catalog import (
     CANONICAL_LAYER_DEFINITIONS,
     LAYER_CATALOG_SCHEMA_VERSION,
@@ -22,7 +21,6 @@ from backend.app.application.layer_catalog import (
     LayerSourceKind,
     layer_catalog_for_context,
 )
-from backend.app.main import app
 
 PROJECT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 VERSION_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
@@ -258,14 +256,13 @@ def test_definition_rejects_cross_scope_cross_source_or_unsafe_routes() -> None:
 
 def test_registry_points_only_to_existing_project_scoped_api_routes() -> None:
     """S13 catalog must not invent endpoints; query values are static origin filters."""
+    # Inspect the canonical router independently of app mounting/prefix settings.
     existing_routes = {
-        route.path.removeprefix("/api/v1")
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        and "GET" in route.methods
-        and route.path.startswith("/api/v1/")
+        route.path
+        for route in api_router.routes
+        if "GET" in getattr(route, "methods", ())
     }
-    assert len(existing_routes) >= len(CANONICAL_LAYER_DEFINITIONS) - 1
+    assert existing_routes
     for definition in CANONICAL_LAYER_DEFINITIONS:
         assert urlsplit(definition.path_template).path in existing_routes
         if definition.metadata_path_template is not None:
