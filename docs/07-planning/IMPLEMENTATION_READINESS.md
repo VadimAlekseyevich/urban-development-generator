@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-077, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. The current ordered task is **UG-AI-078 / S12-T13**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-078, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. The current ordered task is **UG-AI-079 / S12-T14**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -102,8 +102,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-078 / S12-T13
-Compare persisted canonical raw score inputs and validation reports without GIS recomputation.
+UG-AI-079 / S12-T14
+Add create/cancel/retry/progress UI over DB-authoritative run/job states.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
