@@ -186,6 +186,20 @@ def test_owner_and_catalog_are_frozen_and_duplicate_entries_rejected() -> None:
         entry.definition.render.default_visible = False  # type: ignore[misc]
     with pytest.raises(LayerCatalogError, match="duplicate"):
         LayerCatalog(entries=(entry, entry))
+    with pytest.raises(LayerCatalogError, match="duplicate logical"):
+        LayerCatalog(entries=(
+            LayerCatalogEntry(
+                definition=CANONICAL_LAYER_DEFINITIONS[0],
+                owner=LayerOwnerRef(scope=LayerOwnerScope.ARTIFACT, artifact_id=ARTIFACT_ID),
+            ),
+            LayerCatalogEntry(
+                definition=CANONICAL_LAYER_DEFINITIONS[0],
+                owner=LayerOwnerRef(
+                    scope=LayerOwnerScope.ARTIFACT,
+                    artifact_id=uuid.UUID("66666666-6666-4666-8666-666666666666"),
+                ),
+            ),
+        ))
     with pytest.raises(LayerCatalogError, match="canonical"):
         LayerCatalog(
             entries=(LayerCatalogEntry(
