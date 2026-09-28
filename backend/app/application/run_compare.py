@@ -13,7 +13,6 @@ from backend.app.application.metric_dashboard import (
     MetricDashboardUnavailableError,
     decode_persisted_evaluation,
 )
-from backend.app.db.run_validation_writer import MAX_PERSISTED_VALIDATION_RESULTS
 from core.urban_generator.domain import (
     ValidationReport,
     ValidationReportCodecError,
@@ -29,6 +28,8 @@ from core.urban_generator.metrics.score import CompositeScoreResult
 
 MIN_COMPARE_RUNS = 2
 MAX_COMPARE_RUNS = 10
+# Same persisted-report bound as the canonical S11 validation writer.
+MAX_COMPARE_VALIDATION_RESULTS = 10_000
 
 
 class RunCompareQueryError(ValueError):
@@ -267,7 +268,7 @@ def _validation_summary(record: CompareRunRecord) -> CompareValidationSummary:
         ) from exc
     if (
         not isinstance(report, ValidationReport)
-        or len(report.results) > MAX_PERSISTED_VALIDATION_RESULTS
+        or len(report.results) > MAX_COMPARE_VALIDATION_RESULTS
     ):
         raise RunCompareDataError(f"run {record.id} has oversized validation")
     for item in report.results:
