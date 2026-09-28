@@ -285,6 +285,7 @@ export function ZoningPanel({
           )
         }
         const generated = (await response.json()) as GeneratedZoneResponse
+        if (controller.signal.aborted) return
         setSourceData(map, GENERATED_SOURCE_ID, generated)
         nextGeneratedCount = generated.features.length
         nextGeneratedTruncated = generated.truncated
