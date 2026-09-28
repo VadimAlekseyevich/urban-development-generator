@@ -93,6 +93,26 @@ registry. An existing run without an evaluation envelope returns HTTP 409. Reads
 metric producers, normalization, GIS or scoring.
 
 
+## Persisted scenario comparison API
+
+S12-T13 exposes a bounded, read-only cross-run projection over existing immutable
+S11 evaluation/validation data:
+
+- `POST /projects/{project_id}/compare` with JSON body
+  `{"run_ids":["<baseline UUID>","<comparison UUID>",...]}` (2–10 unique runs).
+
+Input order is retained; the first run is the baseline. The response contains
+registered canonical raw scalar score-input metrics, raw deltas from baseline,
+direction-aware ranks (null for TARGET/DESCRIPTIVE/missing), score configuration
+provenance and score ranks/deltas only when policies/weights are identical. Each
+run includes canonical hard/soft/spatial validation failure counts.
+
+404 means missing project/run within project, 422 invalid request, 409 non-successful
+or missing persisted inputs/mismatched metric SRID, and 500 malformed persisted
+canonical data. No score/normalization/validation/GIS computation is rerun. The
+transport and semantic contract is in `docs/RUN_COMPARE.md`.
+
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
@@ -101,6 +121,5 @@ metric producers, normalization, GIS or scoring.
 - `/runs/{id}` и `/runs/{id}/stages` — статус и прогресс;
 - `/runs/{id}/metrics` — показатели;
 - `/runs/{id}/export` — экспорт;
-- `/projects/{id}/compare` — сравнение вариантов.
 
 Тяжёлые GIS-операции выполняются в worker: API только создаёт job и возвращает идентификатор запуска.

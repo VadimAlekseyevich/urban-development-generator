@@ -11,6 +11,7 @@ from backend.app.application.infrastructure_layers import InfrastructureLayerQue
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
+from backend.app.application.run_compare import RunCompareService
 from backend.app.application.source_layers import SourceLayerQueryService
 from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
@@ -35,6 +36,7 @@ from backend.app.db.metric_dashboard_query_repository import (
 )
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
+from backend.app.db.run_compare_query_repository import SqlAlchemyRunCompareRepository
 from backend.app.db.session import get_db
 from backend.app.db.source_layer_query_repository import (
     SqlAlchemySourceLayerQueryRepository,
@@ -162,6 +164,14 @@ MetricDashboardQueryServiceDep = Annotated[
     MetricDashboardQueryService,
     Depends(get_metric_dashboard_query_service),
 ]
+
+
+def get_run_compare_service(db: DbSession) -> RunCompareService:
+    """Compose one bounded, project-scoped persisted comparison."""
+    return RunCompareService(SqlAlchemyRunCompareRepository(db))
+
+
+RunCompareServiceDep = Annotated[RunCompareService, Depends(get_run_compare_service)]
 
 
 def get_validation_layer_query_service(
