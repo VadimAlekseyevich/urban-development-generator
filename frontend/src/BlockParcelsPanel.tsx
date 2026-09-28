@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import {
   useCallback,
   useEffect,
@@ -66,6 +67,7 @@ type BlockParcelsPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
 }
 
 function setSourceData(
@@ -272,10 +274,12 @@ export function BlockParcelsPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
 }: BlockParcelsPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<BlockParcelRunSummary[]>([])
-  const [selectedRunId, setSelectedRunId] = useState('')
+  const [localRunId, setSelectedRunId] = useState('')
+  const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [blocksVisible, setBlocksVisible] = useState(true)
   const [parcelsVisible, setParcelsVisible] = useState(true)
   const [blockCount, setBlockCount] = useState(0)
@@ -290,6 +294,14 @@ export function BlockParcelsPanel({
     () => runs.find((run) => run.id === selectedRunId) ?? null,
     [runs, selectedRunId],
   )
+
+  useEffect(() => {
+    abortRef.current?.abort()
+    setSelected(null)
+    if (!map) return
+    setSourceData(map, BLOCK_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+    setSourceData(map, PARCEL_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -539,8 +551,9 @@ export function BlockParcelsPanel({
         <select
           value={selectedRunId}
           onChange={changeRun}
-          disabled={!projectId || runs.length === 0}
+          disabled={pinnedRunId !== null || !projectId || runs.length === 0}
         >
+          {pinnedRunId !== null && !selectedRunId && <option value="">Нет block/parcel результатов для выбранного run</option>}
           {runs.length === 0 && <option value="">Нет persisted block/parcel runs</option>}
           {runs.map((run) => (
             <option value={run.id} key={run.id}>
