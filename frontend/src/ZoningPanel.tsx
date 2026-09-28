@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 
@@ -52,6 +53,7 @@ type ZoningPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
   datasetVersionId: string | null
 }
 
@@ -129,11 +131,13 @@ export function ZoningPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
   datasetVersionId,
 }: ZoningPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<ZoningRunSummary[]>([])
-  const [selectedRunId, setSelectedRunId] = useState('')
+  const [localRunId, setSelectedRunId] = useState('')
+  const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [fixedVisible, setFixedVisible] = useState(false)
   const [generatedVisible, setGeneratedVisible] = useState(true)
   const [fixedOpacity, setFixedOpacity] = useState(24)
@@ -149,6 +153,12 @@ export function ZoningPanel({
     () => runs.find((run) => run.id === selectedRunId) ?? null,
     [runs, selectedRunId],
   )
+
+  useEffect(() => {
+    abortRef.current?.abort()
+    if (!map) return
+    setSourceData(map, GENERATED_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -340,7 +350,8 @@ export function ZoningPanel({
 
       <label className="zoning-select">
         <span>Generated run</span>
-        <select value={selectedRunId} onChange={changeRun} disabled={!projectId || runs.length === 0}>
+        <select value={selectedRunId} onChange={changeRun} disabled={pinnedRunId !== null || !projectId || runs.length === 0}>
+          {pinnedRunId !== null && !selectedRunId && <option value="">Нет zoning результатов для выбранного run</option>}
           {runs.length === 0 && <option value="">Нет persisted zoning runs</option>}
           {runs.map((run) => (
             <option value={run.id} key={run.id}>
