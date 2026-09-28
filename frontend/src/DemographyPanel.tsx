@@ -399,7 +399,7 @@ export function DemographyPanel({
     if (!map || !runId || !visible) return
     const refresh = () => {
       void loadViewport().catch((error: unknown) => {
-        if (caught instanceof Error && caught.name === 'AbortError') return
+        if (error instanceof Error && error.name === 'AbortError') return
         setStatus('error')
         setMessage(error instanceof Error ? error.message : String(error))
       })
