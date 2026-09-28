@@ -120,6 +120,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/METRICS_DASHBOARD.md` — S11 persisted score explanation API/UI with canonical raw metric units;
 - `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
 - `docs/PROVENANCE_MANIFEST.md` — S12 canonical successful-run provenance JSON, ordering and validation contract;
+- `docs/RUN_COMPARE.md` — S12 bounded persisted scenario comparison over canonical raw metrics and validation;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
