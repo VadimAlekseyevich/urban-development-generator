@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 import uuid
 from dataclasses import FrozenInstanceError, replace
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
 
-from backend.app.api.v1.router import api_router
 from backend.app.application.layer_catalog import (
     CANONICAL_LAYER_DEFINITIONS,
     LAYER_CATALOG_SCHEMA_VERSION,
@@ -256,18 +257,62 @@ def test_definition_rejects_cross_scope_cross_source_or_unsafe_routes() -> None:
 
 
 def test_registry_points_only_to_existing_project_scoped_api_routes() -> None:
-    """S13 catalog must not invent endpoints; query values are static origin filters."""
-    # Inspect the canonical router independently of app mounting/prefix settings.
-    existing_routes = {
-        route.path
-        for route in api_router.routes
-        if "GET" in getattr(route, "methods", ())
-    }
-    assert existing_routes
+    """Verify endpoint declarations without relying on mutable ASGI app state."""
+    endpoint_dir = (
+        Path(__file__).resolve().parents[2] / "backend" / "app" / "api" / "v1"
+        / "endpoints"
+    )
+    modules = (
+        "source_layers.py",
+        "zoning.py",
+        "roads.py",
+        "blocks_parcels.py",
+        "buildings.py",
+        "demography.py",
+        "infrastructure.py",
+        "validation.py",
+        "suitability.py",
+    )
+    declared_get_paths: set[str] = set()
+    for name in modules:
+        tree = ast.parse((endpoint_dir / name).read_text(encoding="utf-8"))
+        router_prefix = ""
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(
+                isinstance(target, ast.Name) and target.id == "router"
+                for target in node.targets
+            ):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            for keyword in node.value.keywords:
+                if keyword.arg == "prefix" and isinstance(keyword.value, ast.Constant):
+                    assert isinstance(keyword.value.value, str)
+                    router_prefix = keyword.value.value
+
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for decorator in node.decorator_list:
+                if (
+                    isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Attribute)
+                    and decorator.func.attr == "get"
+                    and isinstance(decorator.func.value, ast.Name)
+                    and decorator.func.value.id == "router"
+                    and decorator.args
+                    and isinstance(decorator.args[0], ast.Constant)
+                    and isinstance(decorator.args[0].value, str)
+                ):
+                    declared_get_paths.add(router_prefix + decorator.args[0].value)
+
+    assert declared_get_paths
     for definition in CANONICAL_LAYER_DEFINITIONS:
-        assert urlsplit(definition.path_template).path in existing_routes
+        assert urlsplit(definition.path_template).path in declared_get_paths
         if definition.metadata_path_template is not None:
-            assert definition.metadata_path_template in existing_routes
+            assert definition.metadata_path_template in declared_get_paths
         if definition.delivery_kind is LayerDeliveryKind.BBOX_GEOJSON:
             assert definition.max_features is not None
             assert definition.max_features <= 5000
