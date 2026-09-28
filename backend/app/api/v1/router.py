@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from backend.app.api.v1.endpoints import (
     blocks_parcels,
     buildings,
+    compare,
     demography,
     health,
     infrastructure,
@@ -21,6 +22,7 @@ api_router.include_router(health.router)
 api_router.include_router(projects.router)
 api_router.include_router(infrastructure.router)
 api_router.include_router(metrics.router)
+api_router.include_router(compare.router)
 api_router.include_router(roads.router)
 api_router.include_router(blocks_parcels.router)
 api_router.include_router(buildings.router)
