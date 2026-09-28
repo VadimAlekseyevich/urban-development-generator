@@ -327,6 +327,7 @@ export function RoadsPanel({
           )
         }
         const generated = (await response.json()) as GeneratedRoadResponse
+        if (controller.signal.aborted) return
         setSourceData(map, GENERATED_SOURCE_ID, generated)
         nextGeneratedCount = generated.features.length
         nextGeneratedTruncated = generated.truncated
