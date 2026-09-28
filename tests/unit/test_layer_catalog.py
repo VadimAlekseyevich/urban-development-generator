@@ -15,12 +15,10 @@ from backend.app.application.layer_catalog import (
     LayerCatalog,
     LayerCatalogEntry,
     LayerCatalogError,
-    LayerDefinition,
     LayerDeliveryKind,
     LayerGeometryKind,
     LayerOwnerRef,
     LayerOwnerScope,
-    LayerRenderMetadata,
     LayerSourceKind,
     layer_catalog_for_context,
 )
@@ -221,7 +219,7 @@ def test_definition_rejects_cross_scope_cross_source_or_unsafe_routes() -> None:
     for updates in (
         {"layer_id": "../roads"},
         {"definition_version": "0"},
-        {"owner_scope": LayerOwnerScope.RUN},
+        {"owner_scope": LayerOwnerScope.ARTIFACT},
         {"source_kind": LayerSourceKind.GENERATED},
         {"geometry_kind": LayerGeometryKind.RASTER},
         {"presentation_crs": "EPSG:3857"},
