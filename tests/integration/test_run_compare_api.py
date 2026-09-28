@@ -159,9 +159,11 @@ def _run(
                 config_json={},
                 config_schema_version="1",
                 commit_sha="a" * 40,
-                metrics_json=score,
-                validation_json=validation,
             )
+            if score is not None:
+                run.metrics_json = score
+            if validation is not None:
+                run.validation_json = validation
             session.add(run)
             session.flush()
             run.status = status
