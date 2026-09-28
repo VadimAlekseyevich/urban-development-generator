@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import {
   useCallback,
   useEffect,
@@ -56,6 +57,7 @@ type BuildingsPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
 }
 
 function setSourceData(
@@ -182,10 +184,12 @@ export function BuildingsPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
 }: BuildingsPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<BuildingRunSummary[]>([])
-  const [selectedRunId, setSelectedRunId] = useState('')
+  const [localRunId, setSelectedRunId] = useState('')
+  const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [visible, setVisible] = useState(true)
   const [count, setCount] = useState(0)
   const [truncated, setTruncated] = useState(false)
@@ -197,6 +201,13 @@ export function BuildingsPanel({
     () => runs.find((run) => run.id === selectedRunId) ?? null,
     [runs, selectedRunId],
   )
+
+  useEffect(() => {
+    abortRef.current?.abort()
+    setSelected(null)
+    if (!map) return
+    setSourceData(map, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -364,7 +375,8 @@ export function BuildingsPanel({
 
       <label className="buildings-select">
         <span>Generation run</span>
-        <select value={selectedRunId} onChange={changeRun} disabled={!runs.length}>
+        <select value={selectedRunId} onChange={changeRun} disabled={pinnedRunId !== null || !runs.length}>
+          {pinnedRunId !== null && !selectedRunId && <option value="">Нет building результатов для выбранного run</option>}
           {!runs.length && <option value="">Нет runs</option>}
           {runs.map((run) => (
             <option value={run.id} key={run.id}>
