@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import {
   useCallback,
   useEffect,
@@ -52,6 +53,7 @@ type ViolationsPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
 }
 
 function ensureViolationLayers(map: MapLibreMap): void {
@@ -210,13 +212,15 @@ export function ViolationsPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
 }: ViolationsPanelProps) {
   const runsAbortRef = useRef<AbortController | null>(null)
   const detailsAbortRef = useRef<AbortController | null>(null)
   const viewportAbortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<ValidationRunSummary[]>([])
   const [runsTruncated, setRunsTruncated] = useState(false)
-  const [selectedRunId, setSelectedRunId] = useState('')
+  const [localRunId, setSelectedRunId] = useState('')
+  const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [violations, setViolations] = useState<ViolationDetail[]>([])
   const [detailTotal, setDetailTotal] = useState(0)
   const [detailTruncated, setDetailTruncated] = useState(false)
@@ -233,6 +237,16 @@ export function ViolationsPanel({
     () => runs.find((run) => run.id === selectedRunId) ?? null,
     [runs, selectedRunId],
   )
+
+  useEffect(() => {
+    detailsAbortRef.current?.abort()
+    viewportAbortRef.current?.abort()
+    setViolations([])
+    setSelected(null)
+    setViewportCount(0)
+    setViewportTruncated(false)
+    if (map) setViolationData(map, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -450,8 +464,11 @@ export function ViolationsPanel({
         <select
           value={selectedRunId}
           onChange={changeRun}
-          disabled={!projectId || runs.length === 0}
+          disabled={pinnedRunId !== null || !projectId || runs.length === 0}
         >
+          {pinnedRunId !== null && !selectedRunId && (
+            <option value="">Нет validation результатов для run</option>
+          )}
           {runs.length === 0 && (
             <option value="">Нет persisted validation runs</option>
           )}
