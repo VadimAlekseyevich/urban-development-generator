@@ -67,7 +67,10 @@ class SqlAlchemyRunControlService:
         project_id: uuid.UUID,
         version_ids: tuple[uuid.UUID, ...],
     ) -> list[DatasetVersion]:
-        if not 1 <= len(version_ids) <= _MAX_DATASET_VERSIONS or len(set(version_ids)) != len(version_ids):
+        if (
+            not 1 <= len(version_ids) <= _MAX_DATASET_VERSIONS
+            or len(set(version_ids)) != len(version_ids)
+        ):
             raise RunControlConflict("run requires 1–32 distinct dataset versions")
         versions = session.scalars(
             select(DatasetVersion)
@@ -125,7 +128,11 @@ class SqlAlchemyRunControlService:
             raise RunControlConflict("invalid run mode")
         if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed <= _MAX_SEED:
             raise RunControlConflict("seed is outside persisted BIGINT range")
-        if not config_schema_version or not config_schema_version.strip() or len(config_schema_version) > 64:
+        if (
+            not config_schema_version
+            or not config_schema_version.strip()
+            or len(config_schema_version) > 64
+        ):
             raise RunControlConflict("invalid config schema version")
         if _COMMIT_RE.fullmatch(commit_sha) is None:
             raise RunControlConflict("commit_sha must be a real lowercase 40-hex revision")
@@ -177,6 +184,13 @@ class SqlAlchemyRunControlService:
                     raise RunControlNotFound("run not found in project")
                 if source.status not in _TERMINAL_RETRYABLE:
                     raise RunControlConflict("manual retry requires a failed or cancelled run")
+                jobs = session.scalars(
+                    select(Job)
+                    .where(Job.run_id == source.id, Job.job_type == "generation_run")
+                    .with_for_update()
+                ).all()
+                if len(jobs) != 1 or jobs[0].status != source.status:
+                    raise RunControlConflict("source run/job terminal states are inconsistent")
                 existing_id = session.scalar(
                     select(GenerationRun.id)
                     .where(GenerationRun.rerun_source_id == source.id)
