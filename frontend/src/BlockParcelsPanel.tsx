@@ -462,6 +462,7 @@ export function BlockParcelsPanel({
           )
         }
         const blocks = (await response.json()) as BlockParcelResponse
+        if (controller.signal.aborted) return
         setSourceData(map, BLOCK_SOURCE_ID, blocks)
         nextBlockCount = blocks.features.length
         nextBlocksTruncated = blocks.truncated
@@ -482,6 +483,7 @@ export function BlockParcelsPanel({
           )
         }
         const parcels = (await response.json()) as BlockParcelResponse
+        if (controller.signal.aborted) return
         setSourceData(map, PARCEL_SOURCE_ID, parcels)
         nextParcelCount = parcels.features.length
         nextParcelsTruncated = parcels.truncated
