@@ -1,0 +1,27 @@
+.compare-panel { display: grid; gap: 10px; }
+.compare-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.compare-heading strong, .compare-selected strong { font-size: 11px; }
+.compare-options { display: grid; gap: 5px; max-height: 220px; overflow-y: auto; }
+.compare-option { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; }
+.compare-option:has(input:checked) { background: #eff6ff; border-color: #93c5fd; }
+.compare-option input { flex: 0 0 auto; margin: 0; }
+.compare-option > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; flex: 1; overflow-wrap: anywhere; }
+.compare-option strong { font-size: 11px; }
+.compare-option small { font-size: 10px; color: #64748b; }
+.compare-baseline-mark { color: #1d4ed8; font-size: 10px; font-weight: 700; }
+.compare-selected { display: grid; gap: 5px; padding: 10px; background: #f8fafc; border-radius: 9px; }
+.compare-selected-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+.compare-selected-row .button { min-height: 26px; padding: 3px 7px; font-size: 10px; }
+.compare-result { display: grid; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 13px; min-width: 0; }
+.compare-result h3 { font-size: 12px; margin: 0; }
+.compare-map-switch { display: flex; flex-wrap: wrap; gap: 5px; }
+.compare-map-switch .button { min-height: 29px; padding: 4px 7px; font-size: 10px; }
+.compare-map-switch .button[aria-pressed="true"] { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.compare-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 9px; }
+.compare-table { width: 100%; min-width: 320px; border-collapse: collapse; font-size: 10px; text-align: right; }
+.compare-table caption { padding: 9px; background: #f8fafc; text-align: left; font-weight: 750; color: #334155; }
+.compare-table th, .compare-table td { padding: 8px; border-top: 1px solid #e2e8f0; vertical-align: top; min-width: 75px; }
+.compare-table th:first-child { min-width: 135px; text-align: left; position: sticky; left: 0; background: #fff; z-index: 1; }
+.compare-table thead th { color: #475569; background: #f8fafc; font-weight: 750; }
+.compare-table th strong, .compare-table td strong, .compare-table td small, .compare-table th small { display: block; overflow-wrap: anywhere; }
+.compare-table th small, .compare-table td small { margin-top: 4px; font-size: 9px; font-weight: 400; color: #64748b; }
