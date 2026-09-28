@@ -36,8 +36,8 @@ from backend.app.db.metric_dashboard_query_repository import (
 )
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
-from backend.app.db.run_control import SqlAlchemyRunControlService
 from backend.app.db.run_compare_query_repository import SqlAlchemyRunCompareRepository
+from backend.app.db.run_control import SqlAlchemyRunControlService
 from backend.app.db.session import get_db
 from backend.app.db.source_layer_query_repository import (
     SqlAlchemySourceLayerQueryRepository,
