@@ -121,13 +121,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
 - `docs/PROVENANCE_MANIFEST.md` — S12 canonical successful-run provenance JSON, ordering and validation contract;
 - `docs/RUN_COMPARE.md` — S12 bounded persisted scenario comparison over canonical raw metrics and validation;
+- `docs/RUN_CONTROL.md` — S12 project-scoped run create/cancel/retry API and bounded frontend progress polling;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-078**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
+**Sprint S11 завершён; M2 First Complete Deterministic Scenario закрыт. S12 реализован through UG-AI-079**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -144,7 +145,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; M0–M2 закрыты, и следующий ordered execution item —
-**`UG-AI-079 / S12-T14`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-080 / S12-T15`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

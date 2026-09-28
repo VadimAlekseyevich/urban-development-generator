@@ -10,6 +10,7 @@ from backend.app.api.v1.endpoints import (
     metrics,
     projects,
     roads,
+    runs,
     source_layers,
     suitability,
     uploads,
@@ -20,6 +21,7 @@ from backend.app.api.v1.endpoints import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(projects.router)
+api_router.include_router(runs.router)
 api_router.include_router(infrastructure.router)
 api_router.include_router(metrics.router)
 api_router.include_router(compare.router)

@@ -37,6 +37,7 @@ from backend.app.db.metric_dashboard_query_repository import (
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
 from backend.app.db.run_compare_query_repository import SqlAlchemyRunCompareRepository
+from backend.app.db.run_control import SqlAlchemyRunControlService
 from backend.app.db.session import get_db
 from backend.app.db.source_layer_query_repository import (
     SqlAlchemySourceLayerQueryRepository,
@@ -172,6 +173,14 @@ def get_run_compare_service(db: DbSession) -> RunCompareService:
 
 
 RunCompareServiceDep = Annotated[RunCompareService, Depends(get_run_compare_service)]
+
+
+def get_run_control_service() -> SqlAlchemyRunControlService:
+    """Use isolated transactions for worker-compatible control mutations."""
+    return SqlAlchemyRunControlService()
+
+
+RunControlServiceDep = Annotated[SqlAlchemyRunControlService, Depends(get_run_control_service)]
 
 
 def get_validation_layer_query_service(

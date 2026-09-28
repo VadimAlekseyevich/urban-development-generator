@@ -19,6 +19,7 @@ import { DemographyPanel } from './DemographyPanel'
 import { InfrastructurePanel } from './InfrastructurePanel'
 import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
+import { RunsPanel } from './RunsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { ViolationsPanel } from './ViolationsPanel'
 import { ZoningPanel } from './ZoningPanel'
@@ -597,6 +598,13 @@ function App() {
             </p>
           )}
         </section>
+
+        <RunsPanel
+          key={context?.projectId ?? 'no-project'}
+          apiBase={API_BASE}
+          projectId={context?.projectId ?? null}
+          datasetVersionId={context?.datasetVersionId ?? null}
+        />
 
         <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
 
