@@ -23,6 +23,7 @@ from backend.app.application.layer_catalog import (
     LayerSourceKind,
     layer_catalog_for_context,
 )
+from backend.app.application.source_layers import SourceLayerName
 
 PROJECT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 VERSION_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
@@ -309,8 +310,19 @@ def test_registry_points_only_to_existing_project_scoped_api_routes() -> None:
                     declared_get_paths.add(router_prefix + decorator.args[0].value)
 
     assert declared_get_paths
+    supported_source_layers = {name.value for name in SourceLayerName}
     for definition in CANONICAL_LAYER_DEFINITIONS:
-        assert urlsplit(definition.path_template).path in declared_get_paths
+        declared_path = urlsplit(definition.path_template).path
+        if definition.owner_scope is LayerOwnerScope.DATASET_VERSION:
+            source_name = definition.layer_id.removeprefix("source.")
+            assert source_name in supported_source_layers
+            # The source router uses one validated {layer} path parameter
+            # rather than six literal paths for the six catalog categories.
+            declared_path = declared_path.replace(
+                f"/source-layers/{source_name}/geojson",
+                "/source-layers/{layer}/geojson",
+            )
+        assert declared_path in declared_get_paths
         if definition.metadata_path_template is not None:
             assert definition.metadata_path_template in declared_get_paths
         if definition.delivery_kind is LayerDeliveryKind.BBOX_GEOJSON:
