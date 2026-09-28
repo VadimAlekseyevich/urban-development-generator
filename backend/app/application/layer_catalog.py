@@ -197,6 +197,17 @@ class LayerDefinition:
         elif self.max_features is not None:
             raise LayerCatalogError("non-bbox delivery cannot declare max_features")
 
+        if (
+            self.delivery_kind is LayerDeliveryKind.PROJECT_GEOJSON
+            and self.owner_scope is not LayerOwnerScope.PROJECT
+        ):
+            raise LayerCatalogError("project GeoJSON must have project owner")
+        if (
+            self.delivery_kind is LayerDeliveryKind.BBOX_GEOJSON
+            and self.owner_scope not in {LayerOwnerScope.DATASET_VERSION, LayerOwnerScope.RUN}
+        ):
+            raise LayerCatalogError("bbox GeoJSON must have dataset-version or run owner")
+
         if self.delivery_kind is LayerDeliveryKind.ARTIFACT_IMAGE:
             if self.owner_scope is not LayerOwnerScope.ARTIFACT:
                 raise LayerCatalogError("artifact image must be artifact-owned")
@@ -286,10 +297,14 @@ class LayerCatalog:
         keys = tuple(entry.instance_key for entry in self.entries)
         if len(keys) != len(set(keys)):
             raise LayerCatalogError("duplicate owner-qualified layer identity")
-        canonical_order = {definition.layer_id: i for i, definition in enumerate(CANONICAL_LAYER_DEFINITIONS)}
+        canonical_order = {
+            definition.layer_id: i
+            for i, definition in enumerate(CANONICAL_LAYER_DEFINITIONS)
+        }
         positions: list[int] = []
         for entry in self.entries:
-            known = CANONICAL_LAYER_DEFINITIONS[canonical_order[entry.definition.layer_id]] if entry.definition.layer_id in canonical_order else None
+            position = canonical_order.get(entry.definition.layer_id)
+            known = CANONICAL_LAYER_DEFINITIONS[position] if position is not None else None
             if entry.definition != known:
                 raise LayerCatalogError("catalog entry is not a canonical layer definition")
             positions.append(canonical_order[entry.definition.layer_id])
@@ -297,7 +312,10 @@ class LayerCatalog:
             raise LayerCatalogError("catalog entries must use canonical rendering order")
 
     def get(self, layer_id: str) -> LayerCatalogEntry | None:
-        return next((entry for entry in self.entries if entry.definition.layer_id == layer_id), None)
+        return next(
+            (entry for entry in self.entries if entry.definition.layer_id == layer_id),
+            None,
+        )
 
 
 def _render(
