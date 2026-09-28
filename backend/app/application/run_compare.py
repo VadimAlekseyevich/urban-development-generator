@@ -265,7 +265,10 @@ def _validation_summary(record: CompareRunRecord) -> CompareValidationSummary:
         raise RunCompareDataError(
             f"run {record.id} has invalid persisted validation"
         ) from exc
-    if not isinstance(report, ValidationReport) or len(report.results) > MAX_PERSISTED_VALIDATION_RESULTS:
+    if (
+        not isinstance(report, ValidationReport)
+        or len(report.results) > MAX_PERSISTED_VALIDATION_RESULTS
+    ):
         raise RunCompareDataError(f"run {record.id} has oversized validation")
     for item in report.results:
         if (
