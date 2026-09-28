@@ -224,6 +224,13 @@ class MetricDashboardQueryService:
         )
 
 
+def decode_persisted_evaluation(
+    record: MetricDashboardRunRecord,
+) -> CompositeScoreResult:
+    """Reuse the canonical S11 decoder for read-only comparison projections."""
+    return _decode_evaluation(record)
+
+
 def _decode_evaluation(record: MetricDashboardRunRecord) -> CompositeScoreResult:
     metrics_json = record.metrics_json
     if not isinstance(metrics_json, dict):
