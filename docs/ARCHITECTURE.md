@@ -464,6 +464,20 @@ SRID.
 T05 deliberately does not apply minimum-site/capacity feasibility; that remains S10-T09.
 Network snapping starts at S10-T06.
 
+## LayerCatalog ownership boundary (S13-T01)
+
+The canonical map presentation registry lives in `backend.app.application.layer_catalog`.
+Its immutable, versioned logical layer definitions bind to precisely one
+project, project+DatasetVersion, project+GenerationRun or artifact UUID owner;
+source/generated/validation semantic kind is distinct from persistence
+ownership. Render metadata is style/legend tokens plus z-order and bounded
+opacity, not GIS logic or a second frontend style engine. Its URL templates
+point only to current project-scoped GeoJSON and artifact-preview routes,
+never an unimplemented tile endpoint. Adapters still enforce DB ownership
+and available read models. Future S13 delivery/registry/tree work must
+consume this contract instead of inventing a new catalog. See
+`docs/LAYER_CATALOG.md`.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
