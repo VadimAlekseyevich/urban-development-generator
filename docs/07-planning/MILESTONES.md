@@ -55,6 +55,8 @@ Exit:
 
 ## M3 — Durable Generation Run
 
+**State: COMPLETE (S12 contract/integration gate).** Evidence: `test_generation_worker_e2e.py`, `test_generation_state.py`, `test_outbox_dispatcher_recovery.py`, `test_checkpoint_reuse.py`, `test_artifact_publication_gc.py`, and `test_run_control_api.py` under required CI. These use a real Postgres/worker boundary with small typed synthetic stages, not a fabricated HTTP executor.
+
 Exit:
 
 - executable Stage DAG;
@@ -68,6 +70,8 @@ Exit:
 
 ## M4 — Reproducible Scenario Workflow
 
+**State: COMPLETE (S12 workflow contract/integration gate).** Evidence: `test_scenario_batch.py`, `test_scenario_matrix.py`, `test_exact_rerun.py`, `test_provenance_manifest.py`, `test_run_compare_api.py`, the created-run-to-persisted-compare acceptance in `test_run_control_api.py`, and `frontend/tests/compareSelection.test.mjs` under required CI. The compare interface and generated/validation map panels use one selected run with no cross-run fallback. Exact input replay verifies code/source availability and hashes; it does not claim an unperformed real-territory output experiment.
+
 Exit:
 
 - ScenarioBatch;
@@ -78,6 +82,8 @@ Exit:
 - run controls/progress;
 - compare UI;
 - same semantic run can be reproduced from recorded provenance subject to documented tolerance.
+
+M3/M4 closure is for the persisted orchestration and scenario **integration contracts**, not a completed production/demo workflow. A real browser create→upload→run→compare→export E2E belongs to S13-T14; two-territory output reproducibility/tolerance experiments belong to S15. A deployment must provide a real executable commit and supported stage configuration.
 
 ## M5 — Complete GIS Workspace
 
