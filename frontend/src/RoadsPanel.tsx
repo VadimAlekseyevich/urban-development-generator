@@ -1,3 +1,4 @@
+import { resolveMapRunId } from './compareSelection'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 
@@ -62,6 +63,7 @@ type RoadsPanelProps = {
   apiBase: string
   map: MapLibreMap | null
   projectId: string | null
+  pinnedRunId: string | null
   datasetVersionId: string | null
 }
 
@@ -141,12 +143,14 @@ export function RoadsPanel({
   apiBase,
   map,
   projectId,
+  pinnedRunId,
   datasetVersionId,
 }: RoadsPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const diagnosticsAbortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<RoadRunSummary[]>([])
-  const [selectedRunId, setSelectedRunId] = useState('')
+  const [localRunId, setSelectedRunId] = useState('')
+  const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
   const [existingVisible, setExistingVisible] = useState(false)
   const [generatedVisible, setGeneratedVisible] = useState(true)
   const [existingCount, setExistingCount] = useState(0)
@@ -161,6 +165,13 @@ export function RoadsPanel({
     () => runs.find((run) => run.id === selectedRunId) ?? null,
     [runs, selectedRunId],
   )
+
+  useEffect(() => {
+    abortRef.current?.abort()
+    diagnosticsAbortRef.current?.abort()
+    if (!map) return
+    setSourceData(map, GENERATED_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
+  }, [map, pinnedRunId])
 
   useEffect(() => {
     if (!map) return
@@ -381,7 +392,8 @@ export function RoadsPanel({
 
       <label className="roads-select">
         <span>Generated run</span>
-        <select value={selectedRunId} onChange={changeRun} disabled={!projectId || runs.length === 0}>
+        <select value={selectedRunId} onChange={changeRun} disabled={pinnedRunId !== null || !projectId || runs.length === 0}>
+          {pinnedRunId !== null && !selectedRunId && <option value="">Нет road результатов для выбранного run</option>}
           {runs.length === 0 && <option value="">Нет persisted road runs</option>}
           {runs.map((run) => (
             <option value={run.id} key={run.id}>
