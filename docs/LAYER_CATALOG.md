@@ -85,7 +85,7 @@ respective implementation tasks.
 ## Gates and next steps
 
 `tests/unit/test_layer_catalog.py` checks all 18 definitions against
-actual registered GET paths, typed provenance, route placeholder exactness,
+canonical v1 router GET paths (independent of configurable app mount prefix), typed provenance, route placeholder exactness,
 invalid combinations, deterministic binding, immutability, repeat selection,
 no cross-run fallback and bounded transport metadata. Required CI still runs
 the existing Python suite, benchmarks, migration smoke, frontend build/test
