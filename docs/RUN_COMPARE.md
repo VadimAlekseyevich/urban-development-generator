@@ -1,6 +1,6 @@
 # S12-T13 — Persisted run comparison
 
-> **Status: Implemented in UG-AI-078 (pending required CI)**
+> **Status: Implemented in UG-AI-078; required CI evidence tracked in PR**
 
 ## Ownership and request
 
