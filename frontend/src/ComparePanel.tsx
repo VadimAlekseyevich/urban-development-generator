@@ -209,6 +209,7 @@ export function ComparePanel({
           <p className="helper-text">
             Выбранный run применяется ко всем generated/validation слоям карты.
             Если слой не опубликован для run, он остаётся пустым — данные соседнего run не подставляются.
+            Исходные слои берутся из выбранной DatasetVersion: для разных входных версий сверяйте provenance.
           </p>
           <div className="compare-table-wrap">
             <table className="compare-table">
