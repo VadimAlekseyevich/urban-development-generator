@@ -3,14 +3,20 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 
 import { isUuid } from './sourceLayers'
 import {
+  catalogReadUrl,
+  layerDefinition,
+  layerInstancesForContext,
+  rasterMetadataUrl,
+} from './layerRegistry'
+import { installCatalogImage, layerStyleIds, removeCatalogImage } from './mapLayerAdapter'
+import {
   factorNormalizationLabel,
   formatPercent,
   formatScore,
   type SuitabilityLayerMetadata,
 } from './suitabilityLayer'
 
-const SUITABILITY_SOURCE_ID = 'suitability-preview'
-const SUITABILITY_LAYER_ID = 'suitability-preview-raster'
+const SUITABILITY_LAYER_ID = layerStyleIds('analysis.suitability')[0]
 const PREVIEW_DIMENSION = 2048
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -25,8 +31,7 @@ function initialArtifactId(): string {
 }
 
 function removeSuitabilityLayer(map: MapLibreMap): void {
-  if (map.getLayer(SUITABILITY_LAYER_ID)) map.removeLayer(SUITABILITY_LAYER_ID)
-  if (map.getSource(SUITABILITY_SOURCE_ID)) map.removeSource(SUITABILITY_SOURCE_ID)
+  removeCatalogImage(map)
 }
 
 export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
@@ -46,10 +51,8 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
 
   const previewUrl = useMemo(() => {
     if (!artifactId || !metadata) return null
-    return (
-      `${apiBase}/suitability-artifacts/${encodeURIComponent(artifactId)}/preview.png` +
-      `?max_dimension=${PREVIEW_DIMENSION}&v=${encodeURIComponent(metadata.checksum)}`
-    )
+    const entry = layerInstancesForContext({ suitabilityArtifactId: artifactId })[0]
+    return `${catalogReadUrl(apiBase, entry)}?max_dimension=${PREVIEW_DIMENSION}&v=${encodeURIComponent(metadata.checksum)}`
   }, [apiBase, artifactId, metadata])
 
   useEffect(() => {
@@ -69,9 +72,8 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
     setStatus('loading')
     setMessage('Загружаю suitability metadata…')
 
-    void fetch(`${apiBase}/suitability-artifacts/${encodeURIComponent(artifactId)}`, {
-      signal: controller.signal,
-    })
+    const entry = layerInstancesForContext({ suitabilityArtifactId: artifactId })[0]
+    void fetch(rasterMetadataUrl(apiBase, entry), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`suitability: HTTP ${response.status} ${await response.text()}`)
@@ -101,24 +103,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
   useEffect(() => {
     if (!map || !metadata || !previewUrl) return
     removeSuitabilityLayer(map)
-    map.addSource(SUITABILITY_SOURCE_ID, {
-      type: 'image',
-      url: previewUrl,
-      coordinates: metadata.image_coordinates_wgs84,
-    })
-    map.addLayer(
-      {
-        id: SUITABILITY_LAYER_ID,
-        type: 'raster',
-        source: SUITABILITY_SOURCE_ID,
-        layout: { visibility: visible ? 'visible' : 'none' },
-        paint: {
-          'raster-opacity': opacity,
-          'raster-fade-duration': 0,
-        },
-      },
-      map.getLayer('source-boundary-fill') ? 'source-boundary-fill' : undefined,
-    )
+    installCatalogImage(map, previewUrl, metadata.image_coordinates_wgs84, visible, opacity)
 
     return () => {
       removeSuitabilityLayer(map)
