@@ -490,7 +490,7 @@ function App() {
             <span className="badge">{activeLayerCount}/4</span>
           </div>
           <div className="layer-list">
-            {SOURCE_LAYER_CONFIG.map((layer) => {
+            {SOURCE_MAP_LEGEND.map((layer) => {
               const stat = layer.key === 'boundary' ? null : layerStats[layer.key]
               return (
                 <label className="layer-row" key={layer.key}>
