@@ -8,6 +8,7 @@ from backend.app.api.v1.endpoints import (
     health,
     infrastructure,
     metrics,
+    mvt_tiles,
     projects,
     roads,
     runs,
@@ -35,4 +36,5 @@ api_router.include_router(suitability.router)
 api_router.include_router(uploads.router)
 api_router.include_router(validation.router)
 api_router.include_router(vector_layers.router)
+api_router.include_router(mvt_tiles.router)
 api_router.include_router(zoning.router)
