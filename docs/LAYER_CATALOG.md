@@ -78,7 +78,11 @@ Each immutable `LayerRenderMetadata` contains a `style_key`, `legend_key`,
 bounded integer `z_index`, boolean `default_visible` and finite 0..1
 `default_opacity`. These are renderer-neutral tokens/hints, **not** a
 parallel MapLibre paint/expression implementation. S13-T05 maps the
-canonical tokens to the declarative frontend style registry. The original 18-entry catalog remains the stable identity/owner contract.\nS13-T02/T03 provide a separate bounded GeoJSON/UUID-keyset and MVT read\nadapter for its 15 table-backed vector entries; they do not assert availability\nor rewrite the canonical T01 definition versions. Immutable tile ETags and\ncaching remain S13-T04.
+canonical tokens to the declarative frontend style registry. The original 18-entry catalog remains the stable identity/owner contract. 
+S13-T02/T03 provide a separate bounded GeoJSON/UUID-keyset and MVT read 
+adapter for its 15 table-backed vector entries; they do not assert availability 
+or rewrite the canonical T01 definition versions. Immutable tile ETags and 
+caching remain S13-T04.
 
 ## Gates and next steps
 
