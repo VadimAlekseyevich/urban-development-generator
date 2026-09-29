@@ -177,9 +177,14 @@ GiST envelope prefilter and exact intersection before bounded geometry
 encoding into EPSG:3857 tiles. Empty tiles are zero bytes, MVT responses
 are capped at 1 MiB (413) with a transaction-local 5s statement timeout.
 Unknown/foreign owners: 404; unpublished derived run models: 409;
-invalid bounds/owner/canonical non-tabular layer: 422. `Cache-Control:
-no-store` until S13-T04 adds immutable ETag and version-aware caching.
-See `docs/MVT_TILE_API.md`.
+invalid bounds/owner/canonical non-tabular layer: 422. Since S13-T04,
+ready dataset-version and succeeded-run tiles receive a strong SHA-256
+`ETag` and `Cache-Control: private, max-age=31536000, immutable`; an
+exact/weak matching `If-None-Match` (or `*`) receives 304 without a body.
+Active/unpublished inputs get `private, no-store` and no ETag. Run-existing
+facilities additionally require every linked source version to be ready.
+The ready lifecycle, published project CRS and dataset project identity are
+protected by migration `0023_published_tile_inputs`. See `docs/MVT_TILE_API.md`.
 
 ## Далее
 
