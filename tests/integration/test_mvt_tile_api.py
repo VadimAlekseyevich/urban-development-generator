@@ -93,11 +93,11 @@ def _fixture() -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID]:
             session.add(dataset)
             session.flush()
             a = DatasetVersion(
-                dataset_id=dataset.id, version=1, status="ready",
+                dataset_id=dataset.id, version=1, status="processing",
                 source_metadata={"format": "fixture"},
             )
             b = DatasetVersion(
-                dataset_id=dataset.id, version=2, status="ready",
+                dataset_id=dataset.id, version=2, status="processing",
                 source_metadata={"format": "fixture"},
             )
             run = GenerationRun(
@@ -207,6 +207,12 @@ def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None
                     ),
                 ]
             )
+            # Publish only after all source entities have been inserted:
+            # ready dataset versions are DB-trigger protected and immutable.
+            for selected_version in (version, other_version):
+                stored = session.get(DatasetVersion, selected_version)
+                assert stored is not None
+                stored.status = "ready"
 
     params = {"dataset_version_id": str(version)}
     url = _endpoint(project, "source.roads")
