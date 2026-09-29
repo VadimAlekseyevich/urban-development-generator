@@ -124,13 +124,14 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/RUN_CONTROL.md` — S12 project-scoped run create/cancel/retry API and bounded frontend progress polling;
 - `docs/COMPARE_UI.md` — S12 2–10 persisted comparison tables and shared generated-layer map run pin;
 - `docs/LAYER_CATALOG.md` — S13 canonical owner-qualified layer definitions, delivery bounds and renderer-neutral hints;
+- `docs/BOUNDED_VECTOR_API.md` — S13 generalized catalog-scoped bbox/keyset reads with strict WGS84 presentation and metre simplification;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
 
 ## Статус
 
-**Sprint S11 и S12 завершены; M0–M4 contract/integration gates закрыты. S13 реализован through UG-AI-081**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
+**Sprint S11 и S12 завершены; M0–M4 contract/integration gates закрыты. S13 реализован through UG-AI-082**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
 
 Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
 `39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
@@ -147,7 +148,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Сквозной браузерный E2E на реальном датасете остаётся S13-T14, эксперименты воспроизводимости — S15. Следующий ordered execution item —
-**`UG-AI-082 / S13-T02`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-083 / S13-T03`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
