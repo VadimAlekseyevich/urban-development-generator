@@ -16,6 +16,7 @@ from backend.app.application.source_layers import SourceLayerQueryService
 from backend.app.application.suitability_layers import SuitabilityLayerService
 from backend.app.application.uploads import UploadService
 from backend.app.application.validation_layers import ValidationLayerQueryService
+from backend.app.application.vector_layers import VectorLayerQueryService
 from backend.app.application.zoning_layers import ZoningLayerQueryService
 from backend.app.core.config import settings
 from backend.app.db.artifact_repository import SqlAlchemyArtifactRepository
@@ -48,6 +49,7 @@ from backend.app.db.suitability_artifact_repository import (
 from backend.app.db.validation_layer_query_repository import (
     SqlAlchemyValidationLayerQueryRepository,
 )
+from backend.app.db.vector_layer_query_repository import SqlAlchemyVectorLayerRepository
 from backend.app.db.zoning_layer_query_repository import (
     SqlAlchemyZoningLayerQueryRepository,
 )
@@ -196,6 +198,16 @@ def get_validation_layer_query_service(
 ValidationLayerQueryServiceDep = Annotated[
     ValidationLayerQueryService,
     Depends(get_validation_layer_query_service),
+]
+
+
+def get_vector_layer_query_service(db: DbSession) -> VectorLayerQueryService:
+    """Compose canonical LayerCatalog viewport reads behind a DB repository."""
+    return VectorLayerQueryService(SqlAlchemyVectorLayerRepository(db))
+
+
+VectorLayerQueryServiceDep = Annotated[
+    VectorLayerQueryService, Depends(get_vector_layer_query_service)
 ]
 
 

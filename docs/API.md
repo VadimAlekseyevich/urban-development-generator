@@ -149,6 +149,22 @@ and do not assert data materialization or bypass existing project/run/dataset
 authorization. This is an application contract only: S13-T01 does not add a
 catalog HTTP endpoint; generalized bbox delivery is S13-T02.
 
+## Generic bounded vector API (S13-T02)
+
+`GET /projects/{project_id}/vector-layers/{layer_id}/geojson`
+accepts the exact `dataset_version_id` or `run_id` required by LayerCatalog,
+WGS84 `bbox=west,south,east,north`, `limit=1..5000`, optional exclusive
+UUID `after`, `presentation_srid=4326`, and `simplify_m=0..100`
+in projected metre working CRS. Response is a GeoJSON FeatureCollection
+with `schema_version=bounded-vector-v1`, immutable scope/definition metadata,
+`truncated` and `next_after`. The 15 physical table-backed entries are
+supported; single boundary, raster artifact and integer-indexed canonical
+validation report retain specialized APIs. 404 indicates unknown
+catalog/foreign owner, 409 absent published derived run read model, 422
+invalid scope/viewport/policy. Source and successful-run state is never
+mutated. Existing per-layer APIs remain unchanged. See
+`docs/BOUNDED_VECTOR_API.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
