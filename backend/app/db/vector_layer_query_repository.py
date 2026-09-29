@@ -13,10 +13,11 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import Table, case, func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from backend.app.application.layer_catalog import LayerCatalogEntry, LayerOwnerScope
 from backend.app.application.source_layers import GEOJSON_SRID, SourceLayerBbox
@@ -239,14 +240,14 @@ class SqlAlchemyVectorLayerRepository:
         # Filtering must use original geometry. Never simplify the predicate,
         # change source data or apply a tolerance in WGS84 degrees.
         original = table.c.geometry
-        drawn = original
+        drawn: ColumnElement[Any] = original
         if simplify_m > 0:
             simplified = func.ST_SimplifyPreserveTopology(original, simplify_m)
             drawn = case((func.ST_IsEmpty(simplified), original), else_=simplified)
         geojson = func.ST_AsGeoJSON(
             func.ST_Transform(drawn, GEOJSON_SRID), 9,
         ).label("geometry_geojson")
-        columns = [
+        columns: list[ColumnElement[Any]] = [
             table.c.id,
             table.c.attributes_json,
             *(table.c[name] for name in spec.columns),
