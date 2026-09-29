@@ -15,12 +15,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from backend.app.application.layer_catalog import LayerCatalogEntry, LayerOwnerScope
-from backend.app.application.vector_layers import VectorLayerContext
 from backend.app.application.mvt_tiles import (
     MVT_BUFFER,
     MVT_EXTENT,
     MVT_STATEMENT_TIMEOUT_MS,
 )
+from backend.app.application.vector_layers import VectorLayerContext
 from backend.app.db.vector_layer_query_repository import (
     _VECTOR_TABLES,
     SqlAlchemyVectorLayerRepository,
