@@ -10,7 +10,6 @@ from backend.app.application.mvt_tiles import (
     MVT_DEFAULT_FEATURE_LIMIT,
     MVT_MAX_FEATURE_LIMIT,
     MVT_MEDIA_TYPE,
-    MvtTileQueryService,
     MvtTileTooLargeError,
 )
 from backend.app.application.vector_layers import (
