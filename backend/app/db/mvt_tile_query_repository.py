@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from backend.app.application.layer_catalog import LayerCatalogEntry, LayerOwnerScope
+from backend.app.application.vector_layers import VectorLayerContext
 from backend.app.application.mvt_tiles import (
     MVT_BUFFER,
     MVT_EXTENT,
@@ -24,7 +25,11 @@ from backend.app.db.vector_layer_query_repository import (
     _VECTOR_TABLES,
     SqlAlchemyVectorLayerRepository,
 )
-from backend.app.models.generation_run import generation_run_dataset_versions
+from backend.app.models.dataset import DatasetVersion
+from backend.app.models.generation_run import (
+    GenerationRun,
+    generation_run_dataset_versions,
+)
 
 
 class SqlAlchemyMvtTileRepository(SqlAlchemyVectorLayerRepository):
@@ -33,6 +38,55 @@ class SqlAlchemyMvtTileRepository(SqlAlchemyVectorLayerRepository):
     def __init__(self, session: Session) -> None:
         super().__init__(session)
         self._session = session
+
+    def get_context(self, entry: LayerCatalogEntry) -> VectorLayerContext | None:
+        """Attest immutability only after project-owner authorization.
+
+        Ready versions have irreversible status and source-row guards;
+        succeeded runs have DB-protected generated rows, metadata and links.
+        The existing-facility run projection additionally requires *every*
+        linked source version to be ready (otherwise it can still change).
+        """
+        context = super().get_context(entry)
+        if context is None:
+            return None
+        owner = entry.owner
+        if owner.scope is LayerOwnerScope.DATASET_VERSION:
+            status = self._session.scalar(
+                select(DatasetVersion.status).where(
+                    DatasetVersion.id == owner.dataset_version_id,
+                )
+            )
+            immutable = status == "ready"
+        else:
+            status = self._session.scalar(
+                select(GenerationRun.status).where(
+                    GenerationRun.id == owner.run_id,
+                    GenerationRun.project_id == owner.project_id,
+                )
+            )
+            immutable = status == "succeeded"
+            if immutable and entry.definition.layer_id == "run.existing_facilities":
+                incomplete_source = self._session.scalar(
+                    select(DatasetVersion.id)
+                    .select_from(generation_run_dataset_versions)
+                    .join(
+                        DatasetVersion,
+                        DatasetVersion.id
+                        == generation_run_dataset_versions.c.dataset_version_id,
+                    )
+                    .where(
+                        generation_run_dataset_versions.c.run_id == owner.run_id,
+                        DatasetVersion.status != "ready",
+                    )
+                    .limit(1)
+                )
+                immutable = incomplete_source is None
+        return VectorLayerContext(
+            working_srid=context.working_srid,
+            read_model_ready=context.read_model_ready,
+            immutable=immutable,
+        )
 
     def encode_tile(
         self,
