@@ -107,7 +107,7 @@ def _content_etag(
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    return '"' + hashlib.sha256(identity + b"\\0" + payload).hexdigest() + '"'
+    return '"' + hashlib.sha256(identity + b"|" + payload).hexdigest() + '"'
 
 
 class MvtTileRepository(Protocol):
