@@ -543,3 +543,106 @@ def test_nonready_source_tile_never_304_and_published_owner_inputs_are_guarded()
     assert client.get(
         url, params=params, headers={"If-None-Match": etag},
     ).status_code == 304
+
+
+
+def test_source_row_write_blocks_concurrent_ready_transition() -> None:
+    project, _foreign, version, _other, _run = _fixture()
+    with engine.connect() as first:
+        with first.begin():
+            first.execute(
+                text(
+                    "INSERT INTO source_facilities "
+                    "(id, dataset_version_id, source_feature_id, facility_class, "
+                    "attributes_json, geometry) "
+                    "VALUES (:id, :version, 'pending', 'school', '{}'::jsonb, "
+                    "ST_SetSRID(ST_MakePoint(0, 0), 3857))"
+                ),
+                {"id": uuid.uuid4(), "version": version},
+            )
+            # The inserted row's BEFORE trigger holds a SHARE lock on the
+            # version until commit. Ready publication must wait for that
+            # write, so no tile is ever declared immutable prematurely.
+            with engine.connect() as second:
+                with pytest.raises(DBAPIError, match="lock timeout"):
+                    with second.begin():
+                        second.execute(text("SET LOCAL lock_timeout = '200ms'"))
+                        second.execute(
+                            text(
+                                "UPDATE dataset_versions SET status = 'ready' "
+                                "WHERE id = :version"
+                            ),
+                            {"version": version},
+                        )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE dataset_versions SET status = 'ready' "
+                "WHERE id = :version"
+            ),
+            {"version": version},
+        )
+    assert client.get(
+        _endpoint(project, "source.facilities"),
+        params={"dataset_version_id": str(version)},
+    ).headers["etag"]
+    with pytest.raises(DBAPIError, match="immutable"):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO source_facilities "
+                    "(id, dataset_version_id, source_feature_id, facility_class, "
+                    "attributes_json, geometry) "
+                    "VALUES (:id, :version, 'late', 'school', '{}'::jsonb, "
+                    "ST_SetSRID(ST_MakePoint(0, 0), 3857))"
+                ),
+                {"id": uuid.uuid4(), "version": version},
+            )
+
+
+def test_generated_row_write_blocks_concurrent_success_transition() -> None:
+    project, _foreign, _version, _other, run = _fixture()
+    with engine.connect() as first:
+        with first.begin():
+            first.execute(
+                text(
+                    "INSERT INTO generated_roads (id, run_id, attributes_json, geometry) "
+                    "VALUES (:id, :run, '{}'::jsonb, "
+                    "ST_GeomFromText('LINESTRING(0 0, 1 1)', 3857))"
+                ),
+                {"id": uuid.uuid4(), "run": run},
+            )
+            with engine.connect() as second:
+                with pytest.raises(DBAPIError, match="lock timeout"):
+                    with second.begin():
+                        second.execute(text("SET LOCAL lock_timeout = '200ms'"))
+                        second.execute(
+                            text(
+                                "UPDATE generation_runs SET status = 'succeeded' "
+                                "WHERE id = :run"
+                            ),
+                            {"run": run},
+                        )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE generation_runs SET status = 'succeeded' "
+                "WHERE id = :run"
+            ),
+            {"run": run},
+        )
+    response = client.get(
+        _endpoint(project, "generated.roads"), params={"run_id": str(run)},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["etag"]
+    with pytest.raises(DBAPIError, match="immutable"):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO generated_roads (id, run_id, attributes_json, geometry) "
+                    "VALUES (:id, :run, '{}'::jsonb, "
+                    "ST_GeomFromText('LINESTRING(0 0, 1 1)', 3857))"
+                ),
+                {"id": uuid.uuid4(), "run": run},
+            )
