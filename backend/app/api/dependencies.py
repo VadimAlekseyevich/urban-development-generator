@@ -9,6 +9,7 @@ from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
+from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.run_compare import RunCompareService
@@ -35,6 +36,7 @@ from backend.app.db.infrastructure_layer_query_repository import (
 from backend.app.db.metric_dashboard_query_repository import (
     SqlAlchemyMetricDashboardQueryRepository,
 )
+from backend.app.db.mvt_tile_query_repository import SqlAlchemyMvtTileRepository
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
 from backend.app.db.run_compare_query_repository import SqlAlchemyRunCompareRepository
@@ -198,6 +200,16 @@ def get_validation_layer_query_service(
 ValidationLayerQueryServiceDep = Annotated[
     ValidationLayerQueryService,
     Depends(get_validation_layer_query_service),
+]
+
+
+def get_mvt_tile_query_service(db: DbSession) -> MvtTileQueryService:
+    """Compose bounded PostGIS MVT reads behind exact catalog owner checks."""
+    return MvtTileQueryService(SqlAlchemyMvtTileRepository(db))
+
+
+MvtTileQueryServiceDep = Annotated[
+    MvtTileQueryService, Depends(get_mvt_tile_query_service)
 ]
 
 
