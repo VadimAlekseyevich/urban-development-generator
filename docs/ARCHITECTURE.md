@@ -503,8 +503,16 @@ persisted geometry SRID for original-geometry GiST && + exact intersection,
 materializes at most limit+1 candidates, and encodes at most limit rows
 with `ST_AsMVTGeom`/ `ST_AsMVT`. A 5-second transaction-local timeout,
 1000-feature cap, 1MiB response cap and zoom 0–16 limit bound work;
-outputs are `no-store` pending S13-T04 ETag/cache policy. No ORM table
-migration, run recomputation, or frontend source-registry migration.
+S13-T03 adds no ORM table migration, run recomputation or frontend
+source-registry migration. S13-T04 attaches content-derived, owner/render-
+qualified strong ETags and RFC conditional 304 only for terminal published
+inputs. Active/unpublished reads retain `private, no-store` without ETags;
+`run.existing_facilities` additionally waits for all linked source versions
+to reach `ready`. Migration 0023 seals ready status, published project CRS
+and published dataset-project ownership at the DB boundary. The existing
+row/run/ref guards already protect ready sources and successful generated
+results. Private immutable tile caching never bypasses request authorization
+or bounded re-encoding; shared cache and UI registry are not part of T04.
 See `docs/MVT_TILE_API.md`.
 
 ## Обязательный конечный продукт
