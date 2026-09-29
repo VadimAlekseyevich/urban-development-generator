@@ -4,7 +4,6 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import { isUuid } from './sourceLayers'
 import {
   catalogReadUrl,
-  layerDefinition,
   layerInstancesForContext,
   rasterMetadataUrl,
 } from './layerRegistry'
