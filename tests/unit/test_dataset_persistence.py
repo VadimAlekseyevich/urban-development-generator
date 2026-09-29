@@ -76,6 +76,15 @@ def test_dataset_version_content_is_immutable_but_status_can_change() -> None:
         prevent_dataset_version_content_update(object(), object(), version)
 
 
+def test_ready_dataset_status_cannot_be_reopened_after_publication() -> None:
+    version = _make_version()
+    version.status = "ready"
+    _mark_committed(version)
+    version.status = "processing"
+    with pytest.raises(DatasetVersionImmutableError, match="terminal"):
+        prevent_dataset_version_content_update(object(), object(), version)
+
+
 def test_immutable_field_set_excludes_lifecycle_status() -> None:
     assert "status" not in IMMUTABLE_DATASET_VERSION_FIELDS
     assert {
