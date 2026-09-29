@@ -7,7 +7,6 @@ materialized CTE. Only the first N candidates undergo ST_AsMVTGeom/AsMVT.
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from sqlalchemy import String, func, literal, literal_column, select
