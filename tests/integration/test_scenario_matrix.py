@@ -49,7 +49,7 @@ def clean_database(migrated_database: None) -> None:
         connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
 
 
-def _project(*, boundary: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
+def _project(*, boundary: bool = True, ready: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
     with SessionFactory() as session:
         project = Project(
             name="Scenario matrix integration",
@@ -70,7 +70,7 @@ def _project(*, boundary: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
         session.flush()
         version = DatasetVersion(
             dataset_id=dataset.id,
-            status="ready",
+            status="ready" if ready else "processing",
             version=1,
             checksum_sha256="b" * 64,
             source_metadata={"source": "matrix-fixture"},
@@ -216,7 +216,9 @@ def test_same_matrix_spec_has_same_semantic_order_but_distinct_run_ownership() -
     "failure", ("missing_project", "missing_version", "foreign", "unready", "boundary")
 )
 def test_failed_matrix_preflight_rolls_back_all_children_and_outbox(failure: str) -> None:
-    project_id, version_id = _project(boundary=failure != "boundary")
+    project_id, version_id = _project(
+        boundary=failure != "boundary", ready=failure != "unready",
+    )
     foreign_project_id, foreign_version_id = _project()
     assert foreign_project_id != project_id
     target_project = uuid.uuid4() if failure == "missing_project" else project_id
@@ -225,12 +227,6 @@ def test_failed_matrix_preflight_rolls_back_all_children_and_outbox(failure: str
         else foreign_version_id if failure == "foreign"
         else version_id
     )
-    if failure == "unready":
-        with SessionFactory() as session:
-            version = session.get(DatasetVersion, version_id)
-            assert version is not None
-            version.status = "processing"
-            session.commit()
     before = _counts()
     spec = _spec(target_project, target_version)
     store = SqlAlchemyScenarioBatchStore(session_factory=SessionFactory)

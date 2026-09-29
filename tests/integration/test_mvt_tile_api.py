@@ -13,6 +13,7 @@ from geoalchemy2.shape import from_shape
 from pyproj import Transformer
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from backend.app.db.session import engine
@@ -177,7 +178,7 @@ def _features(blob: bytes) -> tuple[str, list[bytes], set[str]]:
     return names[0], features, keys
 
 
-def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None:
+def test_source_tile_is_real_mvt_limited_version_scoped_and_cache_validated() -> None:
     project, foreign, version, other_version, run = _fixture()
     with Session(engine) as session:
         with session.begin():
@@ -221,8 +222,27 @@ def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None
     assert response.headers["content-type"].startswith(
         "application/vnd.mapbox-vector-tile"
     )
-    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["cache-control"] == "private, max-age=31536000, immutable"
+    etag = response.headers["etag"]
+    assert etag.startswith('"') and etag.endswith('"')
     assert response.headers["x-mvt-schema-version"] == "mvt-tile-v1"
+    conditional = client.get(url, params={**params, "feature_limit": 1}, headers={
+        "If-None-Match": etag,
+    })
+    assert conditional.status_code == 304
+    assert conditional.content == b""
+    assert conditional.headers["etag"] == etag
+    assert conditional.headers["cache-control"] == response.headers["cache-control"]
+    assert "content-type" not in conditional.headers
+    for header in ("W/" + etag, '"other", ' + etag, "*"):
+        assert client.get(
+            url, params={**params, "feature_limit": 1},
+            headers={"If-None-Match": header},
+        ).status_code == 304
+    assert client.get(
+        url, params={**params, "feature_limit": 1},
+        headers={"If-None-Match": '"invalid"'},
+    ).status_code == 200
     assert response.headers["x-mvt-feature-limit"] == "1"
     assert response.headers["x-mvt-candidates"] == "2"
     assert response.headers["x-features-truncated"] == "true"
@@ -232,6 +252,7 @@ def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None
 
     whole = client.get(url, params={**params, "feature_limit": 10})
     assert whole.status_code == 200, whole.text
+    assert whole.headers["etag"] != etag  # Same owner; different rendering limit.
     assert whole.headers["x-features-truncated"] == "false"
     assert whole.headers["x-mvt-candidates"] == "3"
     layer, features, _ = _features(whole.content)
@@ -242,6 +263,7 @@ def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None
         url, params={"dataset_version_id": str(other_version)},
     )
     assert separate.status_code == 200
+    assert separate.headers["etag"] != etag  # Owner identity is in validator.
     assert separate.headers["x-mvt-candidates"] == "1"
     assert client.get(
         _endpoint(foreign, "source.roads"), params=params,
@@ -261,6 +283,15 @@ def test_source_tile_is_real_mvt_limited_version_scoped_and_not_cached() -> None
     assert empty.status_code == 200
     assert empty.headers["x-mvt-candidates"] == "0"
     assert empty.content == b""
+    assert empty.headers["etag"] != etag  # Different logical layer/empty body.
+    assert client.get(
+        url, params={**params, "feature_limit": 1, "run_id": str(run)},
+        headers={"If-None-Match": "*"},
+    ).status_code == 422
+    assert client.get(
+        _endpoint(foreign, "source.roads"), params=params,
+        headers={"If-None-Match": "*"},
+    ).status_code == 404
 
 
 def test_run_tile_demand_readiness_and_linked_existing_facility_selection() -> None:
@@ -377,3 +408,241 @@ def test_invalid_xyz_or_work_limit_rejected(suffix: str, extra: dict[str, object
     assert client.get(
         url, params={"dataset_version_id": str(version), **extra},
     ).status_code == 422
+
+
+
+def test_active_and_succeeded_run_tile_caching_respects_linked_source_readiness() -> None:
+    project, _foreign, version, _other_version, run = _fixture()
+    with Session(engine) as session:
+        with session.begin():
+            session.add_all(
+                [
+                    GeneratedRoad(
+                        run_id=run,
+                        geometry=_road(source=False),
+                        attributes_json={"road_class": "local", "origin": "generated"},
+                    ),
+                    SourceFacility(
+                        dataset_version_id=version,
+                        source_feature_id="existing",
+                        facility_class="school",
+                        geometry=_facility(),
+                    ),
+                ]
+            )
+
+    params = {"run_id": str(run)}
+    generated_url = _endpoint(project, "generated.roads")
+    existing_url = _endpoint(project, "run.existing_facilities")
+    active = client.get(generated_url, params=params)
+    assert active.status_code == 200, active.text
+    assert active.headers["cache-control"] == "private, no-store"
+    assert "etag" not in active.headers
+    assert client.get(
+        generated_url, params=params, headers={"If-None-Match": "*"},
+    ).status_code == 200
+
+    with Session(engine) as session:
+        with session.begin():
+            stored = session.get(GenerationRun, run)
+            assert stored is not None
+            stored.status = "succeeded"
+
+    immutable_generated = client.get(generated_url, params=params)
+    assert immutable_generated.status_code == 200, immutable_generated.text
+    assert immutable_generated.headers["cache-control"] == (
+        "private, max-age=31536000, immutable"
+    )
+    generated_tag = immutable_generated.headers["etag"]
+    assert client.get(
+        generated_url, params=params, headers={"If-None-Match": generated_tag},
+    ).status_code == 304
+
+    # The run result itself is fixed but existing-source rows remain writable
+    # until *all* of its linked dataset versions have reached ready.
+    unfinished_source = client.get(existing_url, params=params)
+    assert unfinished_source.status_code == 200, unfinished_source.text
+    assert unfinished_source.headers["cache-control"] == "private, no-store"
+    assert "etag" not in unfinished_source.headers
+    assert client.get(
+        existing_url, params=params, headers={"If-None-Match": "*"},
+    ).status_code == 200
+
+    with Session(engine) as session:
+        with session.begin():
+            item = session.get(DatasetVersion, version)
+            assert item is not None
+            item.status = "ready"
+    published_source = client.get(existing_url, params=params)
+    assert published_source.status_code == 200, published_source.text
+    assert published_source.headers["x-mvt-candidates"] == "1"
+    assert published_source.headers["cache-control"] == (
+        "private, max-age=31536000, immutable"
+    )
+    existing_tag = published_source.headers["etag"]
+    assert existing_tag != generated_tag
+    assert client.get(
+        existing_url, params=params, headers={"If-None-Match": "W/" + existing_tag},
+    ).status_code == 304
+    assert client.get(
+        generated_url, params=params, headers={"If-None-Match": existing_tag},
+    ).status_code == 200
+
+
+def test_nonready_source_tile_never_304_and_published_owner_inputs_are_guarded() -> None:
+    project, foreign, version, _other_version, _run = _fixture()
+    url = _endpoint(project, "source.roads")
+    params = {"dataset_version_id": str(version)}
+    pending = client.get(url, params=params, headers={"If-None-Match": "*"})
+    assert pending.status_code == 200
+    assert pending.content == b""
+    assert pending.headers["cache-control"] == "private, no-store"
+    assert "etag" not in pending.headers
+    # A project without published version or successful run may still update
+    # its working CRS; publication then seals that coordinate system.
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE projects SET working_srid = 32637 WHERE id = :project_id"),
+            {"project_id": project},
+        )
+    with Session(engine) as session:
+        with session.begin():
+            item = session.get(DatasetVersion, version)
+            assert item is not None
+            item.status = "ready"
+
+    ready = client.get(url, params=params)
+    assert ready.status_code == 200, ready.text
+    etag = ready.headers["etag"]
+    assert client.get(
+        url, params=params, headers={"If-None-Match": etag},
+    ).status_code == 304
+
+    # SQL migration guards also protect writes bypassing the ORM.
+    for statement, parameters, message in (
+        (
+            "UPDATE dataset_versions SET status = 'processing' WHERE id = :version_id",
+            {"version_id": version},
+            "ready dataset version status is terminal",
+        ),
+        (
+            "UPDATE projects SET working_srid = 3857 WHERE id = :project_id",
+            {"project_id": project},
+            "project working_srid is immutable",
+        ),
+        (
+            "UPDATE datasets SET project_id = :foreign_id WHERE id = "
+            "(SELECT dataset_id FROM dataset_versions WHERE id = :version_id)",
+            {"foreign_id": foreign, "version_id": version},
+            "published dataset versions cannot be moved",
+        ),
+    ):
+        with pytest.raises(DBAPIError, match=message):
+            with engine.begin() as conn:
+                conn.execute(text(statement), parameters)
+    assert client.get(
+        url, params=params, headers={"If-None-Match": etag},
+    ).status_code == 304
+
+
+
+def test_source_row_write_blocks_concurrent_ready_transition() -> None:
+    project, _foreign, version, _other, _run = _fixture()
+    with engine.connect() as first:
+        with first.begin():
+            first.execute(
+                text(
+                    "INSERT INTO source_facilities "
+                    "(id, dataset_version_id, source_feature_id, facility_class, "
+                    "attributes_json, geometry) "
+                    "VALUES (:id, :version, 'pending', 'school', '{}'::jsonb, "
+                    "ST_SetSRID(ST_MakePoint(0, 0), 3857))"
+                ),
+                {"id": uuid.uuid4(), "version": version},
+            )
+            # The inserted row's BEFORE trigger holds a SHARE lock on the
+            # version until commit. Ready publication must wait for that
+            # write, so no tile is ever declared immutable prematurely.
+            with engine.connect() as second:
+                with pytest.raises(DBAPIError, match="lock timeout"):
+                    with second.begin():
+                        second.execute(text("SET LOCAL lock_timeout = '200ms'"))
+                        second.execute(
+                            text(
+                                "UPDATE dataset_versions SET status = 'ready' "
+                                "WHERE id = :version"
+                            ),
+                            {"version": version},
+                        )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE dataset_versions SET status = 'ready' "
+                "WHERE id = :version"
+            ),
+            {"version": version},
+        )
+    assert client.get(
+        _endpoint(project, "source.facilities"),
+        params={"dataset_version_id": str(version)},
+    ).headers["etag"]
+    with pytest.raises(DBAPIError, match="immutable"):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO source_facilities "
+                    "(id, dataset_version_id, source_feature_id, facility_class, "
+                    "attributes_json, geometry) "
+                    "VALUES (:id, :version, 'late', 'school', '{}'::jsonb, "
+                    "ST_SetSRID(ST_MakePoint(0, 0), 3857))"
+                ),
+                {"id": uuid.uuid4(), "version": version},
+            )
+
+
+def test_generated_row_write_blocks_concurrent_success_transition() -> None:
+    project, _foreign, _version, _other, run = _fixture()
+    with engine.connect() as first:
+        with first.begin():
+            first.execute(
+                text(
+                    "INSERT INTO generated_roads (id, run_id, attributes_json, geometry) "
+                    "VALUES (:id, :run, '{}'::jsonb, "
+                    "ST_GeomFromText('LINESTRING(0 0, 1 1)', 3857))"
+                ),
+                {"id": uuid.uuid4(), "run": run},
+            )
+            with engine.connect() as second:
+                with pytest.raises(DBAPIError, match="lock timeout"):
+                    with second.begin():
+                        second.execute(text("SET LOCAL lock_timeout = '200ms'"))
+                        second.execute(
+                            text(
+                                "UPDATE generation_runs SET status = 'succeeded' "
+                                "WHERE id = :run"
+                            ),
+                            {"run": run},
+                        )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE generation_runs SET status = 'succeeded' "
+                "WHERE id = :run"
+            ),
+            {"run": run},
+        )
+    response = client.get(
+        _endpoint(project, "generated.roads"), params={"run_id": str(run)},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["etag"]
+    with pytest.raises(DBAPIError, match="immutable"):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO generated_roads (id, run_id, attributes_json, geometry) "
+                    "VALUES (:id, :run, '{}'::jsonb, "
+                    "ST_GeomFromText('LINESTRING(0 0, 1 1)', 3857))"
+                ),
+                {"id": uuid.uuid4(), "run": run},
+            )

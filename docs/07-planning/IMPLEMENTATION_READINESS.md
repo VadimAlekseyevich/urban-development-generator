@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-084 / S13-T04
-Implement immutable ETag/cache-control semantics for run/dataset tiles.
+UG-AI-085 / S13-T05
+Implement declarative frontend layer registry for GeoJSON/bbox/MVT/raster with style separate from components.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

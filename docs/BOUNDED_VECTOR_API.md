@@ -71,7 +71,8 @@ authoritative; do not turn validation report indices into invented UUIDs.
 - This is a bounded **feature count** API, not a complete export, unlimited
   geometry byte-size guarantee, MVT, or raster format. Bounded binary MVT
   delivery is separately specified in S13-T03 (`docs/MVT_TILE_API.md`);
-  immutable tile caching remains S13-T04.
+  published-only immutable tile caching is separately implemented in
+  S13-T04 (see `docs/MVT_TILE_API.md`).
 
 `next_after` is a plain UUID rather than a signed encoded token: it does
 not authorize access and cannot bypass project/owner scope checks; a random
