@@ -243,17 +243,30 @@ def test_invalid_create_and_project_scoping_do_not_create_partial_jobs() -> None
     assert _counts() == (before[0] + 1, before[1] + 1, before[2] + 1)
 
 
-def test_failed_source_retry_revalidates_ready_versions_and_preserves_source() -> None:
+def test_failed_source_retry_revalidates_current_refs_without_reopening_ready() -> None:
     project_id, version_id = _fixture()
     run_id = uuid.UUID(_create(project_id, version_id).json()["id"])
     with Session(engine) as session:
         with session.begin():
             run = session.get(GenerationRun, run_id)
             job = session.scalar(select(Job).where(Job.run_id == run_id))
-            assert run is not None and job is not None
+            ready = session.get(DatasetVersion, version_id)
+            assert run is not None and job is not None and ready is not None
             run.status = "failed"
             job.status = "failed"
-            session.get(DatasetVersion, version_id).status = "uploaded"  # type: ignore[union-attr]
+            # Published source versions cannot be reverted to uploaded just to
+            # simulate a failing retry. A *failed* run's dataset references
+            # remain mutable, so point it at a new, unpublished version.
+            unready = DatasetVersion(
+                dataset_id=ready.dataset_id,
+                version=2,
+                status="uploaded",
+                checksum_sha256="e" * 64,
+                source_metadata={},
+            )
+            session.add(unready)
+            session.flush()
+            run.dataset_versions = [unready]
     before = _counts()
     response = client.post(f"/api/v1/projects/{project_id}/runs/{run_id}/retry")
     assert response.status_code == 409, response.text
