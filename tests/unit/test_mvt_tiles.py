@@ -17,6 +17,9 @@ from backend.app.application.mvt_tiles import (
     MVT_MAX_TILE_BYTES,
     MVT_MAX_ZOOM,
     MVT_MEDIA_TYPE,
+    MVT_IMMUTABLE_CACHE_CONTROL,
+    MVT_VOLATILE_CACHE_CONTROL,
+    matches_if_none_match,
     MVT_SCHEMA_VERSION,
     MvtTileQueryService,
     MvtTileTooLargeError,
@@ -187,3 +190,67 @@ def test_missing_owner_and_unpublished_derived_read_model() -> None:
             dataset_version_id=None, run_id=RUN,
         )
     assert repo.calls == []
+
+
+def test_published_tile_has_deterministic_owner_and_render_qualified_strong_etag() -> None:
+    repo = FakeMvtRepository(
+        context=VectorLayerContext(working_srid=3857, immutable=True),
+        payload=b"tile-payload",
+        candidates=3,
+    )
+    service = MvtTileQueryService(repo)
+    tile = _read(service)
+    assert tile.cache_control == MVT_IMMUTABLE_CACHE_CONTROL
+    assert tile.etag is not None
+    assert tile.etag.startswith('"') and tile.etag.endswith('"')
+    assert len(tile.etag) == 66  # 64 hex bytes and two quotation marks
+    assert _read(service).etag == tile.etag
+
+    assert _read(service, x=510).etag != tile.etag
+    assert _read(service, feature_limit=20).etag != tile.etag
+    assert _read(service, dataset_version_id=uuid.UUID(int=44)).etag != tile.etag
+    assert _read(
+        service, layer_id="generated.roads",
+        dataset_version_id=None, run_id=RUN,
+    ).etag != tile.etag
+    repo.candidates = 4
+    assert _read(service).etag != tile.etag
+    repo.candidates = 3
+    repo.payload = b"new-rendering"
+    assert _read(service).etag != tile.etag
+
+
+def test_http_if_none_match_uses_weak_get_comparison_without_partial_matches() -> None:
+    repo = FakeMvtRepository(
+        context=VectorLayerContext(working_srid=3857, immutable=True),
+    )
+    etag = _read(MvtTileQueryService(repo)).etag
+    assert etag is not None
+    for valid in (etag, "W/" + etag, ' "unrelated", ' + etag, "*"):
+        assert matches_if_none_match(valid, etag)
+    for invalid in (
+        None, "", "W/", '"unrelated"', etag[:-1], etag + "wrong",
+        "prefix" + etag, '"abc" + ' + etag, 'W/ "broken"',
+    ):
+        assert not matches_if_none_match(invalid, etag)
+    assert not matches_if_none_match(etag, None)
+    assert not matches_if_none_match("*", None)
+
+
+def test_volatile_tile_never_advertises_etag_or_immutable_caching() -> None:
+    repo = FakeMvtRepository(
+        context=VectorLayerContext(working_srid=3857, immutable=False),
+    )
+    tile = _read(MvtTileQueryService(repo))
+    assert tile.cache_control == MVT_VOLATILE_CACHE_CONTROL
+    assert tile.etag is None
+    assert not matches_if_none_match("*", tile.etag)
+
+
+def test_tile_exceeding_byte_budget_is_rejected_before_cache_validator_creation() -> None:
+    repo = FakeMvtRepository(
+        context=VectorLayerContext(working_srid=3857, immutable=True),
+        payload=b"x" * (MVT_MAX_TILE_BYTES + 1),
+    )
+    with pytest.raises(MvtTileTooLargeError):
+        _read(MvtTileQueryService(repo))
