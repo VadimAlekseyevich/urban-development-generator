@@ -478,6 +478,21 @@ and available read models. Future S13 delivery/registry/tree work must
 consume this contract instead of inventing a new catalog. See
 `docs/LAYER_CATALOG.md`.
 
+## Bounded vector delivery / keyset policy (S13-T02)
+
+`backend.app.application.vector_layers.VectorLayerQueryService` binds a
+canonical LayerCatalog entry to exactly one version or run in a project.
+`SqlAlchemyVectorLayerRepository` has a fixed 15-layer table/column allowlist;
+project authorization runs before the spatial query. SQL uses the existing
+owner/id indexes, UUID-exclusive keyset `id > after`, limit+1, original
+geometry GiST && and exact ST_Intersects against a transformed WGS84 bbox.
+Optional 0–100m working-CRS `ST_SimplifyPreserveTopology` is applied ONLY
+to the rendered geometry before EPSG:4326 output. The original geometry is
+never mutated or used in a simplified membership test. Non-UUID validation,
+single-feature boundary, and raster suitability keep canonical specialized
+delivery. Legacy APIs remain intact; MVT/cache/registry/export follow in
+later S13 work. See `docs/BOUNDED_VECTOR_API.md`.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.
