@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. The current ordered task is **UG-AI-082 / S13-T02**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. S13-T02 adds an owner-authorized, 15-table-backed bounded bbox/UUID-keyset GeoJSON path; the project boundary, suitability raster and canonical integer-index validation report retain their specialized APIs. The current ordered task is **UG-AI-083 / S13-T03**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-082 / S13-T02
-Generalize bounded bbox/keyset vector API with projection/simplification policy over the canonical LayerCatalog.
+UG-AI-083 / S13-T03
+Implement run/dataset-scoped MVT endpoint with tile bounds, GiST prefilter and strict work limits.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
