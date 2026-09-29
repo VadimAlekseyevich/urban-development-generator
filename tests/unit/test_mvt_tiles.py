@@ -13,16 +13,16 @@ from backend.app.application.layer_catalog import (
 )
 from backend.app.application.mvt_tiles import (
     MVT_DEFAULT_FEATURE_LIMIT,
+    MVT_IMMUTABLE_CACHE_CONTROL,
     MVT_MAX_FEATURE_LIMIT,
     MVT_MAX_TILE_BYTES,
     MVT_MAX_ZOOM,
     MVT_MEDIA_TYPE,
-    MVT_IMMUTABLE_CACHE_CONTROL,
-    MVT_VOLATILE_CACHE_CONTROL,
-    matches_if_none_match,
     MVT_SCHEMA_VERSION,
+    MVT_VOLATILE_CACHE_CONTROL,
     MvtTileQueryService,
     MvtTileTooLargeError,
+    matches_if_none_match,
 )
 from backend.app.application.vector_layers import (
     VectorLayerContext,
