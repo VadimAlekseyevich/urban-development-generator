@@ -49,6 +49,9 @@ class VectorLayerNotReadyError(RuntimeError):
 class VectorLayerContext:
     working_srid: int
     read_model_ready: bool = True
+    # Only the MVT adapter may attest published DB-backed cache immutability.
+    # The generalized GeoJSON adapter never makes that caching claim.
+    immutable: bool = False
 
 
 @dataclass(frozen=True, slots=True)
