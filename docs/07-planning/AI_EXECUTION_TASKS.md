@@ -119,7 +119,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-080** — **S12-T15** — Add 2–N compare UI and map run switching; complete M3/M4 integration gates.
 - [x] **UG-AI-081** — **S13-T01** — Define canonical LayerCatalog entry ownership/version/source-kind/render metadata contract.
 - [x] **UG-AI-082** — **S13-T02** — Generalize bounded bbox/keyset vector API with projection/simplification policy.
-- [ ] **UG-AI-083** — **S13-T03** — Implement run/dataset-scoped MVT endpoint using tile bounds + GiST prefilter + limits.
+- [x] **UG-AI-083** — **S13-T03** — Implement run/dataset-scoped MVT endpoint using tile bounds + GiST prefilter + limits.
 - [ ] **UG-AI-084** — **S13-T04** — Implement immutable ETag/cache-control semantics for run/dataset tiles.
 - [ ] **UG-AI-085** — **S13-T05** — Implement declarative frontend layer registry for GeoJSON/bbox/MVT/raster with style separate from components.
 - [ ] **UG-AI-086** — **S13-T06** — Build full layer tree from LayerCatalog/registry rather than root-component special cases.
