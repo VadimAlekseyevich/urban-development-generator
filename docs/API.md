@@ -165,6 +165,22 @@ invalid scope/viewport/policy. Source and successful-run state is never
 mutated. Existing per-layer APIs remain unchanged. See
 `docs/BOUNDED_VECTOR_API.md`.
 
+## Bounded binary MVT tiles (S13-T03)
+
+`GET /projects/{project_id}/vector-layers/{layer_id}/tiles/{z}/{x}/{y}.mvt`
+requires exactly one canonical `dataset_version_id` or `run_id` scope,
+with `z=0..16`, in-range XYZ and `feature_limit=1..1000` (default 500).
+Output is `application/vnd.mapbox-vector-tile`: a named canonical MVT layer,
+stable source feature UUID string properties, a <=N+1 source candidate
+header and explicit truncation flag. SQL uses owner+id filtering,
+GiST envelope prefilter and exact intersection before bounded geometry
+encoding into EPSG:3857 tiles. Empty tiles are zero bytes, MVT responses
+are capped at 1 MiB (413) with a transaction-local 5s statement timeout.
+Unknown/foreign owners: 404; unpublished derived run models: 409;
+invalid bounds/owner/canonical non-tabular layer: 422. `Cache-Control:
+no-store` until S13-T04 adds immutable ETag and version-aware caching.
+See `docs/MVT_TILE_API.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

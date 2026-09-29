@@ -493,6 +493,20 @@ single-feature boundary, and raster suitability keep canonical specialized
 delivery. Legacy APIs remain intact; MVT/cache/registry/export follow in
 later S13 work. See `docs/BOUNDED_VECTOR_API.md`.
 
+## Bounded MVT delivery boundary (S13-T03)
+
+`MvtTileQueryService` binds the same 15 physical LayerCatalog entries to
+an exact project/version or project/run owner. The SQL adapter inherits
+the S13-T02 project-context ownership check and fixed table allowlist.
+PostGIS transforms `ST_TileEnvelope` with explicit clipping margin to the
+persisted geometry SRID for original-geometry GiST && + exact intersection,
+materializes at most limit+1 candidates, and encodes at most limit rows
+with `ST_AsMVTGeom`/ `ST_AsMVT`. A 5-second transaction-local timeout,
+1000-feature cap, 1MiB response cap and zoom 0–16 limit bound work;
+outputs are `no-store` pending S13-T04 ETag/cache policy. No ORM table
+migration, run recomputation, or frontend source-registry migration.
+See `docs/MVT_TILE_API.md`.
+
 ## Обязательный конечный продукт
 
 Полноценный 2D-сервис: импорт реальных данных, CRS/валидация, все стадии генерации, инфраструктура и демография, несколько сценариев, прогресс jobs, интерактивная карта, сравнение, экспорт, тесты и воспроизводимость.

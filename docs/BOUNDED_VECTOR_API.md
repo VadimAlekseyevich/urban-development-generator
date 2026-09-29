@@ -69,8 +69,9 @@ authoritative; do not turn validation report indices into invented UUIDs.
   vertex equality at nonzero tolerance. Geometry may extend beyond bbox:
   the query intersects the viewport, it does not clip geometries.
 - This is a bounded **feature count** API, not a complete export, unlimited
-  geometry byte-size guarantee, MVT, or raster format. MVT and immutable
-  tile caching remain S13-T03/T04.
+  geometry byte-size guarantee, MVT, or raster format. Bounded binary MVT
+  delivery is separately specified in S13-T03 (`docs/MVT_TILE_API.md`);
+  immutable tile caching remains S13-T04.
 
 `next_after` is a plain UUID rather than a signed encoded token: it does
 not authorize access and cannot bypass project/owner scope checks; a random
@@ -118,6 +119,5 @@ project/version/run isolation, three-page keyset traversal, WGS84
 projection, simplification without source mutation, status and typed
 properties for run projections, and HTTP 404/409/422 failures.
 
-No migration, generated read-model rewrite, frontend switch-over, stage
-DAG change or asynchronous export is part of UG-AI-082. Subsequent S13
+No migration, generated read-model rewrite, frontend switch-over, stage\nDAG change or asynchronous export is part of UG-AI-082. Subsequent S13
 tasks extend the same owner-qualified catalog rather than replacing it.
