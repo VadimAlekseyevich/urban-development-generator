@@ -11,8 +11,8 @@ from backend.app.application.mvt_tiles import (
     MVT_MAX_FEATURE_LIMIT,
     MVT_MEDIA_TYPE,
     MVT_VOLATILE_CACHE_CONTROL,
-    matches_if_none_match,
     MvtTileTooLargeError,
+    matches_if_none_match,
 )
 from backend.app.application.vector_layers import (
     VectorLayerNotFoundError,
