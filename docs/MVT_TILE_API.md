@@ -50,7 +50,8 @@ Header metadata:
 | `X-MVT-Feature-Limit` | selected 1–1000 |
 | `X-MVT-Candidates` | pre-encoding intersecting candidates, at most N+1 |
 | `X-Features-Truncated` | true if candidate count > N; it is **not** the exact post-clipping feature count |
-| `Cache-Control` | `private, no-store` for active/unpublished input; `private, max-age=31536000, immutable` for truly published inputs |\n| `ETag` | Strong quoted SHA-256 only for cache-immutable tile responses |
+| `Cache-Control` | `private, no-store` for active/unpublished input; `private, max-age=31536000, immutable` for truly published inputs |
+| `ETag` | Strong quoted SHA-256 only for cache-immutable tile responses |
 
 ## Bounded spatial work and tile projection
 
@@ -78,7 +79,8 @@ Header metadata:
   interactive tile contract, not an exhaustive vector export.
 - Successful generation runs and immutable dataset versions support
   reproducible geometry inputs; queued/running run output can change.
-  S13-T04 advertises immutable caching only when the input state satisfies\n  the terminal publication conditions below. Active output is never cached.
+  S13-T04 advertises immutable caching only when the input state satisfies
+  the terminal publication conditions below. Active output is never cached.
 
 S13-T03 adds no migration, raster rendering, geospatial algorithm changes,
 UI map-source registry, background export, or performance benchmark claim.
