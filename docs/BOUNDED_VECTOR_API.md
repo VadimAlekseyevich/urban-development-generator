@@ -69,7 +69,9 @@ authoritative; do not turn validation report indices into invented UUIDs.
   vertex equality at nonzero tolerance. Geometry may extend beyond bbox:
   the query intersects the viewport, it does not clip geometries.
 - This is a bounded **feature count** API, not a complete export, unlimited
-  geometry byte-size guarantee, MVT, or raster format. Bounded binary MVT\n  delivery is separately specified in S13-T03 (`docs/MVT_TILE_API.md`);\n  immutable tile caching remains S13-T04.
+  geometry byte-size guarantee, MVT, or raster format. Bounded binary MVT
+  delivery is separately specified in S13-T03 (`docs/MVT_TILE_API.md`);
+  immutable tile caching remains S13-T04.
 
 `next_after` is a plain UUID rather than a signed encoded token: it does
 not authorize access and cannot bypass project/owner scope checks; a random
