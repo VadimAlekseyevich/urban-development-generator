@@ -38,20 +38,24 @@ def get_vector_layer_geojson(
     ],
     dataset_version_id: uuid.UUID | None = None,
     run_id: uuid.UUID | None = None,
-    limit: int = Query(DEFAULT_VECTOR_LIMIT, ge=1, le=MAX_VECTOR_LIMIT),
-    after: uuid.UUID | None = Query(
-        default=None, description="Exclusive last feature UUID from next_after"
-    ),
-    presentation_srid: int = Query(
-        default=4326, description="GeoJSON RFC 7946 only supports EPSG:4326"
-    ),
-    simplify_m: float = Query(
-        default=0.0,
-        ge=0.0,
-        le=MAX_SIMPLIFY_METRES,
-        allow_inf_nan=False,
-        description="Optional 0–100 metre render-only working-CRS simplification",
-    ),
+    limit: Annotated[int, Query(ge=1, le=MAX_VECTOR_LIMIT)] = DEFAULT_VECTOR_LIMIT,
+    after: Annotated[
+        uuid.UUID | None,
+        Query(description="Exclusive last feature UUID from next_after"),
+    ] = None,
+    presentation_srid: Annotated[
+        int,
+        Query(description="GeoJSON RFC 7946 only supports EPSG:4326"),
+    ] = 4326,
+    simplify_m: Annotated[
+        float,
+        Query(
+            ge=0.0,
+            le=MAX_SIMPLIFY_METRES,
+            allow_inf_nan=False,
+            description="Optional 0–100 metre render-only working-CRS simplification",
+        ),
+    ] = 0.0,
 ) -> VectorPage:
     try:
         return service.get_geojson(
