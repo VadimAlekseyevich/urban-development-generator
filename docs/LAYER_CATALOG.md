@@ -82,7 +82,8 @@ canonical tokens to the declarative frontend style registry. The original 18-ent
 contract. S13-T02/T03 provide bounded GeoJSON/UUID-keyset and MVT read
 adapters for its 15 table-backed vector entries; they do not assert
 availability or rewrite canonical T01 definition versions. Immutable
-tile ETags and caching remain S13-T04.
+immutable state-qualified tile ETags and 304 caching are implemented by
+S13-T04's read adapter, without changing the catalog's definition IDs.
 
 ## Gates and next steps
 
