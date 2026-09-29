@@ -140,7 +140,7 @@ def test_empty_database_upgrades_to_current_postgis_schema(db_session: Session) 
         )
     }
 
-    assert revision == "0022_exact_rerun_lineage"
+    assert revision == "0023_published_tile_inputs"
     assert "cancel_requested_at" in Job.__table__.c
     assert isinstance(postgis_version, str) and postgis_version
     assert {
