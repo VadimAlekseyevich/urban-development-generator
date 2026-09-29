@@ -112,6 +112,14 @@ def prevent_dataset_version_content_update(
     """Allow lifecycle status changes but reject edits to version identity/content."""
 
     state = inspect(target)
+    status_history = state.attrs.status.history
+    old_status = (
+        status_history.deleted[0] if status_history.deleted else target.status
+    )
+    if old_status == "ready" and target.status != "ready":
+        raise DatasetVersionImmutableError(
+            "ready dataset version status is terminal; create a new version"
+        )
     changed_fields = {
         field_name
         for field_name in IMMUTABLE_DATASET_VERSION_FIELDS
