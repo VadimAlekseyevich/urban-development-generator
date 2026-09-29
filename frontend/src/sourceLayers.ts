@@ -60,18 +60,6 @@ export const EMPTY_FEATURE_COLLECTION: GeoJsonFeatureCollection = {
   features: [],
 }
 
-export const SOURCE_LAYER_CONFIG: ReadonlyArray<{
-  key: SourceLayerKey
-  label: string
-  color: string
-}> = [
-  { key: 'boundary', label: 'Граница проекта', color: '#f59e0b' },
-  { key: 'roads', label: 'Дороги', color: '#334155' },
-  { key: 'buildings', label: 'Здания', color: '#d97706' },
-  { key: 'water', label: 'Вода', color: '#0ea5e9' },
-  { key: 'landuse', label: 'Землепользование', color: '#65a30d' },
-]
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export function isUuid(value: string): boolean {
