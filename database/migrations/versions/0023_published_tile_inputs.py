@@ -136,7 +136,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE FUNCTION lock_published_tile_parent()
-        RETURNS trigger AS $
+        RETURNS trigger AS $$
         DECLARE
             source_version_id uuid;
             generated_run_id uuid;
@@ -161,7 +161,7 @@ def upgrade() -> None:
             END IF;
             RETURN NEW;
         END;
-        $ LANGUAGE plpgsql
+        $$ LANGUAGE plpgsql
         """
     )
     for table_name in (*_SOURCE_TABLES, *_GENERATED_TABLES):
@@ -177,7 +177,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE FUNCTION lock_published_run_dataset_refs()
-        RETURNS trigger AS $
+        RETURNS trigger AS $$
         BEGIN
             IF TG_OP = 'INSERT' THEN
                 PERFORM 1 FROM generation_runs
@@ -195,7 +195,7 @@ def upgrade() -> None:
             END IF;
             RETURN NEW;
         END;
-        $ LANGUAGE plpgsql
+        $$ LANGUAGE plpgsql
         """
     )
     op.execute(
