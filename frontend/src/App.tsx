@@ -27,8 +27,6 @@ import { ZoningPanel } from './ZoningPanel'
 import {
   EMPTY_FEATURE_COLLECTION,
   SOURCE_LAYER_API_NAMES,
-  SOURCE_LAYER_CONFIG,
-  bboxParam,
   featureCollectionBounds,
   featureCollectionOf,
   featureTitle,
@@ -46,39 +44,36 @@ import {
   type SourceLayerKey,
   type SourceLayerResponse,
 } from './sourceLayers'
+import {
+  catalogReadUrl,
+  layerDefinition,
+  layerInstancesForContext,
+  legacyBboxUrl,
+  type LayerId,
+} from './layerRegistry'
+import { SOURCE_MAP_LEGEND } from './layerStyles'
+import { installCatalogGeoJson, layerStyleIds } from './mapLayerAdapter'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 const VIEWPORT_LIMIT = 1500
 
-const SOURCE_IDS: Record<SourceLayerKey, string> = {
-  boundary: 'source-boundary',
-  roads: 'source-roads',
-  buildings: 'source-buildings',
-  water: 'source-water',
-  landuse: 'source-landuse',
-}
-
-const MAP_LAYER_IDS: Record<SourceLayerKey, readonly string[]> = {
-  boundary: ['source-boundary-fill', 'source-boundary-line'],
-  roads: ['source-roads-line'],
-  buildings: ['source-buildings-fill', 'source-buildings-line'],
-  water: ['source-water-fill', 'source-water-line'],
-  landuse: ['source-landuse-fill', 'source-landuse-line'],
-}
-
+const SOURCE_LAYER_IDS: Record<SourceLayerKey, LayerId> = Object.fromEntries(
+  SOURCE_MAP_LEGEND.map(({ key, layerId }) => [key, layerId]),
+) as Record<SourceLayerKey, LayerId>
+const SOURCE_IDS: Record<SourceLayerKey, string> = Object.fromEntries(
+  SOURCE_MAP_LEGEND.map(({ key, layerId }) => [key, layerDefinition(layerId).sourceId]),
+) as Record<SourceLayerKey, string>
+const MAP_LAYER_IDS: Record<SourceLayerKey, readonly string[]> = Object.fromEntries(
+  SOURCE_MAP_LEGEND.map(({ key, layerId }) => [key, layerStyleIds(layerId)]),
+) as Record<SourceLayerKey, readonly string[]>
 const MAP_LAYER_TO_SOURCE: Record<string, SourceLayerKey> = Object.fromEntries(
-  Object.entries(MAP_LAYER_IDS).flatMap(([key, ids]) =>
-    ids.map((id) => [id, key as SourceLayerKey]),
+  SOURCE_MAP_LEGEND.flatMap(({ key, layerId }) =>
+    layerStyleIds(layerId).map((id) => [id, key]),
   ),
 ) as Record<string, SourceLayerKey>
-
-const INITIAL_VISIBILITY: Record<SourceLayerKey, boolean> = {
-  boundary: true,
-  roads: true,
-  buildings: true,
-  water: true,
-  landuse: true,
-}
+const INITIAL_VISIBILITY: Record<SourceLayerKey, boolean> = Object.fromEntries(
+  SOURCE_MAP_LEGEND.map(({ key, layerId }) => [key, layerDefinition(layerId).defaultVisible]),
+) as Record<SourceLayerKey, boolean>
 
 type ApiStatus = 'checking' | 'online' | 'offline'
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -141,68 +136,7 @@ function fitMap(map: MapLibreMap, bounds: Bounds): void {
 }
 
 function addSourceLayers(map: MapLibreMap): void {
-  for (const key of Object.keys(SOURCE_IDS) as SourceLayerKey[]) {
-    map.addSource(SOURCE_IDS[key], { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
-  }
-
-  map.addLayer({
-    id: 'source-boundary-fill',
-    type: 'fill',
-    source: SOURCE_IDS.boundary,
-    paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.06 },
-  })
-  map.addLayer({
-    id: 'source-boundary-line',
-    type: 'line',
-    source: SOURCE_IDS.boundary,
-    paint: { 'line-color': '#f59e0b', 'line-width': 3, 'line-dasharray': [2, 2] },
-  })
-  map.addLayer({
-    id: 'source-landuse-fill',
-    type: 'fill',
-    source: SOURCE_IDS.landuse,
-    paint: { 'fill-color': '#65a30d', 'fill-opacity': 0.22 },
-  })
-  map.addLayer({
-    id: 'source-landuse-line',
-    type: 'line',
-    source: SOURCE_IDS.landuse,
-    paint: { 'line-color': '#4d7c0f', 'line-width': 1 },
-  })
-  map.addLayer({
-    id: 'source-water-fill',
-    type: 'fill',
-    source: SOURCE_IDS.water,
-    paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.5 },
-    filter: ['==', ['geometry-type'], 'Polygon'],
-  })
-  map.addLayer({
-    id: 'source-water-line',
-    type: 'line',
-    source: SOURCE_IDS.water,
-    paint: { 'line-color': '#0284c7', 'line-width': 2 },
-  })
-  map.addLayer({
-    id: 'source-buildings-fill',
-    type: 'fill',
-    source: SOURCE_IDS.buildings,
-    paint: { 'fill-color': '#d97706', 'fill-opacity': 0.52 },
-  })
-  map.addLayer({
-    id: 'source-buildings-line',
-    type: 'line',
-    source: SOURCE_IDS.buildings,
-    paint: { 'line-color': '#92400e', 'line-width': 0.8 },
-  })
-  map.addLayer({
-    id: 'source-roads-line',
-    type: 'line',
-    source: SOURCE_IDS.roads,
-    paint: {
-      'line-color': '#334155',
-      'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1, 12, 2, 16, 4],
-    },
-  })
+  for (const { layerId } of SOURCE_MAP_LEGEND) installCatalogGeoJson(map, layerId)
 }
 
 function App() {
@@ -299,7 +233,7 @@ function App() {
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
-    for (const config of SOURCE_LAYER_CONFIG) {
+    for (const config of SOURCE_MAP_LEGEND) {
       for (const layerId of MAP_LAYER_IDS[config.key]) {
         if (!map.getLayer(layerId)) continue
         map.setLayoutProperty(
@@ -320,14 +254,12 @@ function App() {
     viewportAbortRef.current = controller
 
     const mapBounds = map.getBounds()
-    const bbox = bboxParam(
-      viewportBounds(
-        mapBounds.getWest(),
-        mapBounds.getSouth(),
-        mapBounds.getEast(),
-        mapBounds.getNorth(),
-      ),
+    const bounds = viewportBounds(
+      mapBounds.getWest(), mapBounds.getSouth(), mapBounds.getEast(), mapBounds.getNorth(),
     )
+    const catalog = layerInstancesForContext({
+      projectId: context.projectId, datasetVersionId: context.datasetVersionId,
+    })
     const requested = SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer])
     if (requested.length === 0) {
       setLoadStatus('ready')
@@ -340,11 +272,9 @@ function App() {
 
     const results = await Promise.allSettled(
       requested.map(async (layer) => {
-        const url =
-          `${API_BASE}/projects/${encodeURIComponent(context.projectId)}` +
-          `/dataset-versions/${encodeURIComponent(context.datasetVersionId)}` +
-          `/source-layers/${layer}/geojson` +
-          `?bbox=${encodeURIComponent(bbox)}&limit=${VIEWPORT_LIMIT}`
+        const entry = catalog.find((item) => item.definition.id === SOURCE_LAYER_IDS[layer])
+        if (!entry) throw new Error(`Missing catalog owner for ${layer}`)
+        const url = legacyBboxUrl(API_BASE, entry, bounds, VIEWPORT_LIMIT)
         const response = await fetch(url, { signal: controller.signal })
         if (!response.ok) {
           throw new Error(`${layer}: HTTP ${response.status} ${await response.text()}`)
@@ -416,7 +346,10 @@ function App() {
 
     const controller = new AbortController()
     boundaryAbortRef.current = controller
-    const url = `${API_BASE}/projects/${encodeURIComponent(context.projectId)}/boundary/geojson`
+    const entry = layerInstancesForContext({ projectId: context.projectId })
+      .find((item) => item.definition.id === 'project.boundary')
+    if (!entry) return
+    const url = catalogReadUrl(API_BASE, entry)
 
     void fetch(url, { signal: controller.signal })
       .then(async (response) => {
