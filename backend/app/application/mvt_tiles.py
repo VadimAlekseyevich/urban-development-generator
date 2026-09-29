@@ -7,6 +7,8 @@ PostGIS adapter enforces a bounded candidate set *before* MVT geometry work.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass
 from typing import Protocol
@@ -34,6 +36,8 @@ MVT_DEFAULT_FEATURE_LIMIT = 500
 MVT_MAX_FEATURE_LIMIT = 1000
 MVT_MAX_TILE_BYTES = 1_048_576
 MVT_STATEMENT_TIMEOUT_MS = 5000
+MVT_IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
+MVT_VOLATILE_CACHE_CONTROL = "private, no-store"
 # The validation report has stable integer violation indices rather than a
 # table UUID/geometry; boundary and raster use their dedicated delivery APIs.
 _UNSUPPORTED_TILE_LAYERS = frozenset({"validation.violations"})
@@ -51,6 +55,59 @@ class MvtTile:
     feature_limit: int
     truncated: bool
     schema_version: str = MVT_SCHEMA_VERSION
+    etag: str | None = None
+    cache_control: str = MVT_VOLATILE_CACHE_CONTROL
+
+
+def matches_if_none_match(header: str | None, etag: str | None) -> bool:
+    """Weak GET/HEAD comparison per HTTP If-None-Match semantics.
+
+    The server only emits a safe quoted SHA-256 validator; a malformed
+    header, embedded substring or partial opaque tag cannot cause a 304.
+    A wildcard only matches when this representation is cache-eligible.
+    """
+    if header is None or etag is None:
+        return False
+    return any(
+        tag == "*" or tag == etag or tag == "W/" + etag
+        for token in header.split(",")
+        if (tag := token.strip())
+    )
+
+
+def _content_etag(
+    *,
+    entry: LayerCatalogEntry,
+    working_srid: int,
+    z: int,
+    x: int,
+    y: int,
+    feature_limit: int,
+    candidates: int,
+    payload: bytes,
+) -> str:
+    """Hash owner identity, render contract, query and complete encoded bytes.
+
+    Different owners or limits cannot reuse validators, even when both
+    encode an empty tile. The renderer/schema fingerprint changes when
+    the tile contract changes, without requiring a mutable DB timestamp.
+    """
+    identity = json.dumps(
+        {
+            "schema": MVT_SCHEMA_VERSION,
+            "definition_version": entry.definition.definition_version,
+            "instance_key": entry.instance_key,
+            "working_srid": working_srid,
+            "z": z,
+            "x": x,
+            "y": y,
+            "feature_limit": feature_limit,
+            "candidate_count": candidates,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return '"' + hashlib.sha256(identity + b"\\0" + payload).hexdigest() + '"'
 
 
 class MvtTileRepository(Protocol):
@@ -158,4 +215,21 @@ class MvtTileQueryService:
             candidate_count=candidates,
             feature_limit=feature_limit,
             truncated=candidates > feature_limit,
+            etag=(
+                _content_etag(
+                    entry=entry,
+                    working_srid=context.working_srid,
+                    z=z,
+                    x=x,
+                    y=y,
+                    feature_limit=feature_limit,
+                    candidates=candidates,
+                    payload=encoded,
+                )
+                if context.immutable else None
+            ),
+            cache_control=(
+                MVT_IMMUTABLE_CACHE_CONTROL
+                if context.immutable else MVT_VOLATILE_CACHE_CONTROL
+            ),
         )
