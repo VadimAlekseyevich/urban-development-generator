@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -18,6 +17,7 @@ import { ComparePanel } from './ComparePanel'
 import { BuildingsPanel } from './BuildingsPanel'
 import { DemographyPanel } from './DemographyPanel'
 import { InfrastructurePanel } from './InfrastructurePanel'
+import { LayerTree } from './LayerTree'
 import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
 import { RunsPanel } from './RunsPanel'
@@ -53,6 +53,7 @@ import {
 } from './layerRegistry'
 import { SOURCE_MAP_LEGEND } from './layerStyles'
 import { installCatalogGeoJson, layerStyleIds } from './mapLayerAdapter'
+import { useLayerVisibilitySnapshot } from './layerVisibility'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 const VIEWPORT_LIMIT = 1500
@@ -71,10 +72,6 @@ const MAP_LAYER_TO_SOURCE: Record<string, SourceLayerKey> = Object.fromEntries(
     layerStyleIds(layerId).map((id) => [id, key]),
   ),
 ) as Record<string, SourceLayerKey>
-const INITIAL_VISIBILITY: Record<SourceLayerKey, boolean> = Object.fromEntries(
-  SOURCE_MAP_LEGEND.map(({ key, layerId }) => [key, layerDefinition(layerId).defaultVisible]),
-) as Record<SourceLayerKey, boolean>
-
 type ApiStatus = 'checking' | 'online' | 'offline'
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 type SourceContext = { projectId: string; datasetVersionId: string }
@@ -87,6 +84,8 @@ const EMPTY_STATS: LayerStats = {
   buildings: { count: 0, truncated: false, error: null },
   water: { count: 0, truncated: false, error: null },
   landuse: { count: 0, truncated: false, error: null },
+  facilities: { count: 0, truncated: false, error: null },
+  constraints: { count: 0, truncated: false, error: null },
 }
 
 function initialParam(name: string): string {
@@ -150,10 +149,13 @@ function App() {
     buildings: EMPTY_FEATURE_COLLECTION,
     water: EMPTY_FEATURE_COLLECTION,
     landuse: EMPTY_FEATURE_COLLECTION,
+    facilities: EMPTY_FEATURE_COLLECTION,
+    constraints: EMPTY_FEATURE_COLLECTION,
   })
 
   const initialProjectId = initialParam('project_id')
   const initialVersionId = initialParam('dataset_version_id')
+  const initialSuitabilityArtifactId = initialParam('suitability_artifact_id')
   const [projectId, setProjectId] = useState(initialProjectId)
   const [datasetVersionId, setDatasetVersionId] = useState(initialVersionId)
   const [context, setContext] = useState<SourceContext | null>(() =>
@@ -164,15 +166,13 @@ function App() {
   const [mapReady, setMapReady] = useState(false)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle')
   const [loadMessage, setLoadMessage] = useState('Укажите Project ID и DatasetVersion ID.')
-  const [visibility, setVisibility] = useState(INITIAL_VISIBILITY)
+  const visibility = useLayerVisibilitySnapshot()
   const [layerStats, setLayerStats] = useState<LayerStats>(EMPTY_STATS)
   const [boundaryAvailable, setBoundaryAvailable] = useState(false)
   const [selected, setSelected] = useState<SelectedFeature | null>(null)
   const [mapRunId, setMapRunId] = useState<string | null>(null)
-
-  const activeLayerCount = useMemo(
-    () => SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer]).length,
-    [visibility],
+  const [suitabilityArtifactId, setSuitabilityArtifactId] = useState<string | null>(
+    isUuid(initialSuitabilityArtifactId) ? initialSuitabilityArtifactId : null,
   )
 
   useEffect(() => {
@@ -239,7 +239,7 @@ function App() {
         map.setLayoutProperty(
           layerId,
           'visibility',
-          visibility[config.key] ? 'visible' : 'none',
+          visibility[config.layerId] ? 'visible' : 'none',
         )
       }
     }
@@ -260,7 +260,7 @@ function App() {
     const catalog = layerInstancesForContext({
       projectId: context.projectId, datasetVersionId: context.datasetVersionId,
     })
-    const requested = SOURCE_LAYER_API_NAMES.filter((layer) => visibility[layer])
+    const requested = SOURCE_LAYER_API_NAMES.filter((layer) => visibility[SOURCE_LAYER_IDS[layer]])
     if (requested.length === 0) {
       setLoadStatus('ready')
       setLoadMessage('Все source layers скрыты.')
@@ -413,26 +413,29 @@ function App() {
     setDatasetVersionId(event.target.value)
   }
 
-  function toggleLayer(layer: SourceLayerKey): void {
-    setVisibility((current) => ({ ...current, [layer]: !current[layer] }))
-  }
-
   function fitVisibleData(): void {
     const map = mapRef.current
     if (!map) return
 
     let bounds: Bounds | null = null
-    if (visibility.boundary && boundaryRef.current?.geometry) {
+    if (visibility['project.boundary'] && boundaryRef.current?.geometry) {
       bounds = geometryBounds(boundaryRef.current.geometry)
     }
     for (const layer of SOURCE_LAYER_API_NAMES) {
-      if (!visibility[layer]) continue
+      if (!visibility[SOURCE_LAYER_IDS[layer]]) continue
       bounds = mergeBounds(bounds, featureCollectionBounds(collectionsRef.current[layer]))
     }
     if (bounds) fitMap(map, bounds)
   }
 
   const anyTruncated = Object.values(layerStats).some((stat) => stat.truncated)
+  const layerCounts: Partial<Record<LayerId, string | number>> = {
+    'project.boundary': boundaryAvailable ? 1 : '—',
+  }
+  for (const layer of SOURCE_LAYER_API_NAMES) {
+    const stat = layerStats[layer]
+    layerCounts[SOURCE_LAYER_IDS[layer]] = stat.truncated ? `${stat.count}+` : stat.count
+  }
 
   return (
     <main className="layout">
@@ -481,60 +484,6 @@ function App() {
           <p className="helper-text">Контекст сохраняется в URL и подходит для повторной проверки.</p>
         </section>
 
-        <section className="panel">
-          <div className="section-heading section-heading-row">
-            <div>
-              <p className="section-kicker">Легенда</p>
-              <h2>Исходные слои</h2>
-            </div>
-            <span className="badge">{activeLayerCount}/4</span>
-          </div>
-          <div className="layer-list">
-            {SOURCE_MAP_LEGEND.map((layer) => {
-              const stat = layer.key === 'boundary' ? null : layerStats[layer.key]
-              return (
-                <label className="layer-row" key={layer.key}>
-                  <input
-                    type="checkbox"
-                    checked={visibility[layer.key]}
-                    onChange={() => toggleLayer(layer.key)}
-                  />
-                  <span className="swatch" style={{ backgroundColor: layer.color }} />
-                  <span className="layer-label">{layer.label}</span>
-                  <span className="layer-count">
-                    {layer.key === 'boundary'
-                      ? boundaryAvailable
-                        ? '1'
-                        : '—'
-                      : stat?.truncated
-                        ? `${stat.count}+`
-                        : String(stat?.count ?? 0)}
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-          <div className="button-row">
-            <button className="button" type="button" onClick={fitVisibleData} disabled={!context}>
-              Fit to data
-            </button>
-            <button
-              className="button"
-              type="button"
-              onClick={() => void loadViewport()}
-              disabled={!context}
-            >
-              Обновить
-            </button>
-          </div>
-          <div className={`load-state load-state-${loadStatus}`}>{loadMessage}</div>
-          {anyTruncated && (
-            <p className="warning-text">
-              Один или несколько слоёв достигли viewport limit ({VIEWPORT_LIMIT}); приблизьте карту.
-            </p>
-          )}
-        </section>
-
         <RunsPanel
           key={context?.projectId ?? 'no-project'}
           apiBase={API_BASE}
@@ -550,7 +499,27 @@ function App() {
           onMapRunChange={setMapRunId}
         />
 
-        <SuitabilityPanel apiBase={API_BASE} map={mapReady ? mapRef.current : null} />
+        <LayerTree
+          selection={{
+            projectId: context?.projectId ?? null,
+            datasetVersionId: context?.datasetVersionId ?? null,
+            runId: mapRunId,
+            suitabilityArtifactId,
+          }}
+          counts={layerCounts}
+          sourceStatus={loadStatus}
+          sourceMessage={loadMessage}
+          sourceTruncated={anyTruncated}
+          sourceLimit={VIEWPORT_LIMIT}
+          onFitSource={fitVisibleData}
+          onRefreshSource={() => void loadViewport()}
+        />
+
+        <SuitabilityPanel
+          apiBase={API_BASE}
+          map={mapReady ? mapRef.current : null}
+          onArtifactChange={setSuitabilityArtifactId}
+        />
 
         <ZoningPanel
           pinnedRunId={mapRunId}
