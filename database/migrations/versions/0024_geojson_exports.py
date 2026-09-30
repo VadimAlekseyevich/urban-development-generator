@@ -38,6 +38,7 @@ def upgrade() -> None:
         sa.Column("bbox_east", sa.Float(), nullable=False),
         sa.Column("bbox_north", sa.Float(), nullable=False),
         sa.Column("max_features", sa.Integer(), nullable=False, server_default="100000"),
+        sa.Column("feature_count", sa.Integer(), nullable=True),
         sa.Column(
             "artifact_id",
             postgresql.UUID(as_uuid=True),
@@ -63,6 +64,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "max_features > 0 AND max_features <= 100000",
             name="ck_geojson_exports_max_features",
+        ),
+        sa.CheckConstraint(
+            "feature_count IS NULL OR (feature_count >= 0 AND feature_count <= max_features)",
+            name="ck_geojson_exports_feature_count",
         ),
         sa.UniqueConstraint("artifact_id", name="uq_geojson_exports_artifact_id"),
     )
