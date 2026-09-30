@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 
@@ -7,13 +8,10 @@ import {
   bboxParam,
   viewportBounds,
   type GeoJsonFeatureCollection,
-  type SourceLayerResponse,
 } from './sourceLayers'
 
 const VIEWPORT_LIMIT = 1500
-const EXISTING_SOURCE_ID = 'roads-ui-existing-source'
 const GENERATED_SOURCE_ID = 'roads-ui-generated-source'
-const EXISTING_LAYER_ID = 'roads-ui-existing-line'
 const GENERATED_LAYER_ID = 'roads-ui-generated-line'
 
 const ROAD_LEGEND = [
@@ -64,7 +62,6 @@ type RoadsPanelProps = {
   map: MapLibreMap | null
   projectId: string | null
   pinnedRunId: string | null
-  datasetVersionId: string | null
 }
 
 function setSourceData(
@@ -77,24 +74,8 @@ function setSourceData(
 }
 
 function ensureRoadLayers(map: MapLibreMap): void {
-  if (!map.getSource(EXISTING_SOURCE_ID)) {
-    map.addSource(EXISTING_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
-  }
   if (!map.getSource(GENERATED_SOURCE_ID)) {
     map.addSource(GENERATED_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
-  }
-
-  if (!map.getLayer(EXISTING_LAYER_ID)) {
-    map.addLayer({
-      id: EXISTING_LAYER_ID,
-      type: 'line',
-      source: EXISTING_SOURCE_ID,
-      paint: {
-        'line-color': '#475569',
-        'line-opacity': 0.72,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.2, 12, 2.4, 16, 4.2],
-      },
-    })
   }
   if (!map.getLayer(GENERATED_LAYER_ID)) {
     map.addLayer({
@@ -144,18 +125,14 @@ export function RoadsPanel({
   map,
   projectId,
   pinnedRunId,
-  datasetVersionId,
 }: RoadsPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const diagnosticsAbortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<RoadRunSummary[]>([])
   const [localRunId, setSelectedRunId] = useState('')
   const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
-  const [existingVisible, setExistingVisible] = useState(false)
-  const [generatedVisible, setGeneratedVisible] = useState(true)
-  const [existingCount, setExistingCount] = useState(0)
+  const [generatedVisible, setGeneratedVisible] = useLayerVisibility('generated.roads')
   const [generatedCount, setGeneratedCount] = useState(0)
-  const [existingTruncated, setExistingTruncated] = useState(false)
   const [generatedTruncated, setGeneratedTruncated] = useState(false)
   const [diagnostics, setDiagnostics] = useState<RoadGraphDiagnostics | null>(null)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle')
@@ -177,12 +154,6 @@ export function RoadsPanel({
     if (!map) return
     ensureRoadLayers(map)
   }, [map])
-
-  useEffect(() => {
-    if (!map) return
-    ensureRoadLayers(map)
-    map.setLayoutProperty(EXISTING_LAYER_ID, 'visibility', existingVisible ? 'visible' : 'none')
-  }, [existingVisible, map])
 
   useEffect(() => {
     if (!map) return
@@ -266,7 +237,7 @@ export function RoadsPanel({
   }, [apiBase, projectId, selectedRunId])
 
   const loadViewport = useCallback(async () => {
-    if (!map || !projectId || !datasetVersionId) {
+    if (!map || !projectId) {
       setLoadStatus('idle')
       setLoadMessage('Выберите контекст проекта.')
       return
@@ -289,31 +260,8 @@ export function RoadsPanel({
     setLoadMessage('Загружаю road network для текущего viewport…')
 
     try {
-      let nextExistingCount = 0
       let nextGeneratedCount = 0
-      let nextExistingTruncated = false
       let nextGeneratedTruncated = false
-
-      if (existingVisible) {
-        const existingUrl =
-          `${apiBase}/projects/${encodeURIComponent(projectId)}` +
-          `/dataset-versions/${encodeURIComponent(datasetVersionId)}` +
-          `/source-layers/roads/geojson` +
-          `?bbox=${encodeURIComponent(bbox)}&limit=${VIEWPORT_LIMIT}`
-        const response = await fetch(existingUrl, { signal: controller.signal })
-        if (!response.ok) {
-          throw new Error(`existing roads: HTTP ${response.status} ${await response.text()}`)
-        }
-        const existing = (await response.json()) as SourceLayerResponse
-        setSourceData(map, EXISTING_SOURCE_ID, {
-          type: 'FeatureCollection',
-          features: existing.features,
-        })
-        nextExistingCount = existing.features.length
-        nextExistingTruncated = existing.truncated
-      } else {
-        setSourceData(map, EXISTING_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
-      }
 
       if (generatedVisible && selectedRunId) {
         const generatedUrl =
@@ -336,15 +284,13 @@ export function RoadsPanel({
       }
 
       if (controller.signal.aborted) return
-      setExistingCount(nextExistingCount)
       setGeneratedCount(nextGeneratedCount)
-      setExistingTruncated(nextExistingTruncated)
       setGeneratedTruncated(nextGeneratedTruncated)
       setLoadStatus('ready')
       setLoadMessage(
         selectedRunId
-          ? `Viewport: existing ${nextExistingCount}, generated ${nextGeneratedCount}.`
-          : `Viewport: existing ${nextExistingCount}; generated run отсутствует.`,
+          ? `Viewport: generated ${nextGeneratedCount}; source roads управляются Layer tree.`
+          : 'Generated run отсутствует; source roads управляются Layer tree.',
       )
     } catch (error: unknown) {
       if (controller.signal.aborted) return
@@ -353,8 +299,6 @@ export function RoadsPanel({
     }
   }, [
     apiBase,
-    datasetVersionId,
-    existingVisible,
     generatedVisible,
     map,
     projectId,
@@ -405,18 +349,6 @@ export function RoadsPanel({
       </label>
 
       <div className="roads-layer-list">
-        <label className="roads-layer-row">
-          <input
-            type="checkbox"
-            checked={existingVisible}
-            onChange={(event) => setExistingVisible(event.target.checked)}
-          />
-          <span className="swatch roads-existing-swatch" />
-          <span>Existing / fixed</span>
-          <span className="layer-count">
-            {existingTruncated ? `${existingCount}+` : existingCount}
-          </span>
-        </label>
         <label className="roads-layer-row">
           <input
             type="checkbox"
@@ -481,14 +413,14 @@ export function RoadsPanel({
       )}
 
       <div className={`load-state load-state-${loadStatus}`}>{loadMessage}</div>
-      {(existingTruncated || generatedTruncated) && (
+      {generatedTruncated && (
         <p className="warning-text">
           Roads viewport достиг limit ({VIEWPORT_LIMIT}); приблизьте карту.
         </p>
       )}
       <p className="helper-text">
-        Existing roads читаются из immutable SourceRoad текущей DatasetVersion; generated delta —
-        из выбранного GenerationRun. Цвет generated-линий кодирует road class.
+        Immutable source roads визуализируются единожды через canonical Layer tree; эта панель
+        отвечает за generated road delta выбранного GenerationRun.
       </p>
       {selectedRun && (
         <p className="helper-text">
