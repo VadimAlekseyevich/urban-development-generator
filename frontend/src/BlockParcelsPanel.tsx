@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import {
   useCallback,
   useEffect,
@@ -280,8 +281,8 @@ export function BlockParcelsPanel({
   const [runs, setRuns] = useState<BlockParcelRunSummary[]>([])
   const [localRunId, setSelectedRunId] = useState('')
   const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
-  const [blocksVisible, setBlocksVisible] = useState(true)
-  const [parcelsVisible, setParcelsVisible] = useState(true)
+  const [blocksVisible, setBlocksVisible] = useLayerVisibility('generated.blocks')
+  const [parcelsVisible, setParcelsVisible] = useLayerVisibility('generated.parcels')
   const [blockCount, setBlockCount] = useState(0)
   const [parcelCount, setParcelCount] = useState(0)
   const [blocksTruncated, setBlocksTruncated] = useState(false)
