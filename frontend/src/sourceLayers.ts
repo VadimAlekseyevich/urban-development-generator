@@ -1,4 +1,4 @@
-export type SourceLayerApiName = 'roads' | 'buildings' | 'water' | 'landuse'
+export type SourceLayerApiName = 'roads' | 'buildings' | 'water' | 'landuse' | 'facilities' | 'constraints'
 export type SourceLayerKey = 'boundary' | SourceLayerApiName
 
 export type Position = [number, number, ...number[]]
@@ -51,6 +51,8 @@ export type Bounds = [west: number, south: number, east: number, north: number]
 export const SOURCE_LAYER_API_NAMES: readonly SourceLayerApiName[] = [
   'landuse',
   'water',
+  'constraints',
+  'facilities',
   'buildings',
   'roads',
 ]
