@@ -8,6 +8,7 @@ from backend.app.application.block_parcel_layers import BlockParcelLayerQuerySer
 from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
+from backend.app.application.geojson_exports import GeoJsonExportService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
@@ -30,6 +31,7 @@ from backend.app.db.building_layer_query_repository import (
 from backend.app.db.demography_layer_query_repository import (
     SqlAlchemyDemographyLayerQueryRepository,
 )
+from backend.app.db.geojson_export_repository import SqlAlchemyGeoJsonExportRepository
 from backend.app.db.infrastructure_layer_query_repository import (
     SqlAlchemyInfrastructureLayerQueryRepository,
 )
@@ -275,4 +277,15 @@ def get_suitability_layer_service(
 SuitabilityLayerServiceDep = Annotated[
     SuitabilityLayerService,
     Depends(get_suitability_layer_service),
+]
+
+
+def get_geojson_export_service() -> GeoJsonExportService:
+    """Compose DB-outbox-backed GeoJSON export creation and status reads."""
+    return GeoJsonExportService(SqlAlchemyGeoJsonExportRepository())
+
+
+GeoJsonExportServiceDep = Annotated[
+    GeoJsonExportService,
+    Depends(get_geojson_export_service),
 ]
