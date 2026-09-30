@@ -2,7 +2,12 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from backend.app.core.config import settings
-from worker.tasks import gc_orphan_artifacts, run_generation, run_geojson_export, run_ingest
+from worker.tasks import (
+    gc_orphan_artifacts,
+    run_generation,
+    run_geojson_export,
+    run_ingest,
+)
 
 
 class WorkerSettings:
