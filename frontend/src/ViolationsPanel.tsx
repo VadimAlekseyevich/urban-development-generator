@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import {
   useCallback,
   useEffect,
@@ -224,7 +225,7 @@ export function ViolationsPanel({
   const [violations, setViolations] = useState<ViolationDetail[]>([])
   const [detailTotal, setDetailTotal] = useState(0)
   const [detailTruncated, setDetailTruncated] = useState(false)
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useLayerVisibility('validation.violations')
   const [viewportCount, setViewportCount] = useState(0)
   const [viewportTruncated, setViewportTruncated] = useState(false)
   const [selected, setSelected] = useState<ViolationSelection | null>(null)
