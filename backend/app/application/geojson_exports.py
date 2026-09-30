@@ -200,6 +200,17 @@ class GeoJsonExportService:
     ) -> GeoJsonExportSnapshot:
         return self._repository.get(project_id=project_id, job_id=job_id)
 
+    def ready_artifact_ref(
+        self,
+        *,
+        project_id: uuid.UUID,
+        job_id: uuid.UUID,
+    ) -> tuple[ArtifactRef, str, int]:
+        return self._repository.ready_artifact_ref(
+            project_id=project_id,
+            job_id=job_id,
+        )
+
 
 class GeoJsonExportClaimDisposition(StrEnum):
     STARTED = "started"
