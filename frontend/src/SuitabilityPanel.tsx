@@ -8,6 +8,7 @@ import {
   rasterMetadataUrl,
 } from './layerRegistry'
 import { installCatalogImage, layerStyleIds, removeCatalogImage } from './mapLayerAdapter'
+import { useLayerVisibility } from './layerVisibility'
 import {
   factorNormalizationLabel,
   formatPercent,
@@ -23,6 +24,7 @@ type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 type SuitabilityPanelProps = {
   apiBase: string
   map: MapLibreMap | null
+  onArtifactChange?: (artifactId: string | null) => void
 }
 
 function initialArtifactId(): string {
@@ -33,7 +35,7 @@ function removeSuitabilityLayer(map: MapLibreMap): void {
   removeCatalogImage(map)
 }
 
-export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
+export function SuitabilityPanel({ apiBase, map, onArtifactChange }: SuitabilityPanelProps) {
   const initialId = initialArtifactId()
   const [artifactInput, setArtifactInput] = useState(initialId)
   const [artifactId, setArtifactId] = useState(() => (isUuid(initialId) ? initialId : ''))
@@ -44,7 +46,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
     artifactId ? 'Загружаю suitability artifact…' : 'Укажите Artifact ID результата suitability.',
   )
   const [metadata, setMetadata] = useState<SuitabilityLayerMetadata | null>(null)
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useLayerVisibility('analysis.suitability')
   const [opacity, setOpacity] = useState(0.62)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -133,6 +135,7 @@ export function SuitabilityPanel({ apiBase, map }: SuitabilityPanelProps) {
 
     setFormError(null)
     setArtifactId(value)
+    onArtifactChange?.(value || null)
     setReloadToken((current) => current + 1)
     const url = new URL(window.location.href)
     if (value) url.searchParams.set('suitability_artifact_id', value)

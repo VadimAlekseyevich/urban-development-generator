@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import {
   useCallback,
   useEffect,
@@ -519,9 +520,9 @@ export function InfrastructurePanel({
   )
   const [readModelRefreshNonce, setReadModelRefreshNonce] = useState(0)
 
-  const [existingVisible, setExistingVisible] = useState(true)
-  const [generatedVisible, setGeneratedVisible] = useState(true)
-  const [demandVisible, setDemandVisible] = useState(true)
+  const [existingVisible, setExistingVisible] = useLayerVisibility('run.existing_facilities')
+  const [generatedVisible, setGeneratedVisible] = useLayerVisibility('generated.facilities')
+  const [demandVisible, setDemandVisible] = useLayerVisibility('generated.infrastructure_demand')
   const [viewportStatus, setViewportStatus] = useState<LoadStatus>('idle')
   const [viewportMessage, setViewportMessage] = useState(
     'Viewport будет загружен после выбора run.',

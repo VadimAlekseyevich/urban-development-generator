@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 
@@ -7,14 +8,10 @@ import {
   bboxParam,
   viewportBounds,
   type GeoJsonFeatureCollection,
-  type SourceLayerResponse,
 } from './sourceLayers'
 
 const VIEWPORT_LIMIT = 1500
-const FIXED_SOURCE_ID = 'zoning-fixed-source'
 const GENERATED_SOURCE_ID = 'zoning-generated-source'
-const FIXED_FILL_ID = 'zoning-fixed-fill'
-const FIXED_LINE_ID = 'zoning-fixed-line'
 const GENERATED_FILL_ID = 'zoning-generated-fill'
 const GENERATED_LINE_ID = 'zoning-generated-line'
 
@@ -54,7 +51,6 @@ type ZoningPanelProps = {
   map: MapLibreMap | null
   projectId: string | null
   pinnedRunId: string | null
-  datasetVersionId: string | null
 }
 
 function setSourceData(
@@ -67,28 +63,8 @@ function setSourceData(
 }
 
 function ensureZoningLayers(map: MapLibreMap): void {
-  if (!map.getSource(FIXED_SOURCE_ID)) {
-    map.addSource(FIXED_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
-  }
   if (!map.getSource(GENERATED_SOURCE_ID)) {
     map.addSource(GENERATED_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
-  }
-
-  if (!map.getLayer(FIXED_FILL_ID)) {
-    map.addLayer({
-      id: FIXED_FILL_ID,
-      type: 'fill',
-      source: FIXED_SOURCE_ID,
-      paint: { 'fill-color': '#64748b', 'fill-opacity': 0.24 },
-    })
-  }
-  if (!map.getLayer(FIXED_LINE_ID)) {
-    map.addLayer({
-      id: FIXED_LINE_ID,
-      type: 'line',
-      source: FIXED_SOURCE_ID,
-      paint: { 'line-color': '#334155', 'line-width': 1.2 },
-    })
   }
   if (!map.getLayer(GENERATED_FILL_ID)) {
     map.addLayer({
@@ -132,19 +108,14 @@ export function ZoningPanel({
   map,
   projectId,
   pinnedRunId,
-  datasetVersionId,
 }: ZoningPanelProps) {
   const abortRef = useRef<AbortController | null>(null)
   const [runs, setRuns] = useState<ZoningRunSummary[]>([])
   const [localRunId, setSelectedRunId] = useState('')
   const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
-  const [fixedVisible, setFixedVisible] = useState(false)
-  const [generatedVisible, setGeneratedVisible] = useState(true)
-  const [fixedOpacity, setFixedOpacity] = useState(24)
+  const [generatedVisible, setGeneratedVisible] = useLayerVisibility('generated.zones')
   const [generatedOpacity, setGeneratedOpacity] = useState(48)
-  const [fixedCount, setFixedCount] = useState(0)
   const [generatedCount, setGeneratedCount] = useState(0)
-  const [fixedTruncated, setFixedTruncated] = useState(false)
   const [generatedTruncated, setGeneratedTruncated] = useState(false)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle')
   const [loadMessage, setLoadMessage] = useState('Выберите контекст проекта.')
@@ -164,15 +135,6 @@ export function ZoningPanel({
     if (!map) return
     ensureZoningLayers(map)
   }, [map])
-
-  useEffect(() => {
-    if (!map) return
-    ensureZoningLayers(map)
-    const visibility = fixedVisible ? 'visible' : 'none'
-    map.setLayoutProperty(FIXED_FILL_ID, 'visibility', visibility)
-    map.setLayoutProperty(FIXED_LINE_ID, 'visibility', visibility)
-    map.setPaintProperty(FIXED_FILL_ID, 'fill-opacity', fixedOpacity / 100)
-  }, [fixedOpacity, fixedVisible, map])
 
   useEffect(() => {
     if (!map) return
@@ -222,7 +184,7 @@ export function ZoningPanel({
   }, [apiBase, projectId])
 
   const loadViewport = useCallback(async () => {
-    if (!map || !projectId || !datasetVersionId) {
+    if (!map || !projectId) {
       setLoadStatus('idle')
       setLoadMessage('Выберите контекст проекта.')
       return
@@ -246,32 +208,8 @@ export function ZoningPanel({
     setLoadMessage('Загружаю zoning для текущего viewport…')
 
     try {
-      let nextFixedCount = 0
       let nextGeneratedCount = 0
-      let nextFixedTruncated = false
       let nextGeneratedTruncated = false
-
-      if (fixedVisible) {
-        const fixedUrl =
-          `${apiBase}/projects/${encodeURIComponent(projectId)}` +
-          `/dataset-versions/${encodeURIComponent(datasetVersionId)}` +
-          `/source-layers/landuse/geojson` +
-          `?bbox=${encodeURIComponent(bbox)}&limit=${VIEWPORT_LIMIT}`
-        const response = await fetch(fixedUrl, { signal: controller.signal })
-        if (!response.ok) {
-          throw new Error(`fixed zones: HTTP ${response.status} ${await response.text()}`)
-        }
-        const fixed = (await response.json()) as SourceLayerResponse
-        const collection: GeoJsonFeatureCollection = {
-          type: 'FeatureCollection',
-          features: fixed.features,
-        }
-        setSourceData(map, FIXED_SOURCE_ID, collection)
-        nextFixedCount = fixed.features.length
-        nextFixedTruncated = fixed.truncated
-      } else {
-        setSourceData(map, FIXED_SOURCE_ID, EMPTY_FEATURE_COLLECTION)
-      }
 
       if (generatedVisible && selectedRunId) {
         const generatedUrl =
@@ -294,15 +232,13 @@ export function ZoningPanel({
       }
 
       if (controller.signal.aborted) return
-      setFixedCount(nextFixedCount)
       setGeneratedCount(nextGeneratedCount)
-      setFixedTruncated(nextFixedTruncated)
       setGeneratedTruncated(nextGeneratedTruncated)
       setLoadStatus('ready')
       setLoadMessage(
         selectedRunId
-          ? `Viewport: fixed ${nextFixedCount}, generated ${nextGeneratedCount}.`
-          : `Viewport: fixed ${nextFixedCount}; generated run отсутствует.`,
+          ? `Viewport: generated ${nextGeneratedCount}; source landuse управляется Layer tree.`
+          : 'Generated run отсутствует; source landuse управляется Layer tree.',
       )
     } catch (error: unknown) {
       if (controller.signal.aborted) return
@@ -311,8 +247,6 @@ export function ZoningPanel({
     }
   }, [
     apiBase,
-    datasetVersionId,
-    fixedVisible,
     generatedVisible,
     map,
     projectId,
@@ -367,29 +301,6 @@ export function ZoningPanel({
           <label className="zoning-toggle">
             <input
               type="checkbox"
-              checked={fixedVisible}
-              onChange={(event) => setFixedVisible(event.target.checked)}
-            />
-            <span className="swatch zoning-fixed-swatch" />
-            <span>Fixed zones</span>
-            <span className="layer-count">{fixedTruncated ? `${fixedCount}+` : fixedCount}</span>
-          </label>
-          <label className="opacity-control">
-            Fixed opacity: {fixedOpacity}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={fixedOpacity}
-              onChange={(event) => setFixedOpacity(Number(event.target.value))}
-            />
-          </label>
-        </div>
-
-        <div className="zoning-layer-card">
-          <label className="zoning-toggle">
-            <input
-              type="checkbox"
               checked={generatedVisible}
               onChange={(event) => setGeneratedVisible(event.target.checked)}
             />
@@ -422,14 +333,14 @@ export function ZoningPanel({
       </div>
 
       <div className={`load-state load-state-${loadStatus}`}>{loadMessage}</div>
-      {(fixedTruncated || generatedTruncated) && (
+      {generatedTruncated && (
         <p className="warning-text">
           Zoning viewport достиг limit ({VIEWPORT_LIMIT}); приблизьте карту.
         </p>
       )}
       <p className="helper-text">
-        Fixed zones — неизменяемый source-landuse view текущей DatasetVersion; generated zones
-        читаются по выбранному run и не меняют source data.
+        Source landuse визуализируется единожды через canonical Layer tree; эта панель отвечает
+        только за generated zones выбранного run.
       </p>
       {selectedRun && (
         <p className="helper-text">

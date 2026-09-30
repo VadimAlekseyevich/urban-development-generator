@@ -29,10 +29,11 @@ has persisted data for a selected run.
   MapLibre `image`/raster rendering use the shared registry and adapter;
   its existing visibility/opacity controls remain in the panel.
 
-The generated/validation panels continue to own fetching, persisted read-model
-inspection and their current local view-state logic until the **S13-T06 full
-layer-tree migration**; matching render recipes for all 18 canonical IDs are
-already registered, avoiding a second root-component styling expansion.
+S13-T06 now consumes this registry through `LayerTree.tsx` and the shared
+`layerVisibility.ts` store. Generated/validation panels continue to own fetching
+and persisted read-model inspection, but their map visibility is synchronized
+with the complete 18-layer tree. Duplicate fixed zoning/road map layers were
+removed in favor of canonical source entries.
 Existing panel click/selection logic and the S12 pinned-run behavior are not
 rewired by S13-T05.
 
@@ -62,9 +63,8 @@ artifact routing and discriminator query preservation. CI runs the Node tests,
 TypeScript typecheck and Vite production build as well as all Python/migration
 and Compose checks.
 
-This is a frontend presentation/transport convergence step, **not** a new
+This remains a frontend presentation/transport convergence contract, **not** a new
 catalog HTTP endpoint, eager 18-layer data download, automatic MVT switch
-for the current panels, expanded UI tree, unbounded export, tile authorization
-bypass or completed M5 workspace. S13-T06 consumes the shared registry to
-replace per-panel layer-tree special cases and coordinate ownership/run
-visibility centrally.
+for every current panel, unbounded export, tile authorization bypass or completed
+M5 workspace. The complete S13-T06 tree is documented in `docs/LAYER_TREE.md`;
+S13-T07 begins asynchronous GeoJSON export.

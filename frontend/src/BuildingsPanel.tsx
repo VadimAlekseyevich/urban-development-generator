@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import {
   useCallback,
   useEffect,
@@ -190,7 +191,7 @@ export function BuildingsPanel({
   const [runs, setRuns] = useState<BuildingRunSummary[]>([])
   const [localRunId, setSelectedRunId] = useState('')
   const selectedRunId = resolveMapRunId(runs, localRunId, pinnedRunId)
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useLayerVisibility('generated.buildings')
   const [count, setCount] = useState(0)
   const [truncated, setTruncated] = useState(false)
   const [selected, setSelected] = useState<GeoJsonFeature | null>(null)

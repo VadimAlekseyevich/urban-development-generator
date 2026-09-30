@@ -1,4 +1,5 @@
 import { resolveMapRunId } from './compareSelection'
+import { useLayerVisibility } from './layerVisibility'
 import {
   useCallback,
   useEffect,
@@ -204,7 +205,7 @@ export function DemographyPanel({
   const viewportAbortRef = useRef<AbortController | null>(null)
   const [metrics, setMetrics] = useState<DemographyMetrics | null>(null)
   const [metricMode, setMetricMode] = useState<MetricMode>('density')
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useLayerVisibility('generated.demography')
   const [status, setStatus] = useState<LoadStatus>('idle')
   const [message, setMessage] = useState(
     'Выберите проект с рассчитанной демографией.',
