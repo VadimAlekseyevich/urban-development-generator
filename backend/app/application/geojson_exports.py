@@ -14,7 +14,7 @@ from backend.app.application.layer_catalog import (
     LayerDeliveryKind,
     LayerOwnerScope,
 )
-from core.urban_generator.domain import ArtifactStat
+from core.urban_generator.domain import ArtifactRef, ArtifactStat
 from core.urban_generator.domain.errors import TransientError, UrbanGeneratorError
 
 GEOJSON_EXPORT_SCHEMA_VERSION = "geojson-export-v1"
@@ -144,6 +144,7 @@ class GeoJsonExportSnapshot:
     bbox: tuple[float, float, float, float]
     max_features: int
     artifact: GeoJsonExportArtifactSnapshot | None
+    feature_count: int | None
     error_class: str | None
     error_code: str | None
     created_at: datetime
@@ -172,7 +173,7 @@ class GeoJsonExportRepository(Protocol):
         *,
         project_id: uuid.UUID,
         job_id: uuid.UUID,
-    ) -> tuple[object, str, int]: ...
+    ) -> tuple[ArtifactRef, str, int]: ...
 
 
 class GeoJsonExportService:
