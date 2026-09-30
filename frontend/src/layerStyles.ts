@@ -121,5 +121,7 @@ export const SOURCE_MAP_LEGEND: ReadonlyArray<{
   { key: 'roads', layerId: 'source.roads', label: 'Дороги', color: '#334155' },
   { key: 'buildings', layerId: 'source.buildings', label: 'Здания', color: '#d97706' },
   { key: 'water', layerId: 'source.water', label: 'Вода', color: '#0ea5e9' },
+  { key: 'constraints', layerId: 'source.constraints', label: 'Ограничения', color: '#dc2626' },
+  { key: 'facilities', layerId: 'source.facilities', label: 'Исходная инфраструктура', color: '#475569' },
   { key: 'landuse', layerId: 'source.landuse', label: 'Землепользование', color: '#65a30d' },
 ]
