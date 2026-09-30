@@ -6,6 +6,7 @@ from backend.app.api.v1.endpoints import (
     compare,
     demography,
     health,
+    geojson_exports,
     infrastructure,
     metrics,
     mvt_tiles,
@@ -22,6 +23,7 @@ from backend.app.api.v1.endpoints import (
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(geojson_exports.router)
 api_router.include_router(projects.router)
 api_router.include_router(runs.router)
 api_router.include_router(infrastructure.router)
