@@ -32,6 +32,10 @@ class GeoJsonExport(Base):
             "max_features > 0 AND max_features <= 100000",
             name="ck_geojson_exports_max_features",
         ),
+        CheckConstraint(
+            "feature_count IS NULL OR (feature_count >= 0 AND feature_count <= max_features)",
+            name="ck_geojson_exports_feature_count",
+        ),
         UniqueConstraint("artifact_id", name="uq_geojson_exports_artifact_id"),
     )
 
@@ -58,6 +62,7 @@ class GeoJsonExport(Base):
     bbox_east: Mapped[float] = mapped_column(Float, nullable=False)
     bbox_north: Mapped[float] = mapped_column(Float, nullable=False)
     max_features: Mapped[int] = mapped_column(Integer, nullable=False, default=100000)
+    feature_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     artifact_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("artifacts.id", ondelete="RESTRICT"),
