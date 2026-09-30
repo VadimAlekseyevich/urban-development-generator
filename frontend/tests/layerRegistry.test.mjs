@@ -58,10 +58,18 @@ test('style registry covers all definitions with unique map layer IDs and stable
   assert.ok(parts.every(({ paint, type }) => Object.keys(paint).length > 0
     && ['fill', 'line', 'circle', 'raster'].includes(type)))
   assert.deepEqual(SOURCE_MAP_LEGEND.map(({ key }) => key),
-    ['boundary', 'roads', 'buildings', 'water', 'landuse'])
+    ['boundary', 'roads', 'buildings', 'water', 'constraints', 'facilities', 'landuse'])
   assert.deepEqual(
     SOURCE_MAP_LEGEND.map(({ layerId }) => layerDefinition(layerId).sourceId),
-    ['source-boundary', 'source-roads', 'source-buildings', 'source-water', 'source-landuse'],
+    [
+      'source-boundary',
+      'source-roads',
+      'source-buildings',
+      'source-water',
+      'source-constraints',
+      'source-facilities',
+      'source-landuse',
+    ],
   )
   assert.deepEqual(MAP_LAYER_STYLES['source.roads'].map(({ id }) => id), ['source-roads-line'])
 })
