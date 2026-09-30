@@ -2,10 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import {
-  LAYER_REGISTRY,
-  type LayerId,
-} from '../src/layerRegistry.ts'
+import { LAYER_REGISTRY } from '../src/layerRegistry.ts'
 import {
   buildLayerTree,
   layerOwnerCaption,
