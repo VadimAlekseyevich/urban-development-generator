@@ -12,11 +12,18 @@ from backend.app.application.generation import (
     GenerationRetryScheduled,
     GenerationRuntimeFactory,
 )
+from backend.app.application.geojson_exports import (
+    GeoJsonExportJobService,
+    GeoJsonExportRunStatus,
+)
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
 from backend.app.core.config import settings
 from backend.app.db.artifact_gc import SqlAlchemyArtifactGc
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
+from backend.app.db.geojson_export_page_reader import SqlAlchemyGeoJsonExportPageReader
+from backend.app.db.geojson_export_repository import SqlAlchemyGeoJsonExportRepository
 from backend.app.db.ingest_job_repository import SqlAlchemyIngestJobRepository
+from backend.app.services.geojson_export import StreamingGeoJsonExportPipeline
 from backend.app.services.ingest_pipeline import DatasetIngestPipeline
 from core.urban_generator.domain.errors import TransientError
 
@@ -80,6 +87,54 @@ async def run_ingest(
         "attempt_count": result.attempt_count,
         "max_attempts": result.max_attempts,
         "details": dict(result.details or {}),
+    }
+
+
+class GeoJsonExportTaskFailed(RuntimeError):
+    """Authoritative export state recorded a terminal worker failure."""
+
+
+def _build_geojson_export_job_service() -> GeoJsonExportJobService:
+    store = LocalArtifactStore(settings.storage_root)
+    return GeoJsonExportJobService(
+        repository=SqlAlchemyGeoJsonExportRepository(),
+        pipeline=StreamingGeoJsonExportPipeline(
+            store=store,
+            page_reader=SqlAlchemyGeoJsonExportPageReader(),
+        ),
+    )
+
+
+async def run_geojson_export(
+    ctx: dict[str, Any],
+    job_id: str,
+) -> dict[str, object]:
+    """Execute one persisted single-layer export outside the HTTP lifecycle."""
+    parsed_job_id = uuid.UUID(job_id)
+    override = ctx.get("geojson_export_service")
+    service = (
+        cast(GeoJsonExportJobService, override)
+        if override is not None
+        else _build_geojson_export_job_service()
+    )
+    result = await asyncio.to_thread(service.run, job_id=parsed_job_id)
+    if result.status is GeoJsonExportRunStatus.FAILED:
+        if result.retryable:
+            raise Retry(defer=_retry_delay_seconds(result.attempt_count))
+        raise GeoJsonExportTaskFailed(
+            f"GeoJSON export {job_id} failed permanently on attempt "
+            f"{result.attempt_count}"
+        )
+    if result.status is GeoJsonExportRunStatus.EXHAUSTED:
+        raise GeoJsonExportTaskFailed(
+            f"GeoJSON export {job_id} exhausted its retry budget"
+        )
+    return {
+        "job_id": str(result.job_id),
+        "status": result.status.value,
+        "attempt_count": result.attempt_count,
+        "max_attempts": result.max_attempts,
+        "feature_count": result.feature_count,
     }
 
 
