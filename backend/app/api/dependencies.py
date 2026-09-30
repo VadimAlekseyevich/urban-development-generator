@@ -7,8 +7,8 @@ from backend.app.adapters import LocalArtifactStore
 from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
 from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
-from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.geojson_exports import GeoJsonExportService
+from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
