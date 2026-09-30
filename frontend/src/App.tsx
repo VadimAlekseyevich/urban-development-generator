@@ -526,7 +526,6 @@ function App() {
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
-          datasetVersionId={context?.datasetVersionId ?? null}
         />
 
         <RoadsPanel
@@ -534,7 +533,6 @@ function App() {
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           projectId={context?.projectId ?? null}
-          datasetVersionId={context?.datasetVersionId ?? null}
         />
 
         <BlockParcelsPanel
