@@ -54,17 +54,16 @@ export function LayerTree({
             <div className="layer-tree-items">
               {group.nodes.map((node) => {
                 const count = counts[node.id]
-                const enabled = node.instance !== null
+                const bound = node.instance !== null
                 return (
                   <label
-                    className={enabled ? 'layer-tree-row' : 'layer-tree-row layer-tree-row-disabled'}
+                    className={bound ? 'layer-tree-row' : 'layer-tree-row layer-tree-row-unbound'}
                     key={node.id}
                     title={node.instance?.instanceKey ?? `Requires ${node.ownerScope} owner`}
                   >
                     <input
                       type="checkbox"
                       checked={node.visible}
-                      disabled={!enabled}
                       onChange={(event) => setLayerVisible(node.id, event.target.checked)}
                     />
                     <span className={'layer-kind-dot layer-kind-' + node.sourceKind} />
@@ -72,7 +71,7 @@ export function LayerTree({
                       <strong>{node.label}</strong>
                       <small>{layerOwnerCaption(node.instance)} · {node.deliveryKind}</small>
                     </span>
-                    <span className="layer-count">{count ?? (enabled ? '·' : '—')}</span>
+                    <span className="layer-count">{count ?? (bound ? '·' : '—')}</span>
                   </label>
                 )
               })}
@@ -110,8 +109,9 @@ export function LayerTree({
         </p>
       )}
       <p className="helper-text">
-        Недоступный checkbox означает, что для canonical owner scope ещё не выбран
-        project, DatasetVersion, общий map run или suitability artifact.
+        Owner подпись показывает точную catalog-привязку, когда она известна. Без owner
+        checkbox сохраняет видимость logical layer для legacy локального run или будущей привязки;
+        compare map pin по-прежнему делает один run авторитетным для всех generated/validation слоёв.
       </p>
     </section>
   )
