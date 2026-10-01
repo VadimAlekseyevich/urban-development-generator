@@ -17,7 +17,7 @@ from backend.app.services.job_dispatcher import JobQueueMessage
 
 _ARQ_QUEUE_NAME = "arq:queue"
 _ENQUEUE_TIMEOUT_SECONDS = 5.0
-_SUPPORTED_LOGICAL_QUEUES = frozenset({"default", "ingest", "generation"})
+_SUPPORTED_LOGICAL_QUEUES = frozenset({"default", "ingest", "generation", "export"})
 
 
 class ArqQueueClient(Protocol):
@@ -56,6 +56,15 @@ class ArqJobEnqueuer:
                 message.payload["dataset_version_id"], field="dataset_version_id"
             )
             args = (job_id, version_id)
+        elif task == "run_geojson_export":
+            if set(message.payload) != {"task", "job_id"}:
+                raise ValueError("invalid GeoJSON export outbox payload")
+            job_id = _uuid_str(message.payload["job_id"], field="job_id")
+            if job_id != str(message.job_id):
+                raise ValueError(
+                    "GeoJSON export outbox job_id does not match authoritative job"
+                )
+            args = (job_id,)
         else:
             raise ValueError("unsupported outbox task")
 

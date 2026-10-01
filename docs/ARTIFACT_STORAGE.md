@@ -90,3 +90,20 @@ This does not automatically infer generated artifacts from `StageResult` or
 retrofit existing upload/ingest code. The publishing stage or its typed
 application adapter must explicitly invoke the publisher before completing
 its stage; further backend/store adapter parity remains future work.
+
+
+## S13 asynchronous export artifacts
+
+S13-T07 uses the same `ArtifactStore` and DB `Artifact` lifecycle for
+single-layer GeoJSON exports. HTTP creation persists `Job + GeoJsonExport +
+JobOutbox` only; the worker writes `exports/{project}/{job}/...` bytes,
+promotes them to ready, then references the artifact with `owner_type=job`
+while marking the export job succeeded. Export bytes are streamed from a
+spooled temporary file into the store and download uses `ArtifactStore.open()`,
+so neither API nor application contracts expose filesystem paths.
+
+The export key is deterministic for one immutable request. If the worker dies
+after storage promotion but before DB completion, retry compares the regenerated
+checksum/size/content type against the ready blob and reuses it. Storage and DB
+still lack a distributed transaction; generalized cleanup of export-only
+orphans remains part of the later bounded artifact-GC hardening.
