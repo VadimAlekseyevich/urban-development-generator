@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import uuid
 from dataclasses import dataclass
@@ -217,7 +218,11 @@ def test_job_service_persists_success_and_transient_retry(tmp_path) -> None:
     temporary = ArtifactRef(
         f"exports/{PROJECT}/{JOB}/source-roads-44444444.geojson"
     )
-    store.put(temporary, __import__("io").BytesIO(b"{}"), content_type=GEOJSON_EXPORT_CONTENT_TYPE)
+    store.put(
+        temporary,
+        io.BytesIO(b"{}"),
+        content_type=GEOJSON_EXPORT_CONTENT_TYPE,
+    )
     stat = store.promote(temporary)
     pipeline_result = GeoJsonExportPipelineResult(artifact=stat, feature_count=2)
     claim = GeoJsonExportClaim(
