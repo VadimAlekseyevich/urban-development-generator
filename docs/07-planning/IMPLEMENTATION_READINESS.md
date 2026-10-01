@@ -10,7 +10,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. S13-T02 adds an owner-authorized, 15-table-backed bounded bbox/UUID-keyset GeoJSON path; the project boundary, suitability raster and canonical integer-index validation report retain their specialized APIs. S13-T03 adds bounded, owner-scoped PostGIS MVT tiles for all 15 table-backed UUID layers, without introducing immutable caching before S13-T04. S13-T04 adds publication-qualified immutable tile ETags/304. S13-T05 introduces the frontend owner-qualified 18-layer registry and separated render recipes. S13-T06 builds the complete registry-derived tree, centralizes visibility across all map-producing panels, adds all six dataset source layers to the viewport path, and removes duplicate fixed zoning/road render paths. The current ordered task is **UG-AI-087 / S13-T07**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. S13-T02 adds an owner-authorized, 15-table-backed bounded bbox/UUID-keyset GeoJSON path; the project boundary, suitability raster and canonical integer-index validation report retain their specialized APIs. S13-T03 adds bounded, owner-scoped PostGIS MVT tiles for all 15 table-backed UUID layers, without introducing immutable caching before S13-T04. S13-T04 adds publication-qualified immutable tile ETags/304. S13-T05 introduces the frontend owner-qualified 18-layer registry and separated render recipes. S13-T06 builds the complete registry-derived tree. S13-T07 adds DB-outbox-backed single-layer GeoJSON export over immutable ready DatasetVersion/succeeded run owners, bounded keyset reads and referenced ArtifactStore publication. The current ordered task is **UG-AI-088 / S13-T08**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -99,7 +99,7 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-087 / S13-T07
+UG-AI-088 / S13-T08
 Implement declarative frontend layer registry for GeoJSON/bbox/MVT/raster with style separate from components.
 ```
 
