@@ -86,6 +86,25 @@ def test_arq_enqueuer_routes_ingest_with_matching_authoritative_job_id() -> None
     ]
 
 
+def test_arq_enqueuer_routes_geojson_export_with_authoritative_job_id() -> None:
+    redis = FakeArq()
+    job_id = uuid.uuid4()
+    message = _message(
+        {"task": "run_geojson_export", "job_id": str(job_id)},
+        queue_name="export",
+        job_id=job_id,
+    )
+    asyncio.run(ArqJobEnqueuer(redis).enqueue(message))
+    assert redis.calls == [
+        (
+            "run_geojson_export",
+            (str(job_id),),
+            message.enqueue_key,
+            "arq:queue",
+        ),
+    ]
+
+
 @pytest.mark.parametrize(
     "payload, queue_name",
     [
@@ -101,6 +120,14 @@ def test_arq_enqueuer_routes_ingest_with_matching_authoritative_job_id() -> None
                 "dataset_version_id": str(uuid.uuid4()),
             },
             "default",
+        ),
+        (
+            {"task": "run_geojson_export", "job_id": str(uuid.uuid4())},
+            "export",
+        ),
+        (
+            {"task": "run_geojson_export", "job_id": "not-a-uuid"},
+            "export",
         ),
     ],
 )
