@@ -123,7 +123,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-084** — **S13-T04** — Implement immutable ETag/cache-control semantics for run/dataset tiles.
 - [x] **UG-AI-085** — **S13-T05** — Implement declarative frontend layer registry for GeoJSON/bbox/MVT/raster with style separate from components.
 - [x] **UG-AI-086** — **S13-T06** — Build full layer tree from LayerCatalog/registry rather than root-component special cases.
-- [ ] **UG-AI-087** — **S13-T07** — Implement asynchronous GeoJSON export job to ArtifactStore.
+- [x] **UG-AI-087** — **S13-T07** — Implement asynchronous GeoJSON export job to ArtifactStore.
 - [ ] **UG-AI-088** — **S13-T08** — Implement bounded multi-layer GeoPackage export job.
 - [ ] **UG-AI-089** — **S13-T09** — Implement run/compare canonical raw-metrics CSV export.
 - [ ] **UG-AI-090** — **S13-T10** — Export normalized config + provenance manifest + CRS/seed/dataset refs.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..086 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-087 / S13-T07. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..087 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-088 / S13-T08. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
