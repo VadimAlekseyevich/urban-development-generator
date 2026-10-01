@@ -324,8 +324,8 @@ class GeoJsonExportJobService:
         try:
             result = self._pipeline.execute(context)
             self._repository.complete(context=context, result=result)
-        except UrbanGeneratorError as error:
-            retryable = self._repository.fail(context=context, error=error)
+        except UrbanGeneratorError as caught_error:
+            retryable = self._repository.fail(context=context, error=caught_error)
             return GeoJsonExportRunResult(
                 job_id=job_id,
                 status=GeoJsonExportRunStatus.FAILED,
@@ -334,11 +334,14 @@ class GeoJsonExportJobService:
                 retryable=retryable,
             )
         except Exception as exc:
-            error = TransientError(
+            unexpected_error = TransientError(
                 "GeoJSON export failed unexpectedly",
                 details={"exception_type": type(exc).__name__},
             )
-            retryable = self._repository.fail(context=context, error=error)
+            retryable = self._repository.fail(
+                context=context,
+                error=unexpected_error,
+            )
             return GeoJsonExportRunResult(
                 job_id=job_id,
                 status=GeoJsonExportRunStatus.FAILED,
