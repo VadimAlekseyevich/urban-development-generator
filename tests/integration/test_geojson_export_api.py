@@ -80,7 +80,7 @@ def _fixture(*, ready: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
             version = DatasetVersion(
                 dataset_id=dataset.id,
                 version=1,
-                status="ready" if ready else "processing",
+                status="processing",
                 source_metadata={"format": "fixture"},
             )
             session.add(version)
@@ -104,6 +104,8 @@ def _fixture(*, ready: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
                         ),
                     ]
                 )
+                session.flush()
+                version.status = "ready"
             return project.id, version.id
 
 
