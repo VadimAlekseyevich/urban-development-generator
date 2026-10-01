@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import uuid
 
 import pytest
@@ -11,7 +10,7 @@ from geoalchemy2.shape import from_shape
 from pyproj import Transformer
 from shapely.geometry import MultiLineString
 from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from backend.app.adapters import LocalArtifactStore
 from backend.app.api.dependencies import get_artifact_store
