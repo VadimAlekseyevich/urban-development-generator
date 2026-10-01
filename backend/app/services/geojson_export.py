@@ -4,7 +4,7 @@ import hashlib
 import json
 import tempfile
 import uuid
-from typing import Protocol
+from typing import BinaryIO, Protocol, cast
 
 from backend.app.application.geojson_exports import (
     GEOJSON_EXPORT_CONTENT_TYPE,
@@ -114,7 +114,7 @@ class StreamingGeoJsonExportPipeline:
             try:
                 temporary = self._store.put(
                     temporary_ref,
-                    output,
+                    cast(BinaryIO, output),
                     content_type=GEOJSON_EXPORT_CONTENT_TYPE,
                 )
                 if temporary.checksum != checksum or temporary.size_bytes != size_bytes:
@@ -123,14 +123,15 @@ class StreamingGeoJsonExportPipeline:
                     )
                 ready = self._store.promote(temporary_ref)
             except ArtifactContractError:
-                ready = _ready_stat(self._store, ready_ref)
-                if ready is None:
+                recovered = _ready_stat(self._store, ready_ref)
+                if recovered is None:
                     raise
                 _require_same_artifact(
-                    ready,
+                    recovered,
                     checksum=checksum,
                     size_bytes=size_bytes,
                 )
+                ready = recovered
             return GeoJsonExportPipelineResult(
                 artifact=ready,
                 feature_count=count,
