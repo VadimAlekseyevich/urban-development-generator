@@ -46,7 +46,7 @@ def create_geojson_export(
     service: GeoJsonExportServiceDep,
 ) -> GeoJsonExportRead:
     try:
-        return service.create(
+        return GeoJsonExportRead.model_validate(service.create(
             project_id=project_id,
             spec=GeoJsonExportSpec(
                 layer_id=payload.layer_id,
@@ -55,7 +55,7 @@ def create_geojson_export(
                 bbox=payload.bbox,
                 max_features=payload.max_features,
             ),
-        )
+        ))
     except (
         GeoJsonExportError,
         GeoJsonExportNotFoundError,
@@ -71,7 +71,9 @@ def get_geojson_export(
     service: GeoJsonExportServiceDep,
 ) -> GeoJsonExportRead:
     try:
-        return service.get(project_id=project_id, job_id=job_id)
+        return GeoJsonExportRead.model_validate(
+            service.get(project_id=project_id, job_id=job_id)
+        )
     except (GeoJsonExportNotFoundError, GeoJsonExportConflictError) as exc:
         _raise_export_error(exc)
 
