@@ -78,7 +78,7 @@ class GeoPackageExport(Base):
         default=250000,
     )
     layer_feature_counts_json: Mapped[dict[str, int] | None] = mapped_column(
-        JSONB,
+        JSONB(none_as_null=True),
         nullable=True,
     )
     artifact_id: Mapped[uuid.UUID | None] = mapped_column(
