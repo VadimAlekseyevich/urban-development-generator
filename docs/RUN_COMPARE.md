@@ -60,5 +60,6 @@ The schema is typed in `backend/app/schemas/run_compare.py`.
 `tests/integration/test_run_compare_api.py` covers canonical metric order,
 input-order preservation, raw deltas/ranks, incompatible score policy, validation
 failure summaries, deterministic replay, read-only successful run state, scope,
-cardinality, missing provenance and malformed payloads. Later S12-T15 owns
-comparison UI; S13-T09 owns compare CSV export.
+cardinality, missing provenance and malformed payloads. S12-T15 owns
+comparison UI. S13-T09 now exposes the separate bounded raw-metrics CSV export;
+it reuses the persisted evaluation envelope but intentionally does not require validation data.
