@@ -51,7 +51,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "layer_feature_counts_json",
-            postgresql.JSONB(astext_type=sa.Text()),
+            postgresql.JSONB(none_as_null=True, astext_type=sa.Text()),
             nullable=True,
         ),
         sa.Column(
