@@ -107,11 +107,14 @@ ready object and reuses it rather than creating a second artifact. A permanently
 orphaned export blob that never reaches DB ownership is a storage-GC concern;
 generalized bounded artifact GC remains S14-T09.
 
+Multi-layer GeoPackage export is implemented separately by S13-T08; see
+`docs/GEOPACKAGE_EXPORT.md`. This GeoJSON contract remains intentionally
+single-layer.
+
 ## Non-goals
 
 This task intentionally does not implement:
 
-- multi-layer GeoPackage (S13-T08);
 - metrics CSV or config/provenance exports (S13-T09/T10);
 - validation-report/project-boundary/raster conversion to GeoJSON;
 - arbitrary output CRS, unbounded feature counts or active-run snapshots;
