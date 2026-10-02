@@ -15,7 +15,7 @@ from backend.app.application.metric_dashboard import (
     MetricDashboardUnavailableError,
     decode_persisted_evaluation,
 )
-from core.urban_generator.domain.benchmarking import CANONICAL_METRIC_REGISTRY
+from core.urban_generator.domain.benchmarking import CANONICAL_METRIC_REGISTRY, RawMetricId
 
 MIN_METRIC_CSV_RUNS = 1
 MAX_METRIC_CSV_RUNS = 10
@@ -146,7 +146,7 @@ def _render_csv(
     *,
     project_id: uuid.UUID,
     run_ids: tuple[uuid.UUID, ...],
-    values_by_run: tuple[dict[object, float | None], ...],
+    values_by_run: tuple[dict[RawMetricId, float | None], ...],
 ) -> bytes:
     output = io.StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
