@@ -56,7 +56,7 @@ def _create_project() -> uuid.UUID:
 
 def _score(*, land: float, roads: float | None) -> dict[str, object]:
     result = CompositeScoreResult(
-        score=0.5,
+        score=0.5 if roads is not None else 0.25,
         score_config_id="csv.default",
         score_config_version="1",
         normalization_profile_id="csv.profile",
