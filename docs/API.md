@@ -211,6 +211,20 @@ Exceeding a cap fails rather than truncating. Successful artifacts are
 referenced with `owner_type=job` and downloads stream through ArtifactStore.
 See `docs/GEOJSON_EXPORT.md` and `docs/GEOPACKAGE_EXPORT.md`.
 
+## Canonical raw-metrics CSV export (S13-T09)
+
+- `POST /projects/{project_id}/exports/metrics.csv` with JSON body
+  `{"run_ids":["<run UUID>", ...]}` for 1–10 unique project-scoped runs.
+
+The response is a synchronous UTF-8 CSV download because the payload is bounded by the canonical
+metric registry and ten runs. Only immutable successful runs are accepted. Values come from the
+persisted S11 evaluation envelope; no metric producer, normalization, score, validation or GIS work
+is rerun. Rows use canonical registry order and requested run order, include canonical unit/scope/
+direction/source/value-kind/version metadata, and distinguish an absent metric from a present metric
+with a blank raw value. 404 = project/run scope failure, 409 = non-successful run or missing
+evaluation, 422 = invalid run selection, 500 = malformed persisted canonical evaluation.
+See `docs/METRICS_CSV_EXPORT.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

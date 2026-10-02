@@ -11,6 +11,7 @@ from backend.app.application.geojson_exports import GeoJsonExportService
 from backend.app.application.geopackage_exports import GeoPackageExportService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
+from backend.app.application.metrics_csv_exports import MetricCsvExportService
 from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
@@ -181,6 +182,17 @@ def get_run_compare_service(db: DbSession) -> RunCompareService:
 
 
 RunCompareServiceDep = Annotated[RunCompareService, Depends(get_run_compare_service)]
+
+
+def get_metric_csv_export_service(db: DbSession) -> MetricCsvExportService:
+    """Compose bounded persisted raw-metric CSV export."""
+    return MetricCsvExportService(SqlAlchemyRunCompareRepository(db))
+
+
+MetricCsvExportServiceDep = Annotated[
+    MetricCsvExportService,
+    Depends(get_metric_csv_export_service),
+]
 
 
 def get_run_control_service() -> SqlAlchemyRunControlService:
