@@ -22,15 +22,25 @@ from backend.app.application.metrics_csv_exports import (
 from core.urban_generator.domain.benchmarking import RawMetricId
 
 
-def _metric(metric_id: RawMetricId, raw_value: float | None) -> dict[str, object]:
+def _metric(
+    metric_id: RawMetricId,
+    raw_value: float | None,
+    *,
+    normalized_weight: float = 1.0,
+    contribution: float | None = None,
+) -> dict[str, object]:
     return {
         "metric_id": metric_id.value,
         "raw_value": raw_value,
         "normalized_value": 0.5 if raw_value is not None else None,
         "normalization_policy_version": "1",
-        "configured_weight": 1.0,
-        "normalized_weight": 1.0,
-        "contribution": 0.5 if raw_value is not None else 0.0,
+        "configured_weight": normalized_weight,
+        "normalized_weight": normalized_weight,
+        "contribution": (
+            0.5 if raw_value is not None else 0.0
+        )
+        if contribution is None
+        else contribution,
         "was_clamped": False,
         "was_missing": raw_value is None,
     }
@@ -102,8 +112,18 @@ def test_export_is_registry_ordered_and_preserves_requested_run_order() -> None:
             _record(
                 first,
                 metrics=[
-                    _metric(RawMetricId.LAND_DEVELOPED_AREA_M2, 10.0),
-                    _metric(RawMetricId.ROADS_CONNECTED_COMPONENTS, 2.0),
+                    _metric(
+                        RawMetricId.LAND_DEVELOPED_AREA_M2,
+                        10.0,
+                        normalized_weight=0.5,
+                        contribution=0.25,
+                    ),
+                    _metric(
+                        RawMetricId.ROADS_CONNECTED_COMPONENTS,
+                        2.0,
+                        normalized_weight=0.5,
+                        contribution=0.25,
+                    ),
                 ],
             ),
         )
