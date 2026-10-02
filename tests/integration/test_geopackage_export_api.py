@@ -197,6 +197,7 @@ def test_api_outbox_worker_multilayer_artifact_and_download_are_one_flow(
         assert job is not None and job.job_type == GEOPACKAGE_EXPORT_JOB_TYPE
         assert export is not None
         assert export.layer_ids_json == ["source.buildings", "source.roads"]
+        assert export.layer_feature_counts_json is None
         assert outbox is not None and outbox.queue_name == "export"
         assert outbox.payload == {
             "task": "run_geopackage_export",
