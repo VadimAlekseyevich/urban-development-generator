@@ -107,3 +107,21 @@ after storage promotion but before DB completion, retry compares the regenerated
 checksum/size/content type against the ready blob and reuses it. Storage and DB
 still lack a distributed transaction; generalized cleanup of export-only
 orphans remains part of the later bounded artifact-GC hardening.
+
+
+### S13-T08 GeoPackage export artifacts
+
+S13-T08 extends the same job-owned export lifecycle to multi-layer GeoPackage
+files. The worker keyset-reads at most 5,000 features per DB page, appends each
+batch to a temporary on-disk `.gpkg`, then streams that file into
+`ArtifactStore`. The ready key is
+`exports/{project}/{job}/urban-layers-{job-prefix}.gpkg`, content type is
+`application/geopackage+sqlite3`, and the referenced DB Artifact keeps
+`owner_type=job`.
+
+GeoPackage container bytes are not treated as deterministically reproducible
+because GDAL may write container metadata. Retry after a crash between blob
+promotion and DB completion therefore validates and reuses an already-ready
+artifact by exact selected layer names and bounded per-layer feature counts
+instead of regenerating bytes and requiring checksum equality. The immutable
+job request remains the authority for that logical key.

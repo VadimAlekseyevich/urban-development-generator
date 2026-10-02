@@ -10,6 +10,7 @@ from backend.app.models.generated_entity import (
 )
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.geojson_export import GeoJsonExport
+from backend.app.models.geopackage_export import GeoPackageExport
 from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
@@ -36,6 +37,7 @@ __all__ = [
     "GeneratedZone",
     "GenerationRun",
     "GeoJsonExport",
+    "GeoPackageExport",
     "Job",
     "JobOutbox",
     "Project",

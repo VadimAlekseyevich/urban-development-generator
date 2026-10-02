@@ -6,6 +6,7 @@ from worker.tasks import (
     gc_orphan_artifacts,
     run_generation,
     run_geojson_export,
+    run_geopackage_export,
     run_ingest,
 )
 
@@ -15,6 +16,7 @@ class WorkerSettings:
         run_generation,
         run_ingest,
         run_geojson_export,
+        run_geopackage_export,
         cron(gc_orphan_artifacts, minute={0}, second={0}),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)

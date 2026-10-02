@@ -65,6 +65,15 @@ class ArqJobEnqueuer:
                     "GeoJSON export outbox job_id does not match authoritative job"
                 )
             args = (job_id,)
+        elif task == "run_geopackage_export":
+            if set(message.payload) != {"task", "job_id"}:
+                raise ValueError("invalid GeoPackage export outbox payload")
+            job_id = _uuid_str(message.payload["job_id"], field="job_id")
+            if job_id != str(message.job_id):
+                raise ValueError(
+                    "GeoPackage export outbox job_id does not match authoritative job"
+                )
+            args = (job_id,)
         else:
             raise ValueError("unsupported outbox task")
 
