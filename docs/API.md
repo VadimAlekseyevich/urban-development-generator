@@ -186,11 +186,35 @@ facilities additionally require every linked source version to be ready.
 The ready lifecycle, published project CRS and dataset project identity are
 protected by migration `0023_published_tile_inputs`. See `docs/MVT_TILE_API.md`.
 
+## Asynchronous vector export APIs (S13-T07/T08)
+
+Single-layer GeoJSON:
+
+- `POST /projects/{project_id}/exports/geojson`;
+- `GET /projects/{project_id}/exports/geojson/{job_id}`;
+- `GET /projects/{project_id}/exports/geojson/{job_id}/download`.
+
+Multi-layer GeoPackage:
+
+- `POST /projects/{project_id}/exports/geopackage`;
+- `GET /projects/{project_id}/exports/geopackage/{job_id}`;
+- `GET /projects/{project_id}/exports/geopackage/{job_id}/download`.
+
+Both APIs persist a DB-authoritative job/outbox request and return HTTP 202;
+worker execution reuses the canonical 15 table-backed LayerCatalog/vector
+read models over immutable ready DatasetVersion/succeeded-run owners. GeoJSON
+exports exactly one layer with a 100,000 feature cap. GeoPackage accepts 1–15
+unique layers in canonical order, supports source+run selection in one project,
+caps each layer at 100,000 and the whole artifact at 500,000, and writes
+EPSG:4326 geometry plus complete deterministic `properties_json` attributes.
+Exceeding a cap fails rather than truncating. Successful artifacts are
+referenced with `owner_type=job` and downloads stream through ArtifactStore.
+See `docs/GEOJSON_EXPORT.md` and `docs/GEOPACKAGE_EXPORT.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
 - `/projects/{id}/layers` — нормализованные слои;
 - `/runs/{id}/metrics` — показатели;
-- `/runs/{id}/export` — экспорт;
 
 Тяжёлые GIS-операции выполняются в worker: API только создаёт job и возвращает идентификатор запуска.
