@@ -181,8 +181,17 @@ def test_scope_availability_and_data_errors_are_explicit() -> None:
         MetricCsvExportService(
             FakeRepository((_record(run_id, status="running"),))
         ).export(project_id=PROJECT_ID, run_ids=(run_id,))
-    unavailable = _record(run_id)
-    unavailable.metrics_json = None
+    unavailable = MetricDashboardRunRecord(
+        id=run_id,
+        project_id=PROJECT_ID,
+        status="succeeded",
+        mode="EXPANSION",
+        seed=1,
+        working_srid=32637,
+        metrics_json=None,
+        created_at=datetime.now(UTC),
+        finished_at=datetime.now(UTC),
+    )
     with pytest.raises(MetricCsvExportUnavailableError, match="persisted evaluation"):
         MetricCsvExportService(FakeRepository((unavailable,))).export(
             project_id=PROJECT_ID,
