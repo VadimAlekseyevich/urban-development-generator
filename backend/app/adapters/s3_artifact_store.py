@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from threading import Lock
-from typing import BinaryIO, Final
+from typing import BinaryIO, Final, cast
 from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
@@ -153,7 +153,7 @@ class S3ArtifactStore:
                 "PUT",
                 ref,
                 headers=headers,
-                content=staged,
+                content=cast(BinaryIO, staged),
                 payload_hash=digest.hexdigest(),
             )
             self._raise_for_status(response, operation="put", ref=ref)
@@ -188,7 +188,7 @@ class S3ArtifactStore:
             for chunk in response.iter_bytes(chunk_size=self._chunk_size):
                 staged.write(chunk)
             staged.seek(0)
-            return staged
+            return cast(BinaryIO, staged)
         except BaseException:
             staged.close()
             raise
