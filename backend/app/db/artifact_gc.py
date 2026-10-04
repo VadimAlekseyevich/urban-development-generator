@@ -20,6 +20,7 @@ from backend.app.models.artifact import (
 )
 from core.urban_generator.domain import ArtifactRef, ArtifactState
 
+
 class ArtifactGcStore(Protocol):
     """Infrastructure-only bounded orphan scan shared by storage adapters."""
 
