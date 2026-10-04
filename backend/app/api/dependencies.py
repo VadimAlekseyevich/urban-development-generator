@@ -12,9 +12,9 @@ from backend.app.application.geopackage_exports import GeoPackageExportService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.metrics_csv_exports import MetricCsvExportService
-from backend.app.application.provenance_exports import ProvenanceExportService
 from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
+from backend.app.application.provenance_exports import ProvenanceExportService
 from backend.app.application.road_layers import RoadLayerQueryService
 from backend.app.application.run_compare import RunCompareService
 from backend.app.application.source_layers import SourceLayerQueryService
