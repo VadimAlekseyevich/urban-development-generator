@@ -28,7 +28,7 @@ class ProvenanceExportUnavailableError(RuntimeError):
     """The requested run is not an immutable successful run."""
 
 
-class ProvenanceExportDataError(RuntimeError):
+class ProvenanceExportDataError(ValueError):
     """Persisted canonical provenance is incomplete or malformed."""
 
 
