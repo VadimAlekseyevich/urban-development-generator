@@ -21,7 +21,6 @@ from backend.app.application.geopackage_exports import (
     GeoPackageExportRunStatus,
 )
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
-from backend.app.core.config import settings
 from backend.app.db.artifact_gc import SqlAlchemyArtifactGc
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.geojson_export_page_reader import SqlAlchemyGeoJsonExportPageReader
