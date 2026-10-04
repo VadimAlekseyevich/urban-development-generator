@@ -50,9 +50,14 @@ class ProvenanceExportRepository(Protocol):
 
 
 class ProvenanceManifestDocument(Protocol):
-    run_id: uuid.UUID
-    content: bytes
-    checksum: str
+    @property
+    def run_id(self) -> uuid.UUID: ...
+
+    @property
+    def content(self) -> bytes: ...
+
+    @property
+    def checksum(self) -> str: ...
 
 
 class ProvenanceManifestBuilder(Protocol):
