@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from backend.app.adapters import LocalArtifactStore
+from backend.app.adapters import get_runtime_artifact_store
 from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
 from backend.app.application.building_layers import BuildingLayerQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
@@ -271,7 +271,7 @@ ZoningLayerQueryServiceDep = Annotated[
 def get_artifact_store() -> ArtifactStore:
     """Compose the configured artifact storage adapter."""
 
-    return LocalArtifactStore(settings.storage_root)
+    return get_runtime_artifact_store()
 
 
 ArtifactStoreDep = Annotated[ArtifactStore, Depends(get_artifact_store)]
