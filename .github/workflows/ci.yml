@@ -54,10 +54,10 @@ jobs:
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:latest server /data
+            quay.io/minio/aistor/minio:RELEASE.2026-09-19T17-05-25Z server /data
           trap 'docker rm -f udg-minio >/dev/null 2>&1 || true' EXIT
           timeout 90 bash -c 'until curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; do sleep 2; done'
-          docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
+          docker run --rm --network host --entrypoint /bin/sh quay.io/minio/aistor/mc:latest -c \
             'mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && mc mb --ignore-existing local/udg-artifacts'
           MINIO_TEST_ENDPOINT_URL=http://127.0.0.1:9000 \
           MINIO_TEST_BUCKET=udg-artifacts \
