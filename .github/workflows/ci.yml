@@ -48,6 +48,22 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy backend core worker
       - run: uv run pytest
+      - name: S3 ArtifactStore MinIO contract smoke
+        run: |
+          docker run -d --name udg-minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data
+          trap 'docker rm -f udg-minio >/dev/null 2>&1 || true' EXIT
+          timeout 90 bash -c 'until curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; do sleep 2; done'
+          docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c \
+            'mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && mc mb --ignore-existing local/udg-artifacts'
+          MINIO_TEST_ENDPOINT_URL=http://127.0.0.1:9000 \
+          MINIO_TEST_BUCKET=udg-artifacts \
+          MINIO_TEST_ACCESS_KEY=minioadmin \
+          MINIO_TEST_SECRET_KEY=minioadmin \
+            uv run pytest tests/integration/test_s3_artifact_store_minio.py
       - name: Road reference benchmark
         run: uv run python -m benchmarks.road_network_reference
       - name: Block parcel reference benchmark
