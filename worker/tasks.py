@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from arq import Retry
 
-from backend.app.adapters import LocalArtifactStore
+from backend.app.adapters import get_runtime_artifact_store
 from backend.app.application.generation import (
     GenerationExecutionError,
     GenerationJobService,
@@ -42,7 +42,7 @@ class IngestTaskFailed(RuntimeError):
 
 
 def _build_ingest_job_service() -> IngestJobService:
-    store = LocalArtifactStore(settings.storage_root)
+    store = get_runtime_artifact_store()
     return IngestJobService(
         repository=SqlAlchemyIngestJobRepository(),
         pipeline=DatasetIngestPipeline(store=store),
@@ -102,7 +102,7 @@ class GeoJsonExportTaskFailed(RuntimeError):
 
 
 def _build_geojson_export_job_service() -> GeoJsonExportJobService:
-    store = LocalArtifactStore(settings.storage_root)
+    store = get_runtime_artifact_store()
     return GeoJsonExportJobService(
         repository=SqlAlchemyGeoJsonExportRepository(),
         pipeline=StreamingGeoJsonExportPipeline(
@@ -150,7 +150,7 @@ class GeoPackageExportTaskFailed(RuntimeError):
 
 
 def _build_geopackage_export_job_service() -> GeoPackageExportJobService:
-    store = LocalArtifactStore(settings.storage_root)
+    store = get_runtime_artifact_store()
     return GeoPackageExportJobService(
         repository=SqlAlchemyGeoPackageExportRepository(),
         pipeline=StreamingGeoPackageExportPipeline(
@@ -247,7 +247,7 @@ async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
 @lru_cache(maxsize=1)
 def _build_artifact_gc() -> SqlAlchemyArtifactGc:
     """Reuse one local scan cursor throughout this worker process."""
-    return SqlAlchemyArtifactGc(store=LocalArtifactStore(settings.storage_root))
+    return SqlAlchemyArtifactGc(store=get_runtime_artifact_store())
 
 
 async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
