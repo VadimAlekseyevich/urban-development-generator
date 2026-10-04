@@ -1,3 +1,8 @@
+from backend.app.adapters.artifact_store_factory import (
+    ArtifactStoreAdapter,
+    build_artifact_store,
+    get_runtime_artifact_store,
+)
 from backend.app.adapters.checkpoints import (
     CheckpointResolution,
     PersistedCheckpointError,
@@ -11,10 +16,16 @@ from backend.app.adapters.pipeline_context import (
     PipelineContextAssemblyError,
     SqlAlchemyPipelineContextAdapter,
 )
+from backend.app.adapters.s3_artifact_store import S3ArtifactStore, S3ArtifactStoreError
 
 __all__ = [
+    "ArtifactStoreAdapter",
     "CheckpointResolution",
     "LocalArtifactStore",
+    "S3ArtifactStore",
+    "S3ArtifactStoreError",
+    "build_artifact_store",
+    "get_runtime_artifact_store",
     "SqlAlchemyGenerationRuntimeFactory",
     "PersistedCheckpointError",
     "ReusableCheckpoint",
