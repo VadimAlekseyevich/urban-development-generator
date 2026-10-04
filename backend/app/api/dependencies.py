@@ -12,6 +12,7 @@ from backend.app.application.geopackage_exports import GeoPackageExportService
 from backend.app.application.infrastructure_layers import InfrastructureLayerQueryService
 from backend.app.application.metric_dashboard import MetricDashboardQueryService
 from backend.app.application.metrics_csv_exports import MetricCsvExportService
+from backend.app.application.provenance_exports import ProvenanceExportService
 from backend.app.application.mvt_tiles import MvtTileQueryService
 from backend.app.application.projects import ProjectService
 from backend.app.application.road_layers import RoadLayerQueryService
@@ -43,6 +44,8 @@ from backend.app.db.metric_dashboard_query_repository import (
 )
 from backend.app.db.mvt_tile_query_repository import SqlAlchemyMvtTileRepository
 from backend.app.db.project_repository import SqlAlchemyProjectRepository
+from backend.app.db.provenance_export_repository import SqlAlchemyProvenanceExportRepository
+from backend.app.db.provenance_manifest import SqlAlchemyProvenanceManifestService
 from backend.app.db.road_layer_query_repository import SqlAlchemyRoadLayerQueryRepository
 from backend.app.db.run_compare_query_repository import SqlAlchemyRunCompareRepository
 from backend.app.db.run_control import SqlAlchemyRunControlService
@@ -192,6 +195,20 @@ def get_metric_csv_export_service(db: DbSession) -> MetricCsvExportService:
 MetricCsvExportServiceDep = Annotated[
     MetricCsvExportService,
     Depends(get_metric_csv_export_service),
+]
+
+
+def get_provenance_export_service(db: DbSession) -> ProvenanceExportService:
+    """Compose project-scoped export over the canonical S12 provenance manifest."""
+    return ProvenanceExportService(
+        SqlAlchemyProvenanceExportRepository(db),
+        SqlAlchemyProvenanceManifestService(),
+    )
+
+
+ProvenanceExportServiceDep = Annotated[
+    ProvenanceExportService,
+    Depends(get_provenance_export_service),
 ]
 
 
