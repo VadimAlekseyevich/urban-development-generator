@@ -13,6 +13,7 @@ from backend.app.api.v1.endpoints import (
     metrics,
     mvt_tiles,
     projects,
+    provenance_exports,
     roads,
     runs,
     source_layers,
@@ -28,6 +29,7 @@ api_router.include_router(health.router)
 api_router.include_router(geojson_exports.router)
 api_router.include_router(geopackage_exports.router)
 api_router.include_router(metric_csv_exports.router)
+api_router.include_router(provenance_exports.router)
 api_router.include_router(projects.router)
 api_router.include_router(runs.router)
 api_router.include_router(infrastructure.router)

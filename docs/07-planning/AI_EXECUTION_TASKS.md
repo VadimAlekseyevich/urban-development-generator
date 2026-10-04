@@ -126,7 +126,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-087** — **S13-T07** — Implement asynchronous GeoJSON export job to ArtifactStore.
 - [x] **UG-AI-088** — **S13-T08** — Implement bounded multi-layer GeoPackage export job.
 - [x] **UG-AI-089** — **S13-T09** — Implement run/compare canonical raw-metrics CSV export.
-- [ ] **UG-AI-090** — **S13-T10** — Export normalized config + provenance manifest + CRS/seed/dataset refs.
+- [x] **UG-AI-090** — **S13-T10** — Export normalized config + provenance manifest + CRS/seed/dataset refs.
 - [ ] **UG-AI-091** — **S13-T11** — Implement S3/MinIO ArtifactStore adapter contract parity with LocalArtifactStore.
 - [ ] **UG-AI-092** — **S13-T12** — Add large-upload progress/error/retry/version UX without base64 transfer.
 - [ ] **UG-AI-093** — **S13-T13** — Integrate project/datasets/map/parameters/jobs/metrics/compare into complete workspace over shared registries.
@@ -170,4 +170,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..089 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-090 / S13-T10. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..090 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-091 / S13-T11. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

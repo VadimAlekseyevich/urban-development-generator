@@ -23,6 +23,7 @@ from backend.app.application.metric_dashboard import (
     MetricDashboardQueryService,
     MetricDashboardUnavailableError,
 )
+from backend.app.application.provenance_exports import ProvenanceExportDataError
 from backend.app.application.scenario_matrix import (
     ScenarioConfigVariant,
     ScenarioMatrixError,
@@ -43,7 +44,7 @@ _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
-class ProvenanceManifestError(ValueError):
+class ProvenanceManifestError(ProvenanceExportDataError):
     """A complete trustworthy manifest cannot be derived from persisted records."""
 
 

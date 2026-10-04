@@ -66,8 +66,9 @@ and publication metadata are read from PostgreSQL. `SqlAlchemyExactRerunService`
 continues to validate source blob availability/content and executable code
 revision before a rerun. The v1 manifest includes raw inputs persisted in the
 canonical S11 evaluation envelope; it does not fabricate unpersisted
-distribution/diagnostic metrics. A transport endpoint, export job and durable
-manifest artifact belong to later S13 work, not to S12-T12.
+distribution/diagnostic metrics. S13-T10 now exposes these exact canonical bytes through the project-scoped synchronous JSON
+transport documented in `docs/PROVENANCE_EXPORT.md`. It deliberately does not create a second
+manifest format or a durable export Artifact.
 
 ## Acceptance
 

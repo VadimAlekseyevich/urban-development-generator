@@ -225,6 +225,22 @@ with a blank raw value. 404 = project/run scope failure, 409 = non-successful ru
 evaluation, 422 = invalid run selection, 500 = malformed persisted canonical evaluation.
 See `docs/METRICS_CSV_EXPORT.md`.
 
+## Canonical provenance JSON export (S13-T10)
+
+- `GET /projects/{project_id}/exports/provenance/{run_id}`.
+
+The response downloads the exact deterministic S12 successful-run provenance manifest bytes. It is
+project-scoped and available only for immutable successful runs. The manifest includes normalized
+config + checksum, seed, metric working CRS, code commit, sorted dataset/version refs and source
+checksums/artifacts, stage input/config/output fingerprints and published artifacts, plus persisted
+canonical evaluation. The transport adds no second provenance/config schema and performs no GIS,
+score, validation or source-blob recomputation.
+
+Response headers publish `X-Provenance-Schema: 1`,
+`X-Provenance-Checksum: sha256:<hex>`, and an attachment filename. 404 = project/run scope
+failure, 409 = non-successful run, 422 = malformed path UUID, 500 = inconsistent persisted canonical
+provenance. See `docs/PROVENANCE_EXPORT.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;
