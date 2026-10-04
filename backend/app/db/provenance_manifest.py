@@ -44,7 +44,7 @@ _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
-class ProvenanceManifestError(ProvenanceExportDataError, ValueError):
+class ProvenanceManifestError(ProvenanceExportDataError):
     """A complete trustworthy manifest cannot be derived from persisted records."""
 
 
