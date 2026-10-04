@@ -32,7 +32,7 @@ class SqlAlchemyProvenanceExportRepository:
                 GenerationRun.project_id == project_id,
                 GenerationRun.id == run_id,
             )
-        ).one_or_none()
+        ).mappings().one_or_none()
         if row is None:
             return None
-        return ProvenanceExportRunRecord(id=row.id, status=row.status)
+        return ProvenanceExportRunRecord(id=row["id"], status=row["status"])
