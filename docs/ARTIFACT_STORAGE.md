@@ -125,3 +125,46 @@ promotion and DB completion therefore validates and reuses an already-ready
 artifact by exact selected layer names and bounded per-layer feature counts
 instead of regenerating bytes and requiring checksum equality. The immutable
 job request remains the authority for that logical key.
+
+
+## S3 / MinIO ArtifactStore (S13-T11)
+
+`backend.app.adapters.S3ArtifactStore` implements the same core `ArtifactStore`
+port without exposing bucket URLs to domain/application code. Runtime selection is
+controlled by `ARTIFACT_STORE_BACKEND=local|s3`; API and worker use the same
+process-local factory, so uploads, ingest, stage artifacts and exports do not need
+storage-specific branches.
+
+The object layout is adapter-private:
+
+```text
+<prefix>/temporary/<logical-key>
+<prefix>/ready/<logical-key>
+```
+
+SHA-256, byte size and whether a content type was explicitly supplied are stored
+as S3 user metadata. `put()` still accepts temporary refs only, reads the caller
+in bounded chunks, hashes while spooling with a bounded memory threshold, and
+never replaces an existing ready object. `open()` downloads into a
+`SpooledTemporaryFile` rather than materializing the whole object as `bytes`.
+
+Promotion uses server-side `CopyObject` with `If-None-Match: *` and then deletes
+the temporary object. A retry after a crash between copy and delete compares
+checksum/size/content type, removes the matching temporary object and returns the
+existing ready stat; different ready content is rejected. Requests use AWS
+Signature Version 4 and work with path-style MinIO endpoints or virtual-hosted
+S3 endpoints.
+
+The adapter also implements the infrastructure-only bounded run-orphan scan used
+by `SqlAlchemyArtifactGc`: ListObjectsV2 scans rotate across temporary/ready
+`runs/` prefixes, and every candidate is rechecked with object Last-Modified
+before deletion. These methods remain outside the core `ArtifactStore` protocol.
+
+Required S3 settings are `S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY` and
+`S3_SECRET_KEY`; region defaults to `us-east-1`. `S3_PREFIX`,
+`S3_FORCE_PATH_STYLE`, optional session token and TLS verification are
+configurable. Buckets are deployment-owned and must already exist.
+
+CI includes a real MinIO contract smoke in addition to mock transport tests, so
+SigV4, user metadata, conditional server-side promotion, reopen/stat and
+idempotent retry behavior are exercised against an S3-compatible server.
