@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 
 import { isUuid } from './sourceLayers'
+import './upload.css'
 import {
   fetchDatasetVersions,
   formatUploadSize,
