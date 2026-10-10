@@ -48,6 +48,26 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy backend core worker
       - run: uv run pytest
+      - name: S3 ArtifactStore MinIO contract smoke
+        run: |
+          git clone --depth 1 \
+            --branch RELEASE.2025-05-24T17-08-30Z \
+            https://github.com/minio/minio.git /tmp/udg-minio-src
+          (cd /tmp/udg-minio-src && go build -o /tmp/udg-minio-server .)
+          MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
+            /tmp/udg-minio-server server /tmp/udg-minio-data \
+            >/tmp/udg-minio.log 2>&1 &
+          minio_pid=$!
+          trap 'kill "$minio_pid" >/dev/null 2>&1 || true' EXIT
+          timeout 90 bash -c 'until curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; do sleep 2; done'
+          docker run --rm --network host --entrypoint /bin/sh \
+            quay.io/minio/aistor/mc:latest -c \
+            'mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && mc mb --ignore-existing local/udg-artifacts'
+          MINIO_TEST_ENDPOINT_URL=http://127.0.0.1:9000 \
+          MINIO_TEST_BUCKET=udg-artifacts \
+          MINIO_TEST_ACCESS_KEY=minioadmin \
+          MINIO_TEST_SECRET_KEY=minioadmin \
+            uv run pytest tests/integration/test_s3_artifact_store_minio.py
       - name: Road reference benchmark
         run: uv run python -m benchmarks.road_network_reference
       - name: Block parcel reference benchmark

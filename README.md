@@ -155,7 +155,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Сквозной браузерный E2E на реальном датасете остаётся S13-T14, эксперименты воспроизводимости — S15. Следующий ordered execution item —
-**`UG-AI-091 / S13-T11`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-092 / S13-T12`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

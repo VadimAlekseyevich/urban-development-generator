@@ -7,11 +7,11 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.adapters.local_artifact_store import LocalArtifactStore
 from backend.app.db.session import SessionLocal
 from backend.app.models.artifact import (
     Artifact,
@@ -19,6 +19,30 @@ from backend.app.models.artifact import (
     run_stage_result_artifacts,
 )
 from core.urban_generator.domain import ArtifactRef, ArtifactState
+
+
+class ArtifactGcStore(Protocol):
+    """Infrastructure-only bounded orphan scan shared by storage adapters."""
+
+    def delete(self, ref: ArtifactRef) -> None: ...
+
+    def stale_run_refs(
+        self,
+        *,
+        older_than: datetime,
+        max_scan: int,
+        max_results: int,
+    ) -> tuple[ArtifactRef, ...]: ...
+
+    def has_run_ref(self, ref: ArtifactRef) -> bool: ...
+
+    def is_stale_run_ref(
+        self,
+        ref: ArtifactRef,
+        *,
+        older_than: datetime,
+    ) -> bool: ...
+
 
 _RUN_STAGE_KEY_RE = re.compile(
     r"^runs/([0-9a-f-]{36})/stages/[a-z][a-z0-9_]{0,63}/.+$"
@@ -43,7 +67,7 @@ class SqlAlchemyArtifactGc:
     def __init__(
         self,
         *,
-        store: LocalArtifactStore,
+        store: ArtifactGcStore,
         session_factory: Callable[[], Session] = SessionLocal,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
