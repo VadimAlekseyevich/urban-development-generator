@@ -571,6 +571,7 @@ function App() {
           apiBase={API_BASE}
           projectId={selection.projectId}
           onVersionSelect={chooseVersion}
+          selectedVersionId={selection.datasetVersionId}
         />
 
         </div>
