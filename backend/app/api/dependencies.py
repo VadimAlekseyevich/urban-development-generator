@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.app.adapters import get_runtime_artifact_store
 from backend.app.application.block_parcel_layers import BlockParcelLayerQueryService
 from backend.app.application.building_layers import BuildingLayerQueryService
+from backend.app.application.dataset_versions import DatasetVersionQueryService
 from backend.app.application.demography_layers import DemographyLayerQueryService
 from backend.app.application.geojson_exports import GeoJsonExportService
 from backend.app.application.geopackage_exports import GeoPackageExportService
@@ -31,6 +32,7 @@ from backend.app.db.block_parcel_layer_query_repository import (
 from backend.app.db.building_layer_query_repository import (
     SqlAlchemyBuildingLayerQueryRepository,
 )
+from backend.app.db.dataset_version_query_repository import SqlAlchemyDatasetVersionReader
 from backend.app.db.demography_layer_query_repository import (
     SqlAlchemyDemographyLayerQueryRepository,
 )
@@ -75,6 +77,16 @@ def get_project_service(db: DbSession) -> ProjectService:
 
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
+
+
+def get_dataset_version_query_service(db: DbSession) -> DatasetVersionQueryService:
+    """Read immutable dataset versions owned by the selected project."""
+    return DatasetVersionQueryService(SqlAlchemyDatasetVersionReader(db))
+
+
+DatasetVersionQueryServiceDep = Annotated[
+    DatasetVersionQueryService, Depends(get_dataset_version_query_service)
+]
 
 
 def get_source_layer_query_service(db: DbSession) -> SourceLayerQueryService:
