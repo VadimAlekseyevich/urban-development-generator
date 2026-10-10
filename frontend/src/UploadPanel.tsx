@@ -19,9 +19,10 @@ type Props = {
   apiBase: string
   projectId: string | null
   onVersionSelect: (versionId: string) => void
+  selectedVersionId?: string | null
 }
 
-export function UploadPanel({ apiBase, projectId, onVersionSelect }: Props) {
+export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersionId }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [state, setState] = useState<UploadState>('idle')
   const [progress, setProgress] = useState<UploadProgress | null>(null)
@@ -214,8 +215,12 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect }: Props) {
                 <button
                   type="button"
                   className="button"
+                  disabled={version.status !== 'ready'}
+                  aria-pressed={selectedVersionId === version.id}
                   onClick={() => onVersionSelect(version.id)}
-                  title="Подставить DatasetVersion ID в контекст карты"
+                  title={version.status === 'ready'
+                    ? 'Открыть готовую DatasetVersion на карте'
+                    : 'Версия ещё не готова к чтению'}
                 >
                   Выбрать
                 </button>
