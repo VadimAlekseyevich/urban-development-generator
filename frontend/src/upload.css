@@ -1,0 +1,24 @@
+.upload-controls { display: grid; gap: 8px; }
+.upload-file-label { color: #475569; font-size: 11px; font-weight: 700; }
+.upload-controls input[type=file] { max-width: 100%; font-size: 11px; }
+.upload-controls input[type=file]::file-selector-button {
+  margin-right: 8px; padding: 6px 8px; border: 1px solid #cbd5e1;
+  border-radius: 7px; background: #fff; color: #334155; cursor: pointer;
+}
+.upload-progress { display: block; width: 100%; height: 12px; accent-color: #2563eb; }
+.upload-button-row { display: flex; gap: 8px; }
+.upload-artifact-details { margin: 6px 0 0; font-size: 10px; }
+.upload-artifact-details div { display: grid; grid-template-columns: 68px 1fr; gap: 8px; padding: 5px 0; border-top: 1px solid #edf1f5; }
+.upload-artifact-details dt { color: #64748b; }
+.upload-artifact-details dd { margin: 0; color: #334155; overflow-wrap: anywhere; }
+.upload-versions-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 15px 0 6px; }
+.upload-versions-heading strong { font-size: 12px; }
+.upload-versions-heading .button { min-height: 28px; padding: 4px 8px; }
+.upload-version-list { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 5px; }
+.upload-version-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; }
+.upload-version-list li div { display: grid; gap: 3px; min-width: 0; }
+.upload-version-list li strong { color: #334155; font-size: 11px; }
+.upload-version-list li span { color: #64748b; font-size: 10px; }
+.upload-version-list .button { min-height: 29px; padding: 5px 8px; }
+.upload-version-nav { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10px; color: #64748b; }
+.upload-version-nav .button { min-height: 29px; padding: 5px 8px; }
