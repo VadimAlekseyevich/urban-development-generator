@@ -129,7 +129,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-090** — **S13-T10** — Export normalized config + provenance manifest + CRS/seed/dataset refs.
 - [x] **UG-AI-091** — **S13-T11** — Implement S3/MinIO ArtifactStore adapter contract parity with LocalArtifactStore.
 - [x] **UG-AI-092** — **S13-T12** — Add large-upload progress/error/retry/version UX without base64 transfer.
-- [ ] **UG-AI-093** — **S13-T13** — Integrate project/datasets/map/parameters/jobs/metrics/compare into complete workspace over shared registries.
+- [x] **UG-AI-093** — **S13-T13** — Integrate project/datasets/map/parameters/jobs/metrics/compare into complete workspace over shared registries.
 - [ ] **UG-AI-094** — **S13-T14** — Add Playwright create→upload→run→inspect→compare→export E2E fixture.
 - [ ] **UG-AI-095** — **S14-T01** — Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
 - [ ] **UG-AI-096** — **S14-T02** — Implement active-job/file/candidate/scenario resource bounds and backpressure responses.
