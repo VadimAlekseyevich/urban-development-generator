@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useMemo,
   useEffect,
   useRef,
   useState,
@@ -20,9 +21,21 @@ import { InfrastructurePanel } from './InfrastructurePanel'
 import { LayerTree } from './LayerTree'
 import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
+import { ProjectPanel } from './ProjectPanel'
 import { RunsPanel } from './RunsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { UploadPanel } from './UploadPanel'
+import { WorkspaceTabs } from './WorkspaceTabs'
+import {
+  readWorkspaceSelection,
+  readWorkspaceView,
+  selectDatasetVersion,
+  selectMapRun,
+  selectProject,
+  workspaceSearch,
+  type WorkspaceSelection,
+  type WorkspaceView,
+} from './workspaceContext'
 import { ViolationsPanel } from './ViolationsPanel'
 import { ZoningPanel } from './ZoningPanel'
 import {
@@ -93,13 +106,6 @@ function initialParam(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? ''
 }
 
-function parseContext(projectId: string, datasetVersionId: string): SourceContext | null {
-  const project = projectId.trim()
-  const version = datasetVersionId.trim()
-  if (!isUuid(project) || !isUuid(version)) return null
-  return { projectId: project, datasetVersionId: version }
-}
-
 function setSourceData(
   map: MapLibreMap,
   layer: SourceLayerKey,
@@ -159,9 +165,19 @@ function App() {
   const initialSuitabilityArtifactId = initialParam('suitability_artifact_id')
   const [projectId, setProjectId] = useState(initialProjectId)
   const [datasetVersionId, setDatasetVersionId] = useState(initialVersionId)
-  const [context, setContext] = useState<SourceContext | null>(() =>
-    parseContext(initialProjectId, initialVersionId),
+  const [selection, setSelection] = useState<WorkspaceSelection>(() =>
+    readWorkspaceSelection(window.location.search),
   )
+  const [view, setView] = useState<WorkspaceView>(() =>
+    readWorkspaceView(window.location.search),
+  )
+  const context = useMemo<SourceContext | null>(() =>
+    selection.projectId && selection.datasetVersionId
+      ? { projectId: selection.projectId, datasetVersionId: selection.datasetVersionId }
+      : null,
+    [selection.projectId, selection.datasetVersionId],
+  )
+  const mapRunId = selection.runId
   const [contextError, setContextError] = useState<string | null>(null)
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking')
   const [mapReady, setMapReady] = useState(false)
@@ -171,7 +187,6 @@ function App() {
   const [layerStats, setLayerStats] = useState<LayerStats>(EMPTY_STATS)
   const [boundaryAvailable, setBoundaryAvailable] = useState(false)
   const [selected, setSelected] = useState<SelectedFeature | null>(null)
-  const [mapRunId, setMapRunId] = useState<string | null>(null)
   const [suitabilityArtifactId, setSuitabilityArtifactId] = useState<string | null>(
     isUuid(initialSuitabilityArtifactId) ? initialSuitabilityArtifactId : null,
   )
@@ -245,6 +260,21 @@ function App() {
       }
     }
   }, [mapReady, visibility])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    viewportAbortRef.current?.abort()
+    for (const layer of SOURCE_LAYER_API_NAMES) {
+      collectionsRef.current[layer] = EMPTY_FEATURE_COLLECTION
+      setSourceData(map, layer, EMPTY_FEATURE_COLLECTION)
+    }
+    setLayerStats(EMPTY_STATS)
+    if (!context) {
+      setLoadStatus('idle')
+      setLoadMessage('Выберите DatasetVersion для просмотра исходных слоёв.')
+    }
+  }, [context, mapReady])
 
   const loadViewport = useCallback(async () => {
     const map = mapRef.current
@@ -343,11 +373,11 @@ function App() {
     boundaryRef.current = null
     setBoundaryAvailable(false)
     setSourceData(map, 'boundary', EMPTY_FEATURE_COLLECTION)
-    if (!context) return
+    if (!selection.projectId) return
 
     const controller = new AbortController()
     boundaryAbortRef.current = controller
-    const entry = layerInstancesForContext({ projectId: context.projectId })
+    const entry = layerInstancesForContext({ projectId: selection.projectId })
       .find((item) => item.definition.id === 'project.boundary')
     if (!entry) return
     const url = catalogReadUrl(API_BASE, entry)
@@ -385,25 +415,62 @@ function App() {
     return () => {
       controller.abort()
     }
-  }, [context, mapReady])
+  }, [selection.projectId, mapReady])
+
+  function commitWorkspace(next: WorkspaceSelection, nextView: WorkspaceView = view): void {
+    const projectChanged = selection.projectId !== next.projectId
+    const versionChanged = selection.datasetVersionId !== next.datasetVersionId
+    setSelection(next)
+    const url = new URL(window.location.href)
+    url.search = workspaceSearch(url.search, next, nextView)
+    if (projectChanged || versionChanged) {
+      url.searchParams.delete('metrics_run_id')
+      url.searchParams.delete('suitability_artifact_id')
+      setSuitabilityArtifactId(null)
+    }
+    window.history.replaceState({}, '', url)
+  }
+
+  function chooseProject(nextProjectId: string): void {
+    const next = selectProject(selection, nextProjectId)
+    setProjectId(next.projectId ?? '')
+    setDatasetVersionId(next.datasetVersionId ?? '')
+    setContextError(null)
+    setSelected(null)
+    setView('data')
+    commitWorkspace(next, 'data')
+  }
+
+  function chooseVersion(versionId: string): void {
+    const next = selectDatasetVersion(selection, versionId)
+    setDatasetVersionId(next.datasetVersionId ?? '')
+    setContextError(null)
+    setSelected(null)
+    setView('map')
+    commitWorkspace(next, 'map')
+  }
+
+  function changeView(nextView: WorkspaceView): void {
+    setView(nextView)
+    commitWorkspace(selection, nextView)
+  }
+
+  function handleMapRunChange(runId: string | null): void {
+    commitWorkspace(selectMapRun(selection, runId))
+  }
 
   function applyContext(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    const next = parseContext(projectId, datasetVersionId)
-    if (!next) {
-      setContextError('Оба идентификатора должны быть UUID.')
+    const project = projectId.trim()
+    const version = datasetVersionId.trim()
+    if (!isUuid(project) || (version && !isUuid(version))) {
+      setContextError('Project ID должен быть UUID; DatasetVersion ID может быть пустым или UUID.')
       return
     }
-
+    const next = selectDatasetVersion(selectProject(selection, project), version || null)
     setContextError(null)
     setSelected(null)
-    setMapRunId(null)
-    setLayerStats(EMPTY_STATS)
-    setContext(next)
-    const url = new URL(window.location.href)
-    url.searchParams.set('project_id', next.projectId)
-    url.searchParams.set('dataset_version_id', next.datasetVersionId)
-    window.history.replaceState({}, '', url)
+    commitWorkspace(next)
   }
 
   function updateProjectId(event: ChangeEvent<HTMLInputElement>): void {
@@ -443,13 +510,28 @@ function App() {
       <aside className="sidebar">
         <header className="brand">
           <p className="eyebrow">Urban Development Generator</p>
-          <h1>Source & suitability</h1>
-          <p className="muted">Исходные слои и constraint-aware карта пригодности</p>
+          <h1>Urban workspace</h1>
+          <p className="muted">Проекты, геоданные, генерация, карта и аналитика</p>
         </header>
 
         <div className={`status status-${apiStatus}`}>
           <span className="status-dot" /> API: {apiStatus}
         </div>
+
+        <WorkspaceTabs
+          active={view}
+          onChange={changeView}
+          projectId={selection.projectId}
+          datasetVersionId={selection.datasetVersionId}
+          runId={mapRunId}
+        />
+
+        <div className="workspace-section" hidden={view !== 'data'} aria-label="Данные и проекты">
+        <ProjectPanel
+          apiBase={API_BASE}
+          selectedProjectId={selection.projectId}
+          onProjectSelect={chooseProject}
+        />
 
         <section className="panel">
           <div className="section-heading">
@@ -486,30 +568,20 @@ function App() {
         </section>
 
         <UploadPanel
+          key={selection.projectId ?? 'no-project-uploads'}
           apiBase={API_BASE}
-          projectId={isUuid(projectId.trim()) ? projectId.trim() : null}
-          onVersionSelect={setDatasetVersionId}
+          projectId={selection.projectId}
+          onVersionSelect={chooseVersion}
+          selectedVersionId={selection.datasetVersionId}
         />
 
-        <RunsPanel
-          key={context?.projectId ?? 'no-project'}
-          apiBase={API_BASE}
-          projectId={context?.projectId ?? null}
-          datasetVersionId={context?.datasetVersionId ?? null}
-        />
+        </div>
 
-        <ComparePanel
-          key={context?.projectId ?? 'no-compare-project'}
-          apiBase={API_BASE}
-          projectId={context?.projectId ?? null}
-          mapRunId={mapRunId}
-          onMapRunChange={setMapRunId}
-        />
-
+        <div key={[selection.projectId ?? 'no-project', selection.datasetVersionId ?? 'no-version'].join(':')} className="workspace-section" hidden={view !== 'map'} aria-label="Слои и карта">
         <LayerTree
           selection={{
-            projectId: context?.projectId ?? null,
-            datasetVersionId: context?.datasetVersionId ?? null,
+            projectId: selection.projectId,
+            datasetVersionId: selection.datasetVersionId,
             runId: mapRunId,
             suitabilityArtifactId,
           }}
@@ -523,6 +595,7 @@ function App() {
         />
 
         <SuitabilityPanel
+          key={[selection.projectId ?? 'no-project', selection.datasetVersionId ?? 'no-version'].join(':')}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           onArtifactChange={setSuitabilityArtifactId}
@@ -532,54 +605,49 @@ function App() {
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <RoadsPanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <BlockParcelsPanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <BuildingsPanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <DemographyPanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <InfrastructurePanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
-        />
-
-        <MetricsDashboard
-          apiBase={API_BASE}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <ViolationsPanel
           pinnedRunId={mapRunId}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
-          projectId={context?.projectId ?? null}
+          projectId={selection.projectId}
         />
 
         <section className="panel inspector-panel">
@@ -619,6 +687,37 @@ function App() {
             </p>
           )}
         </section>
+        </div>
+
+        <div className="workspace-section" hidden={view !== 'generation'} aria-label="Параметры и задания">
+        <RunsPanel
+          mapRunId={mapRunId}
+          onMapRunChange={handleMapRunChange}
+          key={selection.projectId ?? 'no-project'}
+          apiBase={API_BASE}
+          projectId={selection.projectId}
+          datasetVersionId={selection.datasetVersionId}
+        />
+
+        </div>
+
+        <div className="workspace-section" hidden={view !== 'analysis'} aria-label="Метрики и сравнение">
+        <MetricsDashboard
+          pinnedRunId={mapRunId}
+          onMapRunChange={handleMapRunChange}
+          apiBase={API_BASE}
+          projectId={selection.projectId}
+        />
+
+        <ComparePanel
+          key={selection.projectId ?? 'no-compare-project'}
+          apiBase={API_BASE}
+          projectId={selection.projectId}
+          mapRunId={mapRunId}
+          onMapRunChange={handleMapRunChange}
+        />
+
+        </div>
       </aside>
 
       <section className="map-shell" aria-label="Карта исходных слоёв и suitability">
