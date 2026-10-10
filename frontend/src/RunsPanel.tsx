@@ -14,6 +14,8 @@ type RunsPanelProps = {
   apiBase: string
   projectId: string | null
   datasetVersionId: string | null
+  mapRunId: string | null
+  onMapRunChange: (runId: string | null) => void
 }
 
 const LABEL: Record<RunLifecycleStatus, string> = {
@@ -36,7 +38,9 @@ function runOption(run: RunState): string {
   return `${shortId(run.id)} · ${LABEL[run.status]} · seed ${run.seed}`
 }
 
-export function RunsPanel({ apiBase, projectId, datasetVersionId }: RunsPanelProps) {
+export function RunsPanel({
+  apiBase, projectId, datasetVersionId, mapRunId, onMapRunChange,
+}: RunsPanelProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const { runs, truncated, loading, error } = useRunPolling(apiBase, projectId, refreshKey)
   const [selectedRunId, setSelectedRunId] = useState('')
@@ -206,6 +210,12 @@ export function RunsPanel({ apiBase, projectId, datasetVersionId }: RunsPanelPro
             {selected.job.error_class}: {selected.job.error_code}
           </p>}
           <div className="run-actions">
+            <button className="button" type="button"
+              disabled={selected.status !== 'succeeded'}
+              aria-pressed={mapRunId === selected.id}
+              onClick={() => onMapRunChange(mapRunId === selected.id ? null : selected.id)}>
+              {mapRunId === selected.id ? 'Открепить от карты' : 'Показать на карте'}
+            </button>
             <button className="button" type="button" disabled={busy || !selected.job
               || !['queued', 'running'].includes(selected.status)
               || selected.job.cancel_requested_at !== null}
