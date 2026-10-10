@@ -36,13 +36,18 @@ export type UploadProgress = {
 }
 
 export class UploadRequestError extends Error {
+  readonly category: 'http' | 'network' | 'cancelled' | 'response'
+  readonly status: number | null
+
   constructor(
     message: string,
-    readonly category: 'http' | 'network' | 'cancelled' | 'response',
-    readonly status: number | null = null,
+    category: 'http' | 'network' | 'cancelled' | 'response',
+    status: number | null = null,
   ) {
     super(message)
     this.name = 'UploadRequestError'
+    this.category = category
+    this.status = status
   }
 
   get canRetry(): boolean {
