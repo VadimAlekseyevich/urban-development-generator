@@ -509,8 +509,8 @@ function App() {
       <aside className="sidebar">
         <header className="brand">
           <p className="eyebrow">Urban Development Generator</p>
-          <h1>Source & suitability</h1>
-          <p className="muted">Исходные слои и constraint-aware карта пригодности</p>
+          <h1>Urban workspace</h1>
+          <p className="muted">Проекты, геоданные, генерация, карта и аналитика</p>
         </header>
 
         <div className={`status status-${apiStatus}`}>
@@ -575,7 +575,7 @@ function App() {
 
         </div>
 
-        <div className="workspace-section" hidden={view !== 'map'} aria-label="Слои и карта">
+        <div key={selection.projectId ?? 'no-project-map'} className="workspace-section" hidden={view !== 'map'} aria-label="Слои и карта">
         <LayerTree
           selection={{
             projectId: selection.projectId,
