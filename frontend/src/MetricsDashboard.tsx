@@ -19,6 +19,8 @@ type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 type MetricsDashboardProps = {
   apiBase: string
   projectId: string | null
+  pinnedRunId: string | null
+  onMapRunChange: (runId: string | null) => void
 }
 
 const NUMBER_FORMAT = new Intl.NumberFormat('ru-RU', {
@@ -107,6 +109,8 @@ function MetricRow({ metric }: { metric: MetricDashboardMetric }) {
 export function MetricsDashboard({
   apiBase,
   projectId,
+  pinnedRunId,
+  onMapRunChange,
 }: MetricsDashboardProps) {
   const runsAbortRef = useRef<AbortController | null>(null)
   const dashboardAbortRef = useRef<AbortController | null>(null)
@@ -206,9 +210,16 @@ export function MetricsDashboard({
     return () => controller.abort()
   }, [apiBase, projectId, selectedRunId])
 
+  useEffect(() => {
+    if (pinnedRunId && runs.some((run) => run.id === pinnedRunId)) {
+      setSelectedRunId(pinnedRunId)
+    }
+  }, [pinnedRunId, runs])
+
   function changeRun(event: ChangeEvent<HTMLSelectElement>): void {
     const runId = event.target.value
     setSelectedRunId(runId)
+    onMapRunChange(runId || null)
     const url = new URL(window.location.href)
     if (runId) url.searchParams.set('metrics_run_id', runId)
     else url.searchParams.delete('metrics_run_id')
@@ -244,6 +255,19 @@ export function MetricsDashboard({
           ))}
         </select>
       </label>
+      {pinnedRunId && !runs.some((run) => run.id === pinnedRunId) && (
+        <p className="warning-text">
+          Выбранный для карты run отсутствует в ограниченном списке metric runs;
+          другой run не подставляется как его метрика.
+        </p>
+      )}
+      {selectedRun && (
+        <button className="button" type="button"
+          aria-pressed={pinnedRunId === selectedRun.id}
+          onClick={() => onMapRunChange(pinnedRunId === selectedRun.id ? null : selectedRun.id)}>
+          {pinnedRunId === selectedRun.id ? 'Открепить от карты' : 'Показать метрики этого run на карте'}
+        </button>
+      )}
 
       {dashboard && (
         <>
