@@ -419,10 +419,11 @@ function App() {
 
   function commitWorkspace(next: WorkspaceSelection, nextView: WorkspaceView = view): void {
     const projectChanged = selection.projectId !== next.projectId
+    const versionChanged = selection.datasetVersionId !== next.datasetVersionId
     setSelection(next)
     const url = new URL(window.location.href)
     url.search = workspaceSearch(url.search, next, nextView)
-    if (projectChanged) {
+    if (projectChanged || versionChanged) {
       url.searchParams.delete('metrics_run_id')
       url.searchParams.delete('suitability_artifact_id')
       setSuitabilityArtifactId(null)
@@ -576,7 +577,7 @@ function App() {
 
         </div>
 
-        <div key={selection.projectId ?? 'no-project-map'} className="workspace-section" hidden={view !== 'map'} aria-label="Слои и карта">
+        <div key={[selection.projectId ?? 'no-project', selection.datasetVersionId ?? 'no-version'].join(':')} className="workspace-section" hidden={view !== 'map'} aria-label="Слои и карта">
         <LayerTree
           selection={{
             projectId: selection.projectId,
@@ -594,7 +595,7 @@ function App() {
         />
 
         <SuitabilityPanel
-          key={selection.projectId ?? 'no-project-suitability'}
+          key={[selection.projectId ?? 'no-project', selection.datasetVersionId ?? 'no-version'].join(':')}
           apiBase={API_BASE}
           map={mapReady ? mapRef.current : null}
           onArtifactChange={setSuitabilityArtifactId}
@@ -692,7 +693,7 @@ function App() {
         <RunsPanel
           mapRunId={mapRunId}
           onMapRunChange={handleMapRunChange}
-          key={context?.projectId ?? 'no-project'}
+          key={selection.projectId ?? 'no-project'}
           apiBase={API_BASE}
           projectId={selection.projectId}
           datasetVersionId={selection.datasetVersionId}
@@ -709,7 +710,7 @@ function App() {
         />
 
         <ComparePanel
-          key={context?.projectId ?? 'no-compare-project'}
+          key={selection.projectId ?? 'no-compare-project'}
           apiBase={API_BASE}
           projectId={selection.projectId}
           mapRunId={mapRunId}
