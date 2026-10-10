@@ -241,6 +241,21 @@ Response headers publish `X-Provenance-Schema: 1`,
 failure, 409 = non-successful run, 422 = malformed path UUID, 500 = inconsistent persisted canonical
 provenance. See `docs/PROVENANCE_EXPORT.md`.
 
+## Upload progress and DatasetVersion catalog (S13-T12)
+
+- `POST /uploads` accepts the original binary file in multipart field `file`.
+  Browser XHR reports upload bytes and a separate server-processing state.
+  The ready response contains the immutable Artifact ID, logical key, stored
+  size, SHA-256 and content type. HTTP 413 enforces the backend byte cap.
+  The upload does **not** create a DatasetVersion or start normalization.
+- `GET /projects/{project_id}/dataset-versions?limit=20&offset=0` lists
+  project-owned persisted versions in newest-first order. Limit 1–50 with
+  one-row lookahead, stable UUID tie-breaking, status, dataset kind, version
+  ordinal and checksum. 404 for a missing project; 422 for invalid bounds.
+  This API is read-only and never changes version lifecycle state.
+
+See `docs/LARGE_UPLOAD_UX.md`.
+
 ## Далее
 
 - `/projects/{id}/datasets` — загрузка, импорт и валидация;

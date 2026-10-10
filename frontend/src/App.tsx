@@ -22,6 +22,7 @@ import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
 import { RunsPanel } from './RunsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
+import { UploadPanel } from './UploadPanel'
 import { ViolationsPanel } from './ViolationsPanel'
 import { ZoningPanel } from './ZoningPanel'
 import {
@@ -483,6 +484,12 @@ function App() {
           </form>
           <p className="helper-text">Контекст сохраняется в URL и подходит для повторной проверки.</p>
         </section>
+
+        <UploadPanel
+          apiBase={API_BASE}
+          projectId={isUuid(projectId.trim()) ? projectId.trim() : null}
+          onVersionSelect={setDatasetVersionId}
+        />
 
         <RunsPanel
           key={context?.projectId ?? 'no-project'}
