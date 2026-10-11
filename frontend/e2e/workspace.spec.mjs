@@ -47,7 +47,7 @@ test('create → upload → ready fixture → run → inspect → compare → CS
   // This does not promote the uploaded Artifact to a DatasetVersion.
   const fixtureText = execFileSync('docker', [
     'compose', 'exec', '-T', '-e', 'UDG_E2E_FIXTURE=1',
-    'api', 'uv', 'run', 'python', 'scripts/seed_browser_e2e.py',
+    'api', 'uv', 'run', 'python', '-m', 'scripts.seed_browser_e2e',
     '--project-id', projectId,
   ], { cwd: repoRoot, encoding: 'utf8', timeout: 60_000 })
   const fixture = JSON.parse(fixtureText.trim())
