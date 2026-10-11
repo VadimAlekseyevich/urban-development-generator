@@ -267,7 +267,9 @@ jobs:
           if-no-files-found: ignore
       - name: Diagnose services on failure
         if: failure()
-        run: docker compose ps && docker compose logs --tail=100 api worker dispatcher
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=120 api dispatcher worker-ingest worker-generation worker-analysis worker-export worker-legacy || true
       - name: Stop isolated stack
         if: always()
         run: docker compose down -v
@@ -286,6 +288,19 @@ jobs:
       - name: Wait for frontend
         run: |
           timeout 180 bash -c 'until curl -fsS http://127.0.0.1:5173/ >/dev/null; do sleep 3; done'
+      - name: Verify all queue workers survive startup
+        run: |
+          sleep 12
+          docker compose ps
+          docker compose logs --tail=35 worker-ingest worker-generation worker-analysis worker-export worker-legacy dispatcher
+          for service in worker-ingest worker-generation worker-analysis worker-export worker-legacy dispatcher; do
+            cid=$(docker compose ps -q "$service")
+            test -n "$cid"
+            state=$(docker inspect -f '{{.State.Status}}' "$cid")
+            restarts=$(docker inspect -f '{{.RestartCount}}' "$cid")
+            test "$state" = running
+            test "$restarts" -eq 0
+          done
       - name: Inspect stack
         run: docker compose ps
       - name: Stop stack

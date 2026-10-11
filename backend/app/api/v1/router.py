@@ -4,6 +4,7 @@ from backend.app.api.v1.endpoints import (
     blocks_parcels,
     buildings,
     compare,
+    dataset_ingests,
     dataset_versions,
     demography,
     geojson_exports,
@@ -33,6 +34,7 @@ api_router.include_router(metric_csv_exports.router)
 api_router.include_router(provenance_exports.router)
 api_router.include_router(projects.router)
 api_router.include_router(dataset_versions.router)
+api_router.include_router(dataset_ingests.router)
 api_router.include_router(runs.router)
 api_router.include_router(infrastructure.router)
 api_router.include_router(metrics.router)

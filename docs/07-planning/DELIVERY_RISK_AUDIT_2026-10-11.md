@@ -27,17 +27,14 @@ seeded browser data and unclosed deploy/runtime functionality.
   stages, input readers and config, wire ARQ startup, and test with the actual
   worker process and non-synthetic input through persisted evaluation.
 
-### P0 — Browser upload cannot produce the ready version used for generation
+### P0 — Browser upload could not produce a ready version (remediation in PR #180)
 
 - **Evidence:** `POST /uploads` only stores an Artifact; the S13 E2E
   documentation and `scripts/seed_browser_e2e.py` explicitly insert a
   separate ready DatasetVersion and successful evaluations into PostgreSQL.
 - **Effect:** A user can upload and create a project but cannot complete
   the proven browser workflow without an out-of-band ingest job setup.
-- **Required closure:** supply an authorized, project-scoped
-  Artifact→DatasetVersion ingest scheduling path that uses the existing
-  persisted Job/JobOutbox and advances DatasetVersion only after canonical
-  normalization. Then add a no-seeding full E2E.
+- **Remediation evidence:** PR #180 implements project-scoped Artifact→DatasetVersion\n  scheduling over persisted Job/JobOutbox and adds an unseeded Playwright\n  ingest-through-worker fixture. Verify that the browser and worker CI jobs\n  are green on the **exact merged commit** before changing the P0 disposition.\n  This resolves ingestion only; real production generation remains blocked.
 
 ### P1 — No enforced user identity / project authorization at HTTP edge
 

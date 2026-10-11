@@ -1,6 +1,6 @@
 # S13-T14 — Browser acceptance with Playwright (UG-AI-094)
 
-The **Browser E2E (Playwright)** GitHub Actions job runs Chromium against the
+The **Browser E2E (Playwright)** GitHub Actions job runs two independent Chromium journeys. `frontend/e2e/ingest.spec.mjs` uploads a real GeoJSON file through the browser, submits the project-scoped ingest Job/Outbox, waits for the deployed ingest worker to publish a ready DatasetVersion, and reads normalized source roads from PostGIS **without any DB fixture**. `frontend/e2e/workspace.spec.mjs` retains the earlier synthetic evaluated-run comparison fixture.\n\nThe existing comparison journey still runs Chromium against the
 real Docker Compose frontend, API, PostgreSQL/PostGIS, artifact storage,
 dispatcher and worker services. The scenario follows:
 
@@ -18,12 +18,12 @@ dispatcher and worker services. The scenario follows:
 6. Compare the two synthetic, previously evaluated immutable runs through
    the real compare API and download the actual canonical metrics CSV.
 
-**Important boundary:** `POST /uploads` does not create a DatasetVersion or
+**Important boundary:** `POST /uploads` by itself does not create a DatasetVersion or
 schedule data ingestion. The script `scripts/seed_browser_e2e.py` is a
 **test fixture**, not an ingestion endpoint. The fixture's ready version is
 not claimed to have been produced by the uploaded file. Similarly, the two
 successful evaluations are fixture snapshots, **not** the result of the job
-started in step 5. This acceptance gate verifies composition and persistence
+started in step 5. The comparison acceptance gate verifies composition and persistence
 at each implemented boundary; it does **not** establish a real raw-file-to-
 successful-generative-run workflow. The real ingestion and calculation path
 still requires separate production-level acceptance.

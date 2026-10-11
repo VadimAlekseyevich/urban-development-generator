@@ -64,7 +64,7 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     env_file: .env
-    command: ["uv", "run", "alembic", "upgrade", "head"]
+    command: ["uv", "run", "--no-dev", "alembic", "upgrade", "head"]
     networks:
       - urban_network
     depends_on:
@@ -103,30 +103,30 @@ services:
 
   worker-ingest:
     <<: *worker-defaults
-    command: ["uv", "run", "arq", "worker.settings.IngestWorkerSettings"]
+    command: ["uv", "run", "--no-dev", "arq", "worker.settings.IngestWorkerSettings"]
 
   worker-generation:
     <<: *worker-defaults
-    command: ["uv", "run", "arq", "worker.settings.GenerationWorkerSettings"]
+    command: ["uv", "run", "--no-dev", "arq", "worker.settings.GenerationWorkerSettings"]
 
   worker-analysis:
     <<: *worker-defaults
-    command: ["uv", "run", "arq", "worker.settings.AnalysisWorkerSettings"]
+    command: ["uv", "run", "--no-dev", "arq", "worker.settings.AnalysisWorkerSettings"]
 
   worker-export:
     <<: *worker-defaults
-    command: ["uv", "run", "arq", "worker.settings.ExportWorkerSettings"]
+    command: ["uv", "run", "--no-dev", "arq", "worker.settings.ExportWorkerSettings"]
 
   worker-legacy:
     <<: *worker-defaults
-    command: ["uv", "run", "arq", "worker.settings.LegacyWorkerSettings"]
+    command: ["uv", "run", "--no-dev", "arq", "worker.settings.LegacyWorkerSettings"]
 
   dispatcher:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
     env_file: .env
-    command: ["uv", "run", "python", "-m", "worker.outbox_dispatcher"]
+    command: ["uv", "run", "--no-dev", "python", "-m", "worker.outbox_dispatcher"]
     networks:
       - urban_network
     depends_on:

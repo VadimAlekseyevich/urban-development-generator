@@ -135,6 +135,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/LARGE_UPLOAD_UX.md` — raw multipart upload progress/cancel/retry and bounded dataset version discovery;
 - `docs/WORKSPACE_UI.md` — S13 project/datasets/map/generation/metrics/compare workspace composition and owner isolation;
 - `docs/PLAYWRIGHT_E2E.md` — S13 real-browser Playwright CI, isolated fixture, and explicit ingest workflow limitations;
+- `docs/INGEST_SUBMISSION.md` — real project-scoped uploaded Artifact → DatasetVersion → outbox → deployed ingest worker, verified without seeded DB versions;
 - `docs/WORKER_QUEUES.md` — S14 isolated ARQ workers, limits, legacy drain and rollout/rollback;
 - `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;

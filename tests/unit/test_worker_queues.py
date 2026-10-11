@@ -68,7 +68,21 @@ def test_worker_roles_register_only_owned_tasks_and_have_independent_limits() ->
         assert 1 <= cls.max_jobs <= 32
     assert AnalysisWorkerSettings.queue_name == REDIS_QUEUES["analysis"]
     assert AnalysisWorkerSettings.max_jobs == settings.worker_analysis_max_jobs
-    assert len(AnalysisWorkerSettings.functions) == 1
+    assert [fn.__name__ for fn in AnalysisWorkerSettings.functions] == [
+        "gc_orphan_artifacts"
+    ]
+    assert len(AnalysisWorkerSettings.cron_jobs) == 1
+    assert AnalysisWorkerSettings.cron_jobs[0].name == "cron:gc_orphan_artifacts"
+    # ARQ's settings loader reads concrete class attributes. An inherited
+    # Redis DSN silently fell back to localhost in Docker before this gate.
+    for role_class in (
+        IngestWorkerSettings, GenerationWorkerSettings, AnalysisWorkerSettings,
+        ExportWorkerSettings, LegacyWorkerSettings,
+    ):
+        assert "redis_settings" in vars(role_class)
+        assert "job_timeout" in vars(role_class)
+        assert role_class.redis_settings == IngestWorkerSettings.redis_settings
+        assert role_class.job_timeout == 60 * 60
     assert LegacyWorkerSettings.queue_name == LEGACY_QUEUE
     assert LegacyWorkerSettings.max_jobs == 1
     legacy_tasks = {fn.__name__ for fn in LegacyWorkerSettings.functions}

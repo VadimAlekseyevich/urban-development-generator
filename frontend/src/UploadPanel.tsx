@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 
 import { isUuid } from './sourceLayers'
+import {
+  inferIngestFormat, readIngest, scheduleIngest,
+  type DatasetKind, type IngestState,
+} from './ingestApi'
 import './upload.css'
 import {
   fetchDatasetVersions,
@@ -27,6 +31,10 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersi
   const [state, setState] = useState<UploadState>('idle')
   const [progress, setProgress] = useState<UploadProgress | null>(null)
   const [artifact, setArtifact] = useState<UploadedArtifact | null>(null)
+  const [datasetKind, setDatasetKind] = useState<DatasetKind>('roads')
+  const [ingest, setIngest] = useState<IngestState | null>(null)
+  const [ingestBusy, setIngestBusy] = useState(false)
+  const [ingestError, setIngestError] = useState<string | null>(null)
   const [error, setError] = useState<UploadRequestError | null>(null)
   const [versionPage, setVersionPage] = useState<DatasetVersionPage | null>(null)
   const [versionError, setVersionError] = useState<string | null>(null)
@@ -72,11 +80,61 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersi
     return () => controller.abort()
   }, [apiBase, validProjectId, versionOffset, versionRefresh])
 
+  useEffect(() => {
+    if (!ingest || !validProjectId || ingest.status === 'ready' ||
+      (ingest.status === 'failed' && !ingest.retry_pending)) return
+    const controller = new AbortController()
+    const timer = window.setInterval(() => {
+      void readIngest(apiBase, validProjectId, ingest.dataset_version_id, controller.signal)
+        .then((current) => {
+          if (controller.signal.aborted) return
+          setIngest(current)
+          if (current.status === 'ready' ||
+            (current.status === 'failed' && !current.retry_pending)) {
+            setVersionRefresh((value) => value + 1)
+          }
+        })
+        .catch((caught: unknown) => {
+          if (!controller.signal.aborted) {
+            setIngestError(caught instanceof Error ? caught.message : String(caught))
+          }
+        })
+    }, 1500)
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+    }
+  }, [apiBase, validProjectId, ingest?.dataset_version_id, ingest?.status])
+
+  async function submitIngest(): Promise<void> {
+    if (!artifact || !validProjectId || ingestBusy) return
+    const format = inferIngestFormat(artifact.filename)
+    if (!format) {
+      setIngestError('Формат файла не поддерживается этим worker. PBF импортируется отдельно.')
+      return
+    }
+    setIngestBusy(true)
+    setIngestError(null)
+    try {
+      const scheduled = await scheduleIngest(
+        apiBase, validProjectId, artifact.artifact_id, datasetKind, format,
+      )
+      setIngest(scheduled)
+      setVersionRefresh((value) => value + 1)
+    } catch (caught: unknown) {
+      setIngestError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setIngestBusy(false)
+    }
+  }
+
   function chooseFile(event: ChangeEvent<HTMLInputElement>): void {
     setFile(event.target.files?.[0] ?? null)
     setProgress(null)
     setError(null)
     setArtifact(null)
+    setIngest(null)
+    setIngestError(null)
     setState('idle')
   }
 
@@ -182,9 +240,45 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersi
           </dl>
         )}
       </div>
+      <div className="upload-controls" aria-label="Импорт в версию данных">
+        <h3>Импортировать артефакт в проект</h3>
+        <label>
+          Тип данных
+          <select value={datasetKind} onChange={(event) => {
+            setDatasetKind(event.target.value as DatasetKind)
+          }}>
+            <option value="roads">Дороги</option>
+            <option value="buildings">Здания</option>
+            <option value="landuse">Землепользование</option>
+            <option value="water">Водоёмы</option>
+            <option value="facilities">Объекты инфраструктуры</option>
+            <option value="constraints">Ограничения</option>
+            <option value="dem">DEM (GeoTIFF)</option>
+          </select>
+        </label>
+        <button className="button button-primary" type="button"
+          disabled={!validProjectId || !artifact || ingestBusy || Boolean(ingest)}
+          onClick={() => { void submitIngest() }}>
+          {ingestBusy ? 'Постановка в очередь…' : 'Запустить импорт'}
+        </button>
+        {!validProjectId && <p className="helper-text">
+          Сначала выберите проект для импорта.
+        </p>}
+        {ingest && <p role="status" className="helper-text">
+          DatasetVersion {ingest.dataset_version_id.slice(0, 8)}:
+          {ingest.status} · Job {ingest.job_status}.
+          {ingest.status === 'ready' ? ' Версия готова к выбору на карте.' : ''}
+          {ingest.retry_pending ? ' Запланирован повторный запуск.' : ''}
+          {ingest.error_code ? ` Ошибка: ${ingest.error_code}.` : ''}
+          {ingest.error_message ? ` ${ingest.error_message}` : ''}
+        </p>}
+        {ingestError && <p role="alert" className="form-error">{ingestError}</p>}
+      </div>
       <p className="helper-text">
-        Загрузка создаёт только готовый Artifact. Привязка к DatasetVersion и импорт
-        выполняются отдельно; новый ID версии не назначается автоматически.
+        Загрузка сохраняет исходный Artifact. Кнопка импорта создаёт отдельную
+        DatasetVersion и Job; только worker после проверки геоданных переводит
+        версию в статус ready. Поддерживаются GeoJSON, GeoPackage, ZIP/Shapefile
+        и GeoTIFF; PBF пока импортируется отдельным инструментом.
       </p>
       <div className="upload-versions-heading">
         <strong>Версии данных проекта</strong>
