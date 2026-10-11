@@ -71,7 +71,8 @@ def test_worker_roles_register_only_owned_tasks_and_have_independent_limits() ->
     assert len(AnalysisWorkerSettings.functions) == 1
     assert LegacyWorkerSettings.queue_name == LEGACY_QUEUE
     assert LegacyWorkerSettings.max_jobs == 1
-    assert {fn.__name__ for fn in LegacyWorkerSettings.functions} == set(TASK_QUEUES) | {"gc_orphan_artifacts"}
+    legacy_tasks = {fn.__name__ for fn in LegacyWorkerSettings.functions}
+    assert legacy_tasks == set(TASK_QUEUES) | {"gc_orphan_artifacts"}
 
 
 def test_invalid_concurrency_is_rejected_at_startup() -> None:
