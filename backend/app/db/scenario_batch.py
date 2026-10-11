@@ -15,6 +15,7 @@ from backend.app.application.scenario_matrix import (
     expand_scenario_matrix,
 )
 from backend.app.db.session import SessionLocal
+from backend.app.db.job_admission import enforce_project_job_capacity
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
@@ -130,7 +131,7 @@ class SqlAlchemyScenarioBatchStore:
                 project = session.scalar(
                     select(Project)
                     .where(Project.id == spec.project_id)
-                    .with_for_update(read=True)
+                    .with_for_update()
                 )
                 if project is None:
                     raise ScenarioBatchError("matrix project does not exist")
@@ -155,6 +156,10 @@ class SqlAlchemyScenarioBatchStore:
                         "matrix dataset versions must all be ready and project-owned"
                     )
 
+                enforce_project_job_capacity(
+                    session, project_id=spec.project_id,
+                    job_type="generation_run", additional_jobs=len(children),
+                )
                 run_ids: list[uuid.UUID] = []
                 jobs: list[Job] = []
                 outbox_messages: list[JobOutbox] = []
