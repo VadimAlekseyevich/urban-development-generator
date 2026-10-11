@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-094 / S13-T14
-Add Playwright create→upload→run→inspect→compare→export E2E fixture.
+UG-AI-095 / S14-T01
+Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

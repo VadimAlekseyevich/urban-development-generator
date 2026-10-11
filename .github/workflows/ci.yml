@@ -225,6 +225,53 @@ jobs:
       - run: npm test
       - run: npm run build
 
+
+  browser-e2e:
+    name: Browser E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare isolated Compose stack
+        run: cp .env.example .env
+      - name: Start API and frontend
+        run: docker compose up -d --build
+      - name: Wait for API and frontend readiness
+        run: |
+          timeout 180 bash -c 'until curl -fsS http://127.0.0.1:8000/api/v1/health/ready >/dev/null; do sleep 3; done'
+          timeout 180 bash -c 'until curl -fsS http://127.0.0.1:5173/ >/dev/null; do sleep 3; done'
+      - name: Install pinned Playwright test runner
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --no-audit --no-fund @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Browser create/upload/run/inspect/compare/export
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: npm run test:e2e
+      - name: Retain browser traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-debug
+          path: |
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Diagnose services on failure
+        if: failure()
+        run: docker compose ps && docker compose logs --tail=100 api worker dispatcher
+      - name: Stop isolated stack
+        if: always()
+        run: docker compose down -v
+
   compose-smoke:
     runs-on: ubuntu-latest
     steps:
