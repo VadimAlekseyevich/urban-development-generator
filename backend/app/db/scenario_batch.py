@@ -14,8 +14,8 @@ from backend.app.application.scenario_matrix import (
     ScenarioMatrixSpec,
     expand_scenario_matrix,
 )
-from backend.app.db.session import SessionLocal
 from backend.app.db.job_admission import enforce_project_job_capacity
+from backend.app.db.session import SessionLocal
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
