@@ -12,6 +12,11 @@ export type IngestState = {
   job_id: string
   status: string
   job_status: string
+  attempt_count: number
+  max_attempts: number
+  retry_pending: boolean
+  error_code: string | null
+  error_message: string | null
 }
 
 export function inferIngestFormat(filename: string): IngestSourceFormat | null {
