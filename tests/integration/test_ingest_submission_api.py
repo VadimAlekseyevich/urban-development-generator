@@ -84,9 +84,8 @@ def test_real_artifact_to_ready_dataset_version_and_outbox(tmp_path: Path) -> No
     assert started.status_code == 201, started.text
     state = started.json()
     assert state["project_id"] == project_id
-    assert state["status"] == state["job_status"] == "queued" or (
-        state["status"] == "uploaded" and state["job_status"] == "queued"
-    )
+    assert state["status"] == "uploaded"
+    assert state["job_status"] == "queued"
     version_id, job_id = state["dataset_version_id"], state["job_id"]
 
     duplicate = client.post(f"/api/v1/projects/{project_id}/ingests", json=payload)
@@ -136,9 +135,8 @@ def test_real_artifact_to_ready_dataset_version_and_outbox(tmp_path: Path) -> No
 
     poll = client.get(f"/api/v1/projects/{project_id}/ingests/{version_id}")
     assert poll.status_code == 200
-    assert poll.json()["status"] == poll.json()["job_status"] == "ready" or (
-        poll.json()["status"] == "ready" and poll.json()["job_status"] == "succeeded"
-    )
+    assert poll.json()["status"] == "ready"
+    assert poll.json()["job_status"] == "succeeded"
     assert client.get(f"/api/v1/projects/{other_id}/ingests/{version_id}").status_code == 404
 
     with Session(engine) as session:
