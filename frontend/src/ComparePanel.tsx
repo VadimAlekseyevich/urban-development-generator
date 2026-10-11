@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { fetchRunComparison, type RunComparison } from './compareApi'
+import { fetchMetricsCsv, saveMetricsCsv } from './exportApi'
 import {
   MAX_COMPARE_RUNS,
   MIN_COMPARE_RUNS,
@@ -46,6 +47,7 @@ export function ComparePanel({
   const [comparison, setComparison] = useState<RunComparison | null>(null)
   const [listLoading, setListLoading] = useState(false)
   const [comparing, setComparing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -128,6 +130,22 @@ export function ComparePanel({
     }
   }
 
+  async function exportComparisonCsv(): Promise<void> {
+    if (!projectId || !comparison || exporting) return
+    setExporting(true)
+    setError(null)
+    try {
+      const csv = await fetchMetricsCsv(
+        apiBase, projectId, comparison.run_ids,
+      )
+      saveMetricsCsv(csv, `raw-metrics-${comparison.runs.length}-runs.csv`)
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <section className="panel compare-panel" aria-label="Сравнение сценариев">
       <div className="section-heading section-heading-row">
@@ -189,6 +207,11 @@ export function ComparePanel({
 
       {comparison && (
         <div className="compare-result">
+          <button type="button" className="button button-primary"
+            disabled={exporting}
+            onClick={() => { void exportComparisonCsv() }}>
+            {exporting ? 'Готовлю CSV…' : 'Скачать CSV сравнения'}
+          </button>
           <p className="helper-text">
             Baseline {runLabel(comparison.baseline_run_id)} ·
             общий рабочий SRID {comparison.runs[0]?.working_srid} ·
