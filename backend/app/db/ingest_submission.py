@@ -44,6 +44,11 @@ class IngestSubmission:
     job_id: uuid.UUID
     status: str
     job_status: str
+    attempt_count: int
+    max_attempts: int
+    retry_pending: bool
+    error_code: str | None
+    error_message: str | None
 
 
 class SqlAlchemyIngestSubmissionService:
@@ -66,6 +71,21 @@ class SqlAlchemyIngestSubmissionService:
             job_id=job.id,
             status=version.status,
             job_status=job.status,
+            attempt_count=job.attempt_count,
+            max_attempts=job.max_attempts,
+            retry_pending=(
+                job.status == "failed"
+                and job.attempt_count < job.max_attempts
+                and isinstance(job.error_json, dict)
+                and job.error_json.get("retryable") is True
+            ),
+            error_code=job.error_code,
+            error_message=(
+                str(job.error_json["message"])
+                if isinstance(job.error_json, dict)
+                and isinstance(job.error_json.get("message"), str)
+                else None
+            ),
         )
 
     @staticmethod
