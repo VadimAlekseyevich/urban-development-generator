@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-096 / S14-T02
-Implement active-job/file/candidate/scenario resource bounds and backpressure responses.
+UG-AI-097 / S14-T03
+Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
