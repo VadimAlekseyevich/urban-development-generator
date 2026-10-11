@@ -1,10 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
 from backend.app.core.logging import configure_logging
+from backend.app.db.job_admission import JobCapacityExceeded, RETRY_AFTER_SECONDS
 from backend.app.middleware.request_context import RequestContextMiddleware
 
 configure_logging("DEBUG" if settings.app_debug else "INFO")
@@ -23,6 +24,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(JobCapacityExceeded)
+async def job_admission_backpressure(
+    _request: Request, exc: JobCapacityExceeded
+) -> ORJSONResponse:
+    """One stable 429 contract for all background-job producers."""
+    return ORJSONResponse(
+        status_code=429,
+        content={"detail": str(exc), "scope": exc.scope, "limit": exc.limit},
+        headers={"Retry-After": str(RETRY_AFTER_SECONDS)},
+    )
+
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
