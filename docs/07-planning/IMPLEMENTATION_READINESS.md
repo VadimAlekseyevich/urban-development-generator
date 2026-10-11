@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-095 / S14-T01
-Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
+UG-AI-096 / S14-T02
+Implement active-job/file/candidate/scenario resource bounds and backpressure responses.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
