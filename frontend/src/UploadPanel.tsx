@@ -81,14 +81,16 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersi
   }, [apiBase, validProjectId, versionOffset, versionRefresh])
 
   useEffect(() => {
-    if (!ingest || !validProjectId || ['ready', 'failed'].includes(ingest.status)) return
+    if (!ingest || !validProjectId || ingest.status === 'ready' ||
+      (ingest.status === 'failed' && !ingest.retry_pending)) return
     const controller = new AbortController()
     const timer = window.setInterval(() => {
       void readIngest(apiBase, validProjectId, ingest.dataset_version_id, controller.signal)
         .then((current) => {
           if (controller.signal.aborted) return
           setIngest(current)
-          if (['ready', 'failed'].includes(current.status)) {
+          if (current.status === 'ready' ||
+            (current.status === 'failed' && !current.retry_pending)) {
             setVersionRefresh((value) => value + 1)
           }
         })
@@ -266,6 +268,9 @@ export function UploadPanel({ apiBase, projectId, onVersionSelect, selectedVersi
           DatasetVersion {ingest.dataset_version_id.slice(0, 8)}:
           {ingest.status} · Job {ingest.job_status}.
           {ingest.status === 'ready' ? ' Версия готова к выбору на карте.' : ''}
+          {ingest.retry_pending ? ' Запланирован повторный запуск.' : ''}
+          {ingest.error_code ? ` Ошибка: ${ingest.error_code}.` : ''}
+          {ingest.error_message ? ` ${ingest.error_message}` : ''}
         </p>}
         {ingestError && <p role="alert" className="form-error">{ingestError}</p>}
       </div>
