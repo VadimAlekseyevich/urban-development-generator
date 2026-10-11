@@ -54,7 +54,11 @@ from core.urban_generator.domain import (
 from core.urban_generator.domain.errors import TransientError, UrbanGeneratorError
 from core.urban_generator.stages import StageRegistry
 from core.urban_generator.stages.registry import StageAny
-from worker.tasks import GenerationTaskFailed, run_generation
+from worker.tasks import (
+    GenerationTaskConfigurationError,
+    GenerationTaskFailed,
+    run_generation,
+)
 
 WORKING_SRID = 32637
 COMMIT_SHA = "a" * 40
@@ -459,6 +463,43 @@ def test_worker_assembly_failure_is_committed_without_stage_success(tmp_path: Pa
     assert run.error_json["details"] == {"stage_name": "assembly"}
     assert job.attempt_count == 1
     assert not rows and not probe.calls
+
+
+def test_missing_production_runtime_persists_terminal_config_failure() -> None:
+    run_id, job_id, _ = _setup()
+
+    # This is the actual unconfigured ARQ task context used in Compose, not a
+    # fixture-provided runtime. Never leave accepted runs stuck in queued.
+    with pytest.raises(GenerationTaskConfigurationError, match="generation_runtime_factory"):
+        asyncio.run(run_generation({}, str(run_id)))
+
+    run, job, rows = _persisted(run_id, job_id)
+    assert run.status == job.status == "failed"
+    assert job.attempt_count == 1
+    assert job.error_class == "config"
+    assert job.error_code == "config.error"
+    assert job.error_json is not None and job.error_json["retryable"] is False
+    assert run.error_json is not None
+    assert run.error_json["details"] == {
+        "stage_name": "assembly",
+        "component": "generation_runtime_factory",
+    }
+    assert "not configured" in run.error_json["message"]
+    assert not rows
+
+
+def test_unconfigured_worker_does_not_corrupt_existing_success(tmp_path: Path) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    assert _invoke(run_id, _factory(tmp_path, probe))["status"] == "succeeded"
+
+    replay = asyncio.run(run_generation({}, str(run_id)))
+    assert replay["status"] == "already_succeeded"
+    run, job, rows = _persisted(run_id, job_id)
+    assert run.status == job.status == "succeeded"
+    assert run.error_json is None
+    assert job.attempt_count == 1
+    assert len(rows) == len(TOPOLOGICAL_NAMES)
 
 
 def test_worker_explicit_skip_persists_reason_without_fake_output(tmp_path: Path) -> None:
