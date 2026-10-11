@@ -131,7 +131,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-092** — **S13-T12** — Add large-upload progress/error/retry/version UX without base64 transfer.
 - [x] **UG-AI-093** — **S13-T13** — Integrate project/datasets/map/parameters/jobs/metrics/compare into complete workspace over shared registries.
 - [x] **UG-AI-094** — **S13-T14** — Add Playwright create→upload→run→inspect→compare→export E2E fixture.
-- [ ] **UG-AI-095** — **S14-T01** — Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
+- [x] **UG-AI-095** — **S14-T01** — Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
 - [ ] **UG-AI-096** — **S14-T02** — Implement active-job/file/candidate/scenario resource bounds and backpressure responses.
 - [ ] **UG-AI-097** — **S14-T03** — Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
 - [ ] **UG-AI-098** — **S14-T04** — Measure raster peak memory/windowing and eliminate accidental full-raster paths.
