@@ -7,6 +7,7 @@ import pytest
 
 from backend.app.services.job_dispatcher import JobQueueMessage
 from worker.outbox_dispatcher import ArqJobEnqueuer
+from worker.queues import REDIS_QUEUES
 
 
 class FakeArq:
@@ -57,8 +58,8 @@ def test_arq_enqueuer_routes_generation_and_accepts_duplicate_id() -> None:
     asyncio.run(enqueuer.enqueue(message))
 
     assert redis.calls == [
-        ("run_generation", (str(run_id),), message.enqueue_key, "arq:queue"),
-        ("run_generation", (str(run_id),), message.enqueue_key, "arq:queue"),
+        ("run_generation", (str(run_id),), message.enqueue_key, REDIS_QUEUES["generation"]),
+        ("run_generation", (str(run_id),), message.enqueue_key, REDIS_QUEUES["generation"]),
     ]
     assert redis.job_ids == {message.enqueue_key}
 
@@ -81,7 +82,7 @@ def test_arq_enqueuer_routes_ingest_with_matching_authoritative_job_id() -> None
             "run_ingest",
             (str(job_id), str(version_id)),
             message.enqueue_key,
-            "arq:queue",
+            REDIS_QUEUES["ingest"],
         ),
     ]
 
@@ -100,7 +101,7 @@ def test_arq_enqueuer_routes_geojson_export_with_authoritative_job_id() -> None:
             "run_geojson_export",
             (str(job_id),),
             message.enqueue_key,
-            "arq:queue",
+            REDIS_QUEUES["export"],
         ),
     ]
 
@@ -119,7 +120,7 @@ def test_arq_enqueuer_routes_geopackage_export_with_authoritative_job_id() -> No
             "run_geopackage_export",
             (str(job_id),),
             message.enqueue_key,
-            "arq:queue",
+            REDIS_QUEUES["export"],
         ),
     ]
 
