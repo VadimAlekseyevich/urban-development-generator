@@ -52,7 +52,9 @@ class ExportWorkerSettings(BaseWorkerSettings):
 class LegacyWorkerSettings(BaseWorkerSettings):
     """Consume existing arq:queue messages during rollout; never enqueue new ones."""
 
-    functions = [run_generation, run_ingest, run_geojson_export, run_geopackage_export]
+    # Registered for old queued maintenance messages, without adding another cron.
+    functions = [run_generation, run_ingest, run_geojson_export, run_geopackage_export,
+                 gc_orphan_artifacts]
     queue_name = LEGACY_QUEUE
     max_jobs = 1
 
