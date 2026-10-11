@@ -39,3 +39,8 @@ class DatasetIngestRead(BaseModel):
     job_id: uuid.UUID
     status: str
     job_status: str
+    attempt_count: int
+    max_attempts: int
+    retry_pending: bool
+    error_code: str | None
+    error_message: str | None
