@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     worker_generation_max_jobs: int = Field(default=1, ge=1, le=32)
     worker_analysis_max_jobs: int = Field(default=1, ge=1, le=32)
     worker_export_max_jobs: int = Field(default=1, ge=1, le=32)
+    max_active_jobs_per_project: int = Field(default=16, ge=1, le=128)
+    max_active_generation_jobs_per_project: int = Field(default=10, ge=1, le=128)
+    max_active_ingest_jobs_per_project: int = Field(default=4, ge=1, le=128)
+    max_active_export_jobs_per_project: int = Field(default=4, ge=1, le=128)
     artifact_store_backend: Literal["local", "s3"] = "local"
     storage_root: Path = Path("./storage")
     s3_endpoint_url: str | None = None

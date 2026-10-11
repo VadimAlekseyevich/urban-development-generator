@@ -23,6 +23,7 @@ from backend.app.application.geopackage_exports import (
     geopackage_export_filename,
 )
 from backend.app.application.layer_catalog import layer_catalog_for_context
+from backend.app.db.job_admission import enforce_project_job_capacity
 from backend.app.db.session import SessionLocal
 from backend.app.db.vector_layer_query_repository import SqlAlchemyVectorLayerRepository
 from backend.app.models.artifact import Artifact, ArtifactLifecycleState
@@ -91,6 +92,9 @@ class SqlAlchemyGeoPackageExportRepository:
                         )
                     return self._snapshot(session, existing, export)
 
+                enforce_project_job_capacity(
+                    session, project_id=project_id, job_type=GEOPACKAGE_EXPORT_JOB_TYPE
+                )
                 job = Job(
                     id=uuid.uuid4(),
                     project_id=project_id,

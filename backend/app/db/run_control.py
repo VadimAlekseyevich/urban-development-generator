@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from backend.app.application.generation import GenerationExecutionError
 from backend.app.application.scenario_matrix import ScenarioConfigVariant, ScenarioMatrixError
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
+from backend.app.db.job_admission import enforce_project_job_capacity
 from backend.app.db.session import SessionLocal
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
@@ -51,6 +52,15 @@ class SqlAlchemyRunControlService:
     @staticmethod
     def _project(session: Session, project_id: uuid.UUID) -> Project:
         project = session.get(Project, project_id)
+        if project is None:
+            raise RunControlNotFound("project not found")
+        return project
+
+    @staticmethod
+    def _locked_project(session: Session, project_id: uuid.UUID) -> Project:
+        project = session.scalar(
+            select(Project).where(Project.id == project_id).with_for_update()
+        )
         if project is None:
             raise RunControlNotFound("project not found")
         return project
@@ -145,7 +155,7 @@ class SqlAlchemyRunControlService:
 
         with self._session_factory() as session:
             with session.begin():
-                project = self._project(session, project_id)
+                project = self._locked_project(session, project_id)
                 self._check_boundary(project)
                 versions = self._versions(
                     session, project_id=project_id, version_ids=dataset_version_ids
@@ -162,6 +172,9 @@ class SqlAlchemyRunControlService:
                     commit_sha=commit_sha,
                     dataset_versions=versions,
                 )
+                enforce_project_job_capacity(
+                    session, project_id=project_id, job_type="generation_run"
+                )
                 self._enqueue(session, run=run)
                 run_id = run.id
         return self.get(project_id=project_id, run_id=run_id)
@@ -174,7 +187,7 @@ class SqlAlchemyRunControlService:
         """
         with self._session_factory() as session:
             with session.begin():
-                project = self._project(session, project_id)
+                project = self._locked_project(session, project_id)
                 source = session.scalar(
                     select(GenerationRun)
                     .where(GenerationRun.id == run_id, GenerationRun.project_id == project_id)
@@ -214,6 +227,9 @@ class SqlAlchemyRunControlService:
                     version_ids = tuple(version.id for version in source.dataset_versions)
                     versions = self._versions(
                         session, project_id=project_id, version_ids=version_ids
+                    )
+                    enforce_project_job_capacity(
+                        session, project_id=project_id, job_type="generation_run"
                     )
                     new_id = uuid.uuid4()
                     self._enqueue(
