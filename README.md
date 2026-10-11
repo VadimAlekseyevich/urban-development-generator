@@ -135,6 +135,8 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/LARGE_UPLOAD_UX.md` — raw multipart upload progress/cancel/retry and bounded dataset version discovery;
 - `docs/WORKSPACE_UI.md` — S13 project/datasets/map/generation/metrics/compare workspace composition and owner isolation;
 - `docs/PLAYWRIGHT_E2E.md` — S13 real-browser Playwright CI, isolated fixture, and explicit ingest workflow limitations;
+- `docs/WORKER_QUEUES.md` — S14 isolated ARQ workers, limits, legacy drain and rollout/rollback;
+- `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
 - `docs/API.md` — контракт API по мере реализации.
@@ -158,7 +160,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Playwright браузерный E2E с синтетическими persisted fixtures добавлен в S13-T14; полноценный пользовательский импорт и расчёт по реальным данным всё ещё требуют отдельного подтверждения. Эксперименты воспроизводимости — S15. Следующий ordered execution item —
-**`UG-AI-095 / S14-T01`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-096 / S14-T02`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
