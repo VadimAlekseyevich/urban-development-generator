@@ -5,7 +5,7 @@ from fastapi.responses import ORJSONResponse
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
 from backend.app.core.logging import configure_logging
-from backend.app.db.job_admission import JobCapacityExceeded, RETRY_AFTER_SECONDS
+from backend.app.db.job_admission import RETRY_AFTER_SECONDS, JobCapacityExceeded
 from backend.app.middleware.request_context import RequestContextMiddleware
 
 configure_logging("DEBUG" if settings.app_debug else "INFO")
