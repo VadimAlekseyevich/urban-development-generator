@@ -19,6 +19,7 @@ from backend.app.db.job_admission import (
 )
 from backend.app.db.session import engine
 from backend.app.main import app
+from backend.app.models.artifact import Artifact
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
@@ -154,6 +155,49 @@ def test_aggregate_and_category_capacity_count_both_export_formats() -> None:
             for job in session.scalars(select(Job).where(Job.project_id == project)):
                 job.status = "succeeded"
     assert _create(project, version).status_code == 201
+
+
+def test_ingest_limit_preserves_idempotent_replay_and_rejects_new_artifact() -> None:
+    project, _ = _project()
+    with Session(engine) as session:
+        with session.begin():
+            artifact_ids: list[uuid.UUID] = []
+            for _ in range(2):
+                artifact_id = uuid.uuid4()
+                artifact_ids.append(artifact_id)
+                session.add(
+                    Artifact(
+                        id=artifact_id,
+                        uri=f"artifact://uploads/{artifact_id}/roads.geojson",
+                        checksum="sha256:" + "d" * 64,
+                        size_bytes=123,
+                        content_type="application/geo+json",
+                        state="ready",
+                    )
+                )
+    def post(artifact_id: uuid.UUID):
+        return client.post(
+            f"/api/v1/projects/{project}/ingests",
+            json={
+                "artifact_id": str(artifact_id),
+                "dataset_kind": "roads",
+                "source_format": "geojson",
+            },
+        )
+
+    first = post(artifact_ids[0])
+    assert first.status_code == 201, first.text
+    assert post(artifact_ids[0]).status_code == 201
+    assert _counts()[1:] == (1, 1)
+
+    second = post(artifact_ids[1])
+    assert second.status_code == 429, second.text
+    assert second.json()["scope"] == "ingest"
+    assert second.headers["retry-after"] == "30"
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(DatasetVersion)) == 2
+    # One pre-existing fixture version plus the first accepted ingest.
+    assert _counts()[1:] == (1, 1)
 
 
 def test_invalid_admission_bounds_cannot_be_silently_disabled() -> None:
