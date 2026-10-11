@@ -14,10 +14,9 @@ from arq.connections import RedisSettings, create_pool
 from backend.app.core.config import settings
 from backend.app.db.outbox_dispatcher import SqlAlchemyOutboxDispatcher
 from backend.app.services.job_dispatcher import JobQueueMessage
+from worker.queues import queue_for_task
 
-_ARQ_QUEUE_NAME = "arq:queue"
 _ENQUEUE_TIMEOUT_SECONDS = 5.0
-_SUPPORTED_LOGICAL_QUEUES = frozenset({"default", "ingest", "generation", "export"})
 
 
 class ArqQueueClient(Protocol):
@@ -37,9 +36,10 @@ class ArqJobEnqueuer:
         self._redis = redis
 
     async def enqueue(self, message: JobQueueMessage) -> None:
-        if message.queue_name not in _SUPPORTED_LOGICAL_QUEUES:
-            raise ValueError("unsupported logical outbox queue")
         task = message.payload.get("task")
+        if not isinstance(task, str):
+            raise ValueError("outbox task must be a string")
+        arq_queue = queue_for_task(task=task, logical_queue=message.queue_name)
         args: tuple[str, ...]
         if task == "run_generation":
             if set(message.payload) != {"task", "run_id"}:
@@ -85,7 +85,7 @@ class ArqJobEnqueuer:
                 task,
                 *args,
                 _job_id=message.enqueue_key,
-                _queue_name=_ARQ_QUEUE_NAME,
+                _queue_name=arq_queue,
             )
 
 
