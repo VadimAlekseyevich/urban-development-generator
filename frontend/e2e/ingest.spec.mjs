@@ -50,7 +50,7 @@ test('real upload → persisted Job/Outbox → worker → ready DatasetVersion',
   await expect(upload.locator('.upload-artifact-details')).toContainText('SHA-256')
   await upload.getByRole('button', { name: 'Запустить импорт' }).click()
   const ingestStatus = page.locator('[aria-label="Импорт в версию данных"]')
-  await expect(ingestStatus).toContainText('Job queued')
+  await expect(ingestStatus).toContainText('DatasetVersion')
   await expect(ingestStatus).toContainText('ready', { timeout: 90_000 })
   await expect(upload.locator('.upload-version-list li').filter({ hasText: 'roads · v1' }))
     .toContainText('ready')
