@@ -61,3 +61,26 @@ partial creation on 409/422. Frontend quality gate includes TypeScript
 typecheck/build. For an executable worker runtime, deploy the actual code
 revision and a supported full stage config; arbitrary placeholder config
 is not a success fixture.
+
+
+## Unconfigured generation worker: terminal failure, not a stuck queue
+
+When the deployed generation worker has **no production
+`generation_runtime_factory` in ARQ task context**, it now claims the
+DB-authoritative queued run/job and records a **terminal non-retryable
+`config.error`** with `stage_name=assembly` and
+`component=generation_runtime_factory`, then fails the ARQ task.
+It never marks a Stage complete or fabricates a successful scenario. A
+duplicate delivery for an existing `succeeded`, `in_progress`, or
+`cancelled` run preserves its persisted state.
+
+This **does not implement production stage/config/input composition**.
+Issue #178 remains a release blocker: an actual StageRegistry and typed
+input/config adapters must be wired into `GenerationWorkerSettings` and
+proven via real persisted, non-synthetic data. The safety guard ensures
+failed jobs release their active-project admission slots (S14-T02) and
+the UI can display a machine-readable cause instead of polling forever.
+
+Integration regression: `tests/integration/test_generation_worker_e2e.py`
+verifies missing-factory terminal DB failure and unchanged successful
+run state on duplicate delivery.

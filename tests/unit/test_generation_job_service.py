@@ -483,9 +483,21 @@ def test_worker_generation_task_uses_injected_real_service() -> None:
     }
 
 
-def test_worker_generation_task_rejects_unconfigured_runtime() -> None:
+def test_worker_generation_task_rejects_unconfigured_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Unit test isolates DB failure persistence; integration tests exercise
+    # the real SQLAlchemy claim/fail_run transaction for a queued job.
+    observed: list[uuid.UUID] = []
+
+    def record_config_failure(run_id: uuid.UUID) -> GenerationClaimDisposition:
+        observed.append(run_id)
+        return GenerationClaimDisposition.STARTED
+
+    monkeypatch.setattr("worker.tasks._fail_unconfigured_generation", record_config_failure)
     with pytest.raises(GenerationTaskConfigurationError, match="runtime_factory"):
         asyncio.run(run_generation({}, str(RUN_ID)))
+    assert observed == [RUN_ID]
 
 
 def test_worker_generation_task_does_not_report_failed_stage_as_success() -> None:

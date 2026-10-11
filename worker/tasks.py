@@ -7,6 +7,7 @@ from arq import Retry
 
 from backend.app.adapters import get_runtime_artifact_store
 from backend.app.application.generation import (
+    GenerationClaimDisposition,
     GenerationExecutionError,
     GenerationJobService,
     GenerationRetryScheduled,
@@ -31,7 +32,7 @@ from backend.app.db.ingest_job_repository import SqlAlchemyIngestJobRepository
 from backend.app.services.geojson_export import StreamingGeoJsonExportPipeline
 from backend.app.services.geopackage_export import StreamingGeoPackageExportPipeline
 from backend.app.services.ingest_pipeline import DatasetIngestPipeline
-from core.urban_generator.domain.errors import TransientError
+from core.urban_generator.domain.errors import ConfigError, TransientError
 
 _MAX_RETRY_DELAY_SECONDS = 300
 
@@ -211,6 +212,28 @@ class GenerationTaskFailed(RuntimeError):
     """The DB-authoritative generation attempt failed; never report a false success."""
 
 
+def _fail_unconfigured_generation(
+    run_id: uuid.UUID,
+) -> GenerationClaimDisposition:
+    """Never leave a DB-authoritative generation job queued on missing composition.
+
+    Only the real persisted state store may transition the job/run; no fake
+    completed stages or successful outputs are generated.
+    """
+    state_store = SqlAlchemyGenerationStateStore()
+    disposition = state_store.claim(run_id=run_id)
+    if disposition is GenerationClaimDisposition.STARTED:
+        state_store.fail_run(
+            run_id=run_id,
+            stage_name=None,
+            error=ConfigError(
+                "generation runtime is not configured in this worker",
+                details={"component": "generation_runtime_factory"},
+            ),
+        )
+    return disposition
+
+
 async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
     """Execute a configured canonical Stage DAG in a worker thread, not HTTP."""
     parsed_id = uuid.UUID(run_id)
@@ -220,6 +243,21 @@ async def run_generation(ctx: dict[str, Any], run_id: str) -> dict[str, object]:
     else:
         factory = ctx.get("generation_runtime_factory")
         if factory is None:
+            try:
+                disposition = await asyncio.to_thread(
+                    _fail_unconfigured_generation, parsed_id
+                )
+            except GenerationRetryScheduled as exc:
+                raise Retry(defer=exc.delay_seconds) from exc
+            if disposition is not GenerationClaimDisposition.STARTED:
+                # A replay of an already completed, running or cancelled job
+                # must not overwrite its existing persisted state.
+                return {
+                    "run_id": str(parsed_id),
+                    "status": disposition.value,
+                    "succeeded_stages": [],
+                    "skipped_stages": [],
+                }
             raise GenerationTaskConfigurationError(
                 "generation_runtime_factory must supply typed stage/config/input composition"
             )
