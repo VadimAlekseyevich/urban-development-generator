@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.application.ingest import INGEST_JOB_TYPE, ingest_idempotency_key
+from backend.app.db.job_admission import enforce_project_job_capacity
 from backend.app.db.session import SessionLocal
 from backend.app.models.artifact import Artifact, ArtifactLifecycleState
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -161,6 +162,9 @@ class SqlAlchemyIngestSubmissionService:
                 if artifact.state != ArtifactLifecycleState.READY.value:
                     raise IngestSubmissionConflict("artifact is already referenced")
 
+                enforce_project_job_capacity(
+                    session, project_id=project_id, job_type=INGEST_JOB_TYPE
+                )
                 dataset_id = uuid.uuid4()
                 version_id = uuid.uuid4()
                 job_id = uuid.uuid4()
