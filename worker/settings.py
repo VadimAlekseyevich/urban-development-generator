@@ -39,7 +39,8 @@ class GenerationWorkerSettings:
 
 class AnalysisWorkerSettings:
     # Analysis outbox tasks are not implemented; GC is the one owned cron.
-    functions = [cron(gc_orphan_artifacts, minute={0}, second={0})]
+    functions = [gc_orphan_artifacts]
+    cron_jobs = [cron(gc_orphan_artifacts, minute={0}, second={0})]
     redis_settings = _REDIS_SETTINGS
     queue_name = REDIS_QUEUES["analysis"]
     job_timeout = _JOB_TIMEOUT
