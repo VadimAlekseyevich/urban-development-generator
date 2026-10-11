@@ -17,6 +17,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://urban:urban@localhost:5432/urban_generator"
     redis_url: str = "redis://localhost:6379/0"
+    worker_ingest_max_jobs: int = Field(default=2, ge=1, le=32)
+    worker_generation_max_jobs: int = Field(default=1, ge=1, le=32)
+    worker_analysis_max_jobs: int = Field(default=1, ge=1, le=32)
+    worker_export_max_jobs: int = Field(default=1, ge=1, le=32)
     artifact_store_backend: Literal["local", "s3"] = "local"
     storage_root: Path = Path("./storage")
     s3_endpoint_url: str | None = None
