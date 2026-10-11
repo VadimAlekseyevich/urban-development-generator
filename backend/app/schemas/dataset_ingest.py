@@ -1,10 +1,9 @@
 """User-submitted artifact ingestion contract; workers alone publish ready versions."""
 
 import uuid
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing_extensions import Self
 
 
 class DatasetIngestCreate(BaseModel):
