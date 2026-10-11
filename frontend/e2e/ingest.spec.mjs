@@ -66,7 +66,7 @@ test('real upload → persisted Job/Outbox → worker → ready DatasetVersion',
   const sourceResponse = await page.request.get(
     `http://localhost:8000/api/v1/projects/${projectId}` +
     `/dataset-versions/${versionId}/source-layers/roads/geojson`,
-    { params: { west: 37.60, south: 55.74, east: 37.64, north: 55.77, limit: 50 } },
+    { params: { bbox: '37.60,55.74,37.64,55.77', limit: 50 } },
   )
   expect(sourceResponse.status()).toBe(200)
   const source = await sourceResponse.json()
