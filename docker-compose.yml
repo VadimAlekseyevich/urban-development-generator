@@ -71,12 +71,136 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  worker:
+  worker-ingest:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
     env_file: .env
-    command: ["uv", "run", "arq", "worker.settings.WorkerSettings"]
+    command: ["uv", "run", "arq", "worker.settings.IngestWorkerSettings"]
+    volumes:
+      - ./storage:/app/storage
+    networks:
+      - urban_network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "python",
+          "-c",
+          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  worker-generation:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file: .env
+    command: ["uv", "run", "arq", "worker.settings.GenerationWorkerSettings"]
+    volumes:
+      - ./storage:/app/storage
+    networks:
+      - urban_network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "python",
+          "-c",
+          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  worker-analysis:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file: .env
+    command: ["uv", "run", "arq", "worker.settings.AnalysisWorkerSettings"]
+    volumes:
+      - ./storage:/app/storage
+    networks:
+      - urban_network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "python",
+          "-c",
+          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  worker-export:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file: .env
+    command: ["uv", "run", "arq", "worker.settings.ExportWorkerSettings"]
+    volumes:
+      - ./storage:/app/storage
+    networks:
+      - urban_network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "python",
+          "-c",
+          "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  worker-legacy:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file: .env
+    command: ["uv", "run", "arq", "worker.settings.LegacyWorkerSettings"]
     volumes:
       - ./storage:/app/storage
     networks:
