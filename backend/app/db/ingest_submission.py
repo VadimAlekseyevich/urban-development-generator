@@ -7,6 +7,7 @@ The uploaded blob stays READY until the worker references it on success.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -48,7 +49,7 @@ class IngestSubmission:
 class SqlAlchemyIngestSubmissionService:
     """Create one immutable source version and DB-authoritative queued ingest job."""
 
-    def __init__(self, session_factory=SessionLocal) -> None:  # type: ignore[no-untyped-def]
+    def __init__(self, session_factory: Callable[[], Session] = SessionLocal) -> None:
         self._session_factory = session_factory
 
     @staticmethod
