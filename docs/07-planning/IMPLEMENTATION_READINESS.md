@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-097 / S14-T03
-Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
+UG-AI-098 / S14-T04
+Measure raster peak memory/windowing and eliminate accidental full-raster paths.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
