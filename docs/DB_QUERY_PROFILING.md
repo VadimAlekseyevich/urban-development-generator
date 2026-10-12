@@ -44,6 +44,38 @@ observed result sizes, planning/execution milliseconds, top-level plan, every
 nested node, index names, shared-hit/read buffer counts, exact captured SQL,
 bind values and the full JSON EXPLAIN tree.
 
+## First measured CI baseline — 2026-10-12
+
+Exact feature-head SHA `0da6e2273a0bc279d1091d5fabdecc17909ff77d`,
+[workflow run 38241339484](https://github.com/VadimAlekseyevich/urban-development-generator/actions/runs/38241339484):
+all four jobs succeeded, including the new measured profile.
+
+PostgreSQL: `16.4 (Debian 16.4-1.pgdg110+2)`; **10,000 rows per spatial owner**,
+two source owners, one generated owner. Numbers below are single-run
+`EXPLAIN ANALYZE` execution times from this specific runner, **not**
+production latency SLOs.
+
+| Production query | Execution (ms) | Features returned | Indexes reported in plan |
+| --- | ---: | ---: | --- |
+| source roads / narrow | 0.138 | 16 | `ix_source_roads_geometry` (GiST) |
+| source roads / wide | 0.216 | 101 | `ix_source_roads_dataset_version_id_id` |
+| generated roads / narrow | 0.083 | 16 | `ix_generated_roads_geometry` (GiST) |
+| generated roads / wide | 0.186 | 101 | `ix_generated_roads_run_id_id` |
+| project active jobs | 0.163 | N/A | No index reported |
+| latest project runs | 0.327 | N/A | No index reported |
+
+The existing spatial and owner+ID indexes were selected for the
+four viewport cases. No new index is supported by this evidence:
+active-job and run-list profiles complete in less than a millisecond on
+this small fixture. The lack of an index in their printed plan summaries
+**does not** mean those workloads are proven scalable; they must be
+reprofiled on real larger histories before any migration.
+
+The full captured SQL, bind parameters, nested plan/buffer numbers, and
+planner estimates are archived as the CI artifact `postgis-query-plans`
+(retained 14 days) with the workflow above. The benchmark remains
+repeatable after that artifact expires.
+
 ## CI evidence and interpretation
 
 The Python CI job now runs the ten-thousand-rows-per-owner profile after the
