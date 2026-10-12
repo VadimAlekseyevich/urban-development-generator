@@ -238,7 +238,8 @@ def profile_queries(*, rows: int) -> dict[str, object]:
                         payload=payload,
                     ))
 
-                for name, bounds in (("source_roads_narrow", _NARROW), ("source_roads_wide", _WIDE)):
+                source_profiles = (("source_roads_narrow", _NARROW), ("source_roads_wide", _WIDE))
+                for name, bounds in source_profiles:
                     add(name, "source_roads", lambda bounds=bounds: source.list_features(
                         dataset_version_id=ids["version_id"],
                         layer=SourceLayerName.ROADS,
@@ -246,7 +247,11 @@ def profile_queries(*, rows: int) -> dict[str, object]:
                         bbox=bounds,
                         limit=101,
                     ))
-                for name, bounds in (("generated_roads_narrow", _NARROW), ("generated_roads_wide", _WIDE)):
+                generated_profiles = (
+                    ("generated_roads_narrow", _NARROW),
+                    ("generated_roads_wide", _WIDE),
+                )
+                for name, bounds in generated_profiles:
                     add(name, "generated_roads", lambda bounds=bounds: roads.list_generated_roads(
                         run_id=ids["run_id"], working_srid=3857,
                         bbox=bounds, limit=101,
