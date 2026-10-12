@@ -138,6 +138,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/INGEST_SUBMISSION.md` — real project-scoped uploaded Artifact → DatasetVersion → outbox → deployed ingest worker, verified without seeded DB versions;
 - `docs/WORKER_QUEUES.md` — S14 isolated ARQ workers, limits, legacy drain and rollout/rollback;
 - `docs/JOB_ADMISSION.md` — S14 DB-authoritative per-project active job budgets and HTTP 429 backpressure;
+- `docs/DB_QUERY_PROFILING.md` — S14 actual SQLAlchemy SELECT capture, PostgreSQL EXPLAIN ANALYZE, JSON plan CI artifacts and no speculative index changes;
 - `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
