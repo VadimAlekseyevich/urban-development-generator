@@ -133,7 +133,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-094** — **S13-T14** — Add Playwright create→upload→run→inspect→compare→export E2E fixture.
 - [x] **UG-AI-095** — **S14-T01** — Separate ingest/generation/analysis/export queues with explicit per-queue concurrency.
 - [x] **UG-AI-096** — **S14-T02** — Implement active-job/file/candidate/scenario resource bounds and backpressure responses.
-- [ ] **UG-AI-097** — **S14-T03** — Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
+- [x] **UG-AI-097** — **S14-T03** — Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
 - [ ] **UG-AI-098** — **S14-T04** — Measure raster peak memory/windowing and eliminate accidental full-raster paths.
 - [ ] **UG-AI-099** — **S14-T05** — Measure noding/snapping/routing timing/candidate counters on reference graphs.
 - [ ] **UG-AI-100** — **S14-T06** — Measure building/infrastructure placement/accessibility hotspots and validate cache/index fixes.

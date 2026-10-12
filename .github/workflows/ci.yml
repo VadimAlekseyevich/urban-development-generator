@@ -48,6 +48,18 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy backend core worker
       - run: uv run pytest
+      - name: S14 PostgreSQL EXPLAIN ANALYZE profile
+        run: |
+          uv run python -m benchmarks.db_query_plans \
+            --rows 10000 --output /tmp/udg-db-query-plans.json
+      - name: Save query plans for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgis-query-plans
+          path: /tmp/udg-db-query-plans.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: S3 ArtifactStore MinIO contract smoke
         run: |
           git clone --depth 1 \
