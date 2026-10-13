@@ -33,6 +33,7 @@ RasterExtent = tuple[float, float, float, float]
 
 _DEFAULT_SPOOL_CHUNK_BYTES: Final = 1024 * 1024
 _DEFAULT_TILE_SIZE: Final = 512
+_DEFAULT_GDAL_CACHE_MB: Final = 64
 _MAX_TILE_SIZE: Final = 4096
 _DEFAULT_MAX_OUTPUT_SAMPLES: Final = 100_000_000
 _CONTENT_TYPE: Final = "image/tiff"
@@ -151,14 +152,26 @@ class RasterNormalizer:
     one destination block and one band are read/written at a time.
     """
 
-    def __init__(self, *, spool_chunk_bytes: int = _DEFAULT_SPOOL_CHUNK_BYTES) -> None:
+    def __init__(
+        self,
+        *,
+        spool_chunk_bytes: int = _DEFAULT_SPOOL_CHUNK_BYTES,
+        gdal_cache_mb: int = _DEFAULT_GDAL_CACHE_MB,
+    ) -> None:
         if (
             isinstance(spool_chunk_bytes, bool)
             or not isinstance(spool_chunk_bytes, int)
             or spool_chunk_bytes <= 0
         ):
             raise ValueError("spool_chunk_bytes must be a positive integer")
+        if (
+            isinstance(gdal_cache_mb, bool)
+            or not isinstance(gdal_cache_mb, int)
+            or not 1 <= gdal_cache_mb <= 256
+        ):
+            raise ValueError("gdal_cache_mb must be an integer between 1 and 256")
         self._spool_chunk_bytes = spool_chunk_bytes
+        self._gdal_cache_mb = gdal_cache_mb
 
     def normalize(
         self,
@@ -192,12 +205,15 @@ class RasterNormalizer:
                     destination=source_path,
                     expected_size=source_stat.size_bytes,
                 )
-                normalized = self._normalize_file(
-                    source_path,
-                    output_path,
-                    working_crs=working_crs,
-                    config=config,
-                )
+                # Bound GDAL's process cache (default depends on machine RAM).
+                # All warp reads stay per-band/per-tile as before.
+                with rasterio.Env(GDAL_CACHEMAX=self._gdal_cache_mb):
+                    normalized = self._normalize_file(
+                        source_path,
+                        output_path,
+                        working_crs=working_crs,
+                        config=config,
+                    )
                 with output_path.open("rb") as output:
                     store.put(output_ref, output, content_type=_CONTENT_TYPE)
                 ready_stat = store.promote(output_ref)
