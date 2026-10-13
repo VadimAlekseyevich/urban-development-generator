@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-098 / S14-T04
-Measure raster peak memory/windowing and eliminate accidental full-raster paths.
+UG-AI-099 / S14-T05
+Measure noding/snapping/routing timing/candidate counters on reference graphs.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

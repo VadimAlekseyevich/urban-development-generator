@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 
+import numpy as np
+from numpy.typing import NDArray
+
 from core.urban_generator.domain import (
     RunContext,
     StageDiagnostic,
+    StageFingerprintWriter,
     StageResult,
     TerritorySnapshot,
-    build_stage_fingerprint,
     require_stage_input,
 )
 from core.urban_generator.stages.catalog import (
@@ -17,10 +20,30 @@ from core.urban_generator.suitability import (
     SuitabilityConfig,
     SuitabilityFactor,
     SuitabilityGridSpec,
+    WeightedSuitabilityError,
     WeightedSuitabilityResult,
     aggregate_weighted_suitability,
     validate_factor_result,
 )
+
+
+def _write_raster_fingerprint(
+    writer: StageFingerprintWriter, raster: NDArray[np.generic]
+) -> None:
+    """Hash the C-order bytes without full-grid `.tobytes()` allocation.
+
+    External buffered loops support non-contiguous arrays while capping the
+    temporary chunk to 8192 elements; dtype and byte representation stay
+    identical to the canonical v1 fingerprint format.
+    """
+    chunks = (
+        np.asarray(block).tobytes(order="C")
+        for block in np.nditer(
+            raster, flags=["external_loop", "buffered"],
+            order="C", buffersize=8192,
+        )
+    )
+    writer.add_binary_chunks(byte_length=int(raster.nbytes), chunks=chunks)
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,15 +94,25 @@ class SuitabilityStage:
         if value.grid.working_srid != context.working_srid:
             raise ValueError("suitability grid working_srid must match run context")
 
+        # Reject oversized grids before any factor can allocate a full raster.
+        if (
+            type(config.max_cells) is not int
+            or config.max_cells <= 0
+            or value.grid.cell_count > config.max_cells
+        ):
+            raise WeightedSuitabilityError("suitability grid cell limit exceeded")
+
         factor_results = []
-        fingerprint_parts: list[str | bytes] = [
+        fingerprint = StageFingerprintWriter()
+        for value_part in (
             self.name,
             self.version,
             str(snapshot.snapshot_id),
             str(context.seed),
             config.suitability.fingerprint,
-            value.hard_mask.excluded.tobytes(order="C"),
-        ]
+        ):
+            fingerprint.add_text(value_part)
+        _write_raster_fingerprint(fingerprint, value.hard_mask.excluded)
         for factor_config in config.suitability.factors:
             if factor_config.weight <= 0.0:
                 continue
@@ -95,14 +128,10 @@ class SuitabilityStage:
             )
             validate_factor_result(factor=factor, result=result, grid=value.grid)
             factor_results.append(result)
-            fingerprint_parts.extend(
-                (
-                    result.code,
-                    result.version,
-                    result.values.tobytes(order="C"),
-                    result.valid_mask.tobytes(order="C"),
-                )
-            )
+            fingerprint.add_text(result.code)
+            fingerprint.add_text(result.version)
+            _write_raster_fingerprint(fingerprint, result.values)
+            _write_raster_fingerprint(fingerprint, result.valid_mask)
 
         weighted = aggregate_weighted_suitability(
             grid=value.grid,
@@ -111,15 +140,11 @@ class SuitabilityStage:
             factor_results=tuple(factor_results),
             max_cells=config.max_cells,
         )
-        fingerprint_parts.extend(
-            (
-                weighted.scores.tobytes(order="C"),
-                weighted.valid_mask.tobytes(order="C"),
-            )
-        )
+        _write_raster_fingerprint(fingerprint, weighted.scores)
+        _write_raster_fingerprint(fingerprint, weighted.valid_mask)
         return StageResult(
             output=weighted,
-            fingerprint=build_stage_fingerprint(*fingerprint_parts),
+            fingerprint=fingerprint.finalize(),
             diagnostics=(
                 StageDiagnostic(
                     code="suitability.completed",

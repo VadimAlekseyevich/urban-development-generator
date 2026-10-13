@@ -1,5 +1,6 @@
 import hashlib
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, TypeVar, runtime_checkable
@@ -125,28 +126,73 @@ def require_stage_input[T](
     return value
 
 
+class StageFingerprintWriter:
+    """Bounded-memory streaming form of the canonical v1 stage fingerprint.
+
+    Each part must have its full byte length before streaming. The wire format
+    remains: type marker, unsigned 8-byte length, followed by exact raw bytes.
+    """
+
+    def __init__(self) -> None:
+        self._digest = hashlib.sha256()
+        self._digest.update(b"urban-development-generator:stage-fingerprint:v1\0")
+        self._parts = 0
+
+    def add_text(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise StageContractError("stage fingerprint text part must be str")
+        self._add(b"s", value.encode("utf-8"))
+
+    def add_bytes(self, value: bytes) -> None:
+        if not isinstance(value, bytes):
+            raise StageContractError("stage fingerprint binary part must be bytes")
+        self._add(b"b", value)
+
+    def _add(self, marker: bytes, payload: bytes) -> None:
+        self._digest.update(marker)
+        self._digest.update(len(payload).to_bytes(8, "big", signed=False))
+        self._digest.update(payload)
+        self._parts += 1
+
+    def add_binary_chunks(self, *, byte_length: int, chunks: Iterable[bytes]) -> None:
+        """Hash a byte stream as ONE canonical bytes part, rejecting truncation."""
+
+        if isinstance(byte_length, bool) or not isinstance(byte_length, int):
+            raise StageContractError("binary fingerprint length must be an integer")
+        if byte_length < 0 or byte_length >= 1 << 64:
+            raise StageContractError("binary fingerprint length is outside uint64")
+        self._digest.update(b"b")
+        self._digest.update(byte_length.to_bytes(8, "big", signed=False))
+        consumed = 0
+        for chunk in chunks:
+            if not isinstance(chunk, bytes):
+                raise StageContractError("fingerprint stream must yield bytes")
+            consumed += len(chunk)
+            if consumed > byte_length:
+                raise StageContractError("fingerprint stream exceeds declared length")
+            self._digest.update(chunk)
+        if consumed != byte_length:
+            raise StageContractError("fingerprint stream is shorter than declared length")
+        self._parts += 1
+
+    def finalize(self) -> StageFingerprint:
+        if self._parts == 0:
+            raise StageContractError("stage fingerprint requires at least one canonical part")
+        return StageFingerprint(value=f"sha256:{self._digest.hexdigest()}")
+
+
 def build_stage_fingerprint(*parts: str | bytes) -> StageFingerprint:
     """Hash canonical ordered parts without ambiguous string concatenation."""
 
-    if not parts:
-        raise StageContractError("stage fingerprint requires at least one canonical part")
-
-    digest = hashlib.sha256()
-    digest.update(b"urban-development-generator:stage-fingerprint:v1\0")
+    writer = StageFingerprintWriter()
     for part in parts:
         if isinstance(part, str):
-            marker = b"s"
-            payload = part.encode("utf-8")
+            writer.add_text(part)
         elif isinstance(part, bytes):
-            marker = b"b"
-            payload = part
+            writer.add_bytes(part)
         else:
             raise StageContractError("stage fingerprint parts must be str or bytes")
-        digest.update(marker)
-        digest.update(len(payload).to_bytes(8, "big", signed=False))
-        digest.update(payload)
-
-    return StageFingerprint(value=f"sha256:{digest.hexdigest()}")
+    return writer.finalize()
 
 
 def _require_pattern(field_name: str, value: str, pattern: re.Pattern[str]) -> None:
