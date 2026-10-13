@@ -60,6 +60,19 @@ jobs:
           path: /tmp/udg-db-query-plans.json
           if-no-files-found: ignore
           retention-days: 14
+      - name: S14 raster peak RSS and GDAL window profile
+        run: |
+          uv run python -m benchmarks.raster_memory_reference \
+            --width 2048 --height 2048 --tile-size 256 \
+            --gdal-cache-mb 64 --output /tmp/udg-raster-memory.json
+      - name: Save raster memory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raster-memory-profile
+          path: /tmp/udg-raster-memory.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: S3 ArtifactStore MinIO contract smoke
         run: |
           git clone --depth 1 \
