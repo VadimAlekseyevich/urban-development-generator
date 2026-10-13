@@ -20,8 +20,8 @@ from core.urban_generator.suitability import (
     SuitabilityConfig,
     SuitabilityFactor,
     SuitabilityGridSpec,
-    WeightedSuitabilityResult,
     WeightedSuitabilityError,
+    WeightedSuitabilityResult,
     aggregate_weighted_suitability,
     validate_factor_result,
 )
