@@ -37,7 +37,7 @@ def _write_raster_fingerprint(
     identical to the canonical v1 fingerprint format.
     """
     chunks = (
-        block.tobytes(order="C")
+        np.asarray(block).tobytes(order="C")
         for block in np.nditer(
             raster, flags=["external_loop", "buffered"],
             order="C", buffersize=8192,
