@@ -119,6 +119,17 @@ Persistence mapping rules are explicit:
   canonical geometry WKB, so WKT/WKB ORM loading differences do not alter its identity;
 - linked ready dataset versions become typed snapshot layer refs using existing
   `SnapshotLayerKind`; unknown kinds and non-ready versions are rejected;
+- a ready `Dataset.kind="osm"` version is multi-layer (as produced by the PBF
+  import). The adapter probes the canonical source tables by indexed
+  `dataset_version_id` and emits a separate typed `SnapshotLayerRef` for each
+  **populated** roads/buildings/facilities/landuse/water/constraints table. It
+  does not infer present layers from PBF metadata, read entire city tables or
+  mix source features from a different DatasetVersion. An empty ready OSM
+  version fails context assembly instead of appearing as valid input.
+  Every emitted reference retains the original immutable dataset-version
+  identity, so the future stage input resolver must select the canonical
+  source table using both the reference kind and source ID;
+
 - project, run, boundary, snapshot, and any supplied network backend must agree on working CRS;
 - `ArtifactStore` and optional `NetworkBackend` implementations are injected without exposing
   their infrastructure types through core.
