@@ -75,15 +75,54 @@ class RoadNetworkBenchmarkResult:
     path_query_count: int
     snapping_index_build_ms: float
     snapping_query_ms: float
+    snap_candidate_count: int
+    snap_max_candidates_per_query: int
     semantic_noding_ms: float
     pathfinding_dijkstra_ms: float
     pathfinding_astar_ms: float
     noding_candidate_pair_count: int
+    noding_road_part_count: int
+    noding_suppressed_intersection_count: int
+    noding_overlap_pair_count: int
     noding_junction_count: int
     noding_output_part_count: int
     snap_match_count: int
     dijkstra_distance_checksum_m: float
     astar_distance_checksum_m: float
+    dijkstra_edge_evaluations: int
+    astar_edge_evaluations: int
+    dijkstra_heuristic_evaluations: int
+    astar_heuristic_evaluations: int
+
+
+class _ProfiledNetworkXBackend(NetworkXBackend):
+    """Benchmark-only counters at actual private routing hot paths.
+
+    No observer state is added to the shared production adapter: each
+    reference run owns its own profile instance and resets between algorithms.
+    """
+
+    def __init__(
+        self, graph: nx.Graph, *, snapshot_id: str, working_crs: WorkingCRS
+    ) -> None:
+        super().__init__(graph, snapshot_id=snapshot_id, working_crs=working_crs)
+        self.edge_evaluations = 0
+        self.heuristic_evaluations = 0
+
+    def _edge_weight(self, source_id: str, target_id: str) -> float:
+        self.edge_evaluations += 1
+        return super()._edge_weight(source_id, target_id)
+
+    def _heuristic(
+        self, node_id: str, target_id: str | None,
+        *, algorithm: NetworkRoutingAlgorithm,
+    ) -> float:
+        self.heuristic_evaluations += 1
+        return super()._heuristic(node_id, target_id, algorithm=algorithm)
+
+    def reset_counters(self) -> None:
+        self.edge_evaluations = 0
+        self.heuristic_evaluations = 0
 
 
 def _node_id(row: int, column: int) -> str:
@@ -211,9 +250,14 @@ def run_reference_road_network_benchmark(
     snap_index_built = perf_counter_ns()
 
     snap_match_count = 0
+    snap_candidate_count = 0
+    snap_max_candidates_per_query = 0
     snap_tolerance_m = max(2.0, min(config.spacing_m / 4.0, 25.0))
     for query in fixture.snap_queries:
-        if snap_index.snap(query, tolerance_m=snap_tolerance_m) is not None:
+        candidates = snap_index.candidates(query, tolerance_m=snap_tolerance_m)
+        snap_candidate_count += len(candidates)
+        snap_max_candidates_per_query = max(snap_max_candidates_per_query, len(candidates))
+        if candidates:
             snap_match_count += 1
     snapping_finished = perf_counter_ns()
     if snap_match_count != len(fixture.snap_queries):
@@ -239,8 +283,13 @@ def run_reference_road_network_benchmark(
             "reference noding output part count changed: "
             f"{noding_result.diagnostics.output_part_count} != {expected_edges}"
         )
+    if noding_result.diagnostics.candidate_pair_count != expected_nodes:
+        raise RuntimeError(
+            "noding candidate count no longer matches the square-grid intersections: "
+            f"{noding_result.diagnostics.candidate_pair_count} != {expected_nodes}"
+        )
 
-    backend = NetworkXBackend(
+    backend = _ProfiledNetworkXBackend(
         fixture.graph,
         snapshot_id=REFERENCE_FIXTURE_NAME,
         working_crs=WorkingCRS(config.working_srid),
@@ -252,6 +301,9 @@ def run_reference_road_network_benchmark(
         algorithm=NetworkRoutingAlgorithm.DIJKSTRA,
     )
     dijkstra_finished = perf_counter_ns()
+    dijkstra_edges = backend.edge_evaluations
+    dijkstra_heuristics = backend.heuristic_evaluations
+    backend.reset_counters()
 
     astar_started = perf_counter_ns()
     astar_checksum = _run_paths(
@@ -260,6 +312,8 @@ def run_reference_road_network_benchmark(
         algorithm=NetworkRoutingAlgorithm.ASTAR,
     )
     astar_finished = perf_counter_ns()
+    astar_edges = backend.edge_evaluations
+    astar_heuristics = backend.heuristic_evaluations
     if not isclose(dijkstra_checksum, astar_checksum, rel_tol=1e-12, abs_tol=1e-9):
         raise RuntimeError("Dijkstra and A* reference checksums diverged")
 
@@ -274,15 +328,26 @@ def run_reference_road_network_benchmark(
         path_query_count=len(fixture.path_pairs),
         snapping_index_build_ms=_elapsed_ms(started, snap_index_built),
         snapping_query_ms=_elapsed_ms(snap_index_built, snapping_finished),
+        snap_candidate_count=snap_candidate_count,
+        snap_max_candidates_per_query=snap_max_candidates_per_query,
         semantic_noding_ms=_elapsed_ms(noding_started, noding_finished),
         pathfinding_dijkstra_ms=_elapsed_ms(dijkstra_started, dijkstra_finished),
         pathfinding_astar_ms=_elapsed_ms(astar_started, astar_finished),
         noding_candidate_pair_count=noding_result.diagnostics.candidate_pair_count,
+        noding_road_part_count=noding_result.diagnostics.road_part_count,
+        noding_suppressed_intersection_count=(
+            noding_result.diagnostics.suppressed_intersection_count
+        ),
+        noding_overlap_pair_count=noding_result.diagnostics.overlap_pair_count,
         noding_junction_count=noding_result.diagnostics.junction_count,
         noding_output_part_count=noding_result.diagnostics.output_part_count,
         snap_match_count=snap_match_count,
         dijkstra_distance_checksum_m=dijkstra_checksum,
         astar_distance_checksum_m=astar_checksum,
+        dijkstra_edge_evaluations=dijkstra_edges,
+        astar_edge_evaluations=astar_edges,
+        dijkstra_heuristic_evaluations=dijkstra_heuristics,
+        astar_heuristic_evaluations=astar_heuristics,
     )
 
 
