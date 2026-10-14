@@ -9,6 +9,10 @@ from backend.app.adapters.checkpoints import (
     ReusableCheckpoint,
     SqlAlchemyCheckpointStore,
 )
+from backend.app.adapters.fixed_road_source_reader import (
+    FixedRoadSourceReadError,
+    SqlAlchemyFixedRoadSourceReader,
+)
 from backend.app.adapters.generation_runtime import SqlAlchemyGenerationRuntimeFactory
 from backend.app.adapters.local_artifact_store import LocalArtifactStore
 from backend.app.adapters.pipeline_context import (
@@ -21,6 +25,8 @@ from backend.app.adapters.s3_artifact_store import S3ArtifactStore, S3ArtifactSt
 __all__ = [
     "ArtifactStoreAdapter",
     "CheckpointResolution",
+    "FixedRoadSourceReadError",
+    "SqlAlchemyFixedRoadSourceReader",
     "LocalArtifactStore",
     "S3ArtifactStore",
     "S3ArtifactStoreError",
