@@ -4,11 +4,11 @@ import hashlib
 import uuid
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Protocol
+from typing import Protocol, cast
 
 from geoalchemy2.elements import WKBElement, WKTElement
 from geoalchemy2.shape import to_shape
-from sqlalchemy import select
+from sqlalchemy import Table, select
 from sqlalchemy.orm import Session
 
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -17,6 +17,14 @@ from backend.app.models.generation_run import (
     generation_run_dataset_versions,
 )
 from backend.app.models.project import Project
+from backend.app.models.source_layer import (
+    SourceBuilding,
+    SourceConstraint,
+    SourceFacility,
+    SourceLanduse,
+    SourceRoad,
+    SourceWater,
+)
 from core.urban_generator.domain import (
     ArtifactStore,
     ConfigRef,
@@ -63,6 +71,18 @@ _DATASET_KIND_TO_SNAPSHOT_KIND: dict[str, SnapshotLayerKind] = {
     "dem": SnapshotLayerKind.DEM,
     "demography": SnapshotLayerKind.DEMOGRAPHY,
 }
+
+
+# A single ready OSM DatasetVersion may own several canonical feature tables.
+# Probe the indexed version/id pair; never invent layers from source metadata.
+_OSM_LAYER_TABLES: tuple[tuple[SnapshotLayerKind, Table], ...] = (
+    (SnapshotLayerKind.ROADS, cast(Table, SourceRoad.__table__)),
+    (SnapshotLayerKind.BUILDINGS, cast(Table, SourceBuilding.__table__)),
+    (SnapshotLayerKind.FACILITIES, cast(Table, SourceFacility.__table__)),
+    (SnapshotLayerKind.LANDUSE, cast(Table, SourceLanduse.__table__)),
+    (SnapshotLayerKind.WATER, cast(Table, SourceWater.__table__)),
+    (SnapshotLayerKind.CONSTRAINTS, cast(Table, SourceConstraint.__table__)),
+)
 
 
 class SqlAlchemyPipelineContextAdapter:
@@ -210,19 +230,29 @@ class SqlAlchemyPipelineContextAdapter:
                 raise PipelineContextAssemblyError(
                     f"dataset version is not ready: {version_id}"
                 )
-            snapshot_kind = _DATASET_KIND_TO_SNAPSHOT_KIND.get(dataset_kind)
-            if snapshot_kind is None:
-                raise PipelineContextAssemblyError(
-                    f"unsupported Dataset.kind for TerritorySnapshot: {dataset_kind}"
+            if dataset_kind == "osm":
+                # A real PBF import stores roads, buildings and other source
+                # families in one version. Preserve typed snapshot ownership
+                # by looking at the actual canonical tables for that version.
+                kinds = self._osm_snapshot_kinds(version_id)
+                if not kinds:
+                    raise PipelineContextAssemblyError(
+                        f"ready OSM dataset version has no canonical source rows: {version_id}"
+                    )
+            else:
+                snapshot_kind = _DATASET_KIND_TO_SNAPSHOT_KIND.get(dataset_kind)
+                if snapshot_kind is None:
+                    raise PipelineContextAssemblyError(
+                        f"unsupported Dataset.kind for TerritorySnapshot: {dataset_kind}"
+                    )
+                kinds = (snapshot_kind,)
+            for snapshot_kind in kinds:
+                layers[snapshot_kind].append(
+                    SnapshotLayerRef(
+                        kind=snapshot_kind,
+                        source_ref=f"dataset-version:{version_id}:v{version}",
+                    )
                 )
-            layers[snapshot_kind].append(
-                SnapshotLayerRef(
-                    kind=snapshot_kind,
-                    source_ref=(
-                        f"dataset-version:{version_id}:v{version}"
-                    ),
-                )
-            )
 
         return TerritorySnapshot(
             snapshot_id=run.id,
@@ -241,6 +271,20 @@ class SqlAlchemyPipelineContextAdapter:
             constraints=tuple(layers[SnapshotLayerKind.CONSTRAINTS]),
             dem=tuple(layers[SnapshotLayerKind.DEM]),
             demography=tuple(layers[SnapshotLayerKind.DEMOGRAPHY]),
+        )
+
+    def _osm_snapshot_kinds(self, version_id: uuid.UUID) -> tuple[SnapshotLayerKind, ...]:
+        # Each table has a (dataset_version_id, id) keyset index. These six
+        # LIMIT 1 probes are independent of the number of city features.
+        return tuple(
+            kind
+            for kind, table in _OSM_LAYER_TABLES
+            if self._session.scalar(
+                select(table.c.id)
+                .where(table.c.dataset_version_id == version_id)
+                .limit(1)
+            )
+            is not None
         )
 
     @staticmethod
