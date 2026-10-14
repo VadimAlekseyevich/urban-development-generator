@@ -77,6 +77,9 @@ class RoadHotpathProfileConfig:
         RoadNetworkBenchmarkConfig(grid_size=2, spacing_m=self.spacing_m)
 
 
+DEFAULT_PROFILE_CONFIG = RoadHotpathProfileConfig()
+
+
 def _timings(repeats: list[RoadNetworkBenchmarkResult]) -> dict[str, dict[str, float]]:
     return {
         field: {
@@ -144,7 +147,7 @@ def _one_scale(
 
 
 def profile_road_hotpaths(
-    config: RoadHotpathProfileConfig = RoadHotpathProfileConfig(),
+    config: RoadHotpathProfileConfig = DEFAULT_PROFILE_CONFIG,
 ) -> dict[str, object]:
     if not isinstance(config, RoadHotpathProfileConfig):
         raise TypeError("config must be RoadHotpathProfileConfig")
