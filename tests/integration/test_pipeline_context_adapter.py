@@ -332,7 +332,7 @@ def test_adapter_maps_real_osm_version_to_populated_typed_layers() -> None:
                     source_feature_id="osm:way:3",
                     water_class="river",
                     geometry=WKTElement(
-                        "LINESTRING((0 0, 10 10))", srid=WORKING_SRID
+                        "LINESTRING(0 0, 10 10)", srid=WORKING_SRID
                     ),
                 ),
                 SourceFacility(
