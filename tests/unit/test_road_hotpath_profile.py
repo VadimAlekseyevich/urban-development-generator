@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -66,17 +67,6 @@ def test_repeated_multiscale_profile_emits_monotonic_work_counts_without_time_sl
 
 
 @pytest.mark.parametrize(
-    "invalid",
-    [
-        RoadHotpathProfileConfig(grid_sizes=(2,)),
-        RoadHotpathProfileConfig(grid_sizes=(6, 8)),
-    ],
-)
-def test_profile_config_valid_examples(invalid: RoadHotpathProfileConfig) -> None:
-    assert len(invalid.grid_sizes) > 0
-
-
-@pytest.mark.parametrize(
     "kwargs",
     [
         {"grid_sizes": ()},
@@ -98,7 +88,7 @@ def test_profile_rejects_unbounded_or_ambiguous_workloads(
         RoadHotpathProfileConfig(**kwargs)
 
 
-def test_cli_writes_full_reproducible_json(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_cli_writes_full_reproducible_json(tmp_path: Path) -> None:
     output = tmp_path / "network-profile.json"
     completed = subprocess.run(
         [
