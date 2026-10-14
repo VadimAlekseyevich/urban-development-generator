@@ -52,7 +52,7 @@ if errorlevel 1 goto :error
 echo.
 echo [3/9] Building and starting backend services...
 echo API is started separately so a readiness problem can be diagnosed immediately.
-docker compose up --build -d db redis migrate api worker
+docker compose up --build -d db redis migrate api worker-ingest worker-generation worker-analysis worker-export worker-legacy dispatcher
 if errorlevel 1 goto :startup_error
 
 echo.
@@ -132,12 +132,12 @@ echo %PBF_PATH%
 echo.
 echo [7/9] Importing real Ryazan OSM data...
 echo The container reads the already-downloaded file from /app/storage/imports.
-docker compose exec -e PYTHONPATH=/app api uv run python /app/scripts/import_ryazan_from_geofabrik.py
+docker compose exec -e PYTHONPATH=/app api uv run --no-dev --frozen python /app/scripts/import_ryazan_from_geofabrik.py
 if errorlevel 1 goto :import_error
 
 echo.
 echo [8/9] Validating viewer context and opening Ryazan...
-docker compose exec -e PYTHONPATH=/app api uv run python /app/scripts/ryazan_latest_context.py
+docker compose exec -e PYTHONPATH=/app api uv run --no-dev --frozen python /app/scripts/ryazan_latest_context.py
 if errorlevel 1 goto :viewer_error
 
 if not exist "%CONTEXT_PATH%" (
@@ -160,8 +160,8 @@ if errorlevel 1 goto :viewer_error
 
 echo Viewer API preflight is OK.
 echo Opening:
-echo %OPEN_URL%
-start "" "%OPEN_URL%"
+echo "%OPEN_URL%"
+start "" "%OPEN_URL%&workspace_view=map"
 
 echo.
 echo [9/9] Done.
