@@ -302,8 +302,12 @@ def test_adapter_maps_supported_dataset_kinds_to_core_snapshot_layers(
 def test_adapter_maps_real_osm_version_to_populated_typed_layers() -> None:
     with Session(engine, expire_on_commit=False) as session:
         project = _project(session)
-        osm = _dataset_version(session, project, kind="osm")
-        unrelated = _dataset_version(session, project, kind="facilities")
+        # Canonical source writes happen only before publication. The DB
+        # correctly forbids inserts into a ready DatasetVersion.
+        osm = _dataset_version(session, project, kind="osm", status="processing")
+        unrelated = _dataset_version(
+            session, project, kind="facilities", status="processing"
+        )
         session.add_all(
             [
                 SourceRoad(
@@ -339,6 +343,9 @@ def test_adapter_maps_real_osm_version_to_populated_typed_layers() -> None:
                 ),
             ]
         )
+        session.flush()
+        osm.status = "ready"
+        unrelated.status = "ready"
         session.flush()
         run = _run(session, project, dataset_versions=(osm,))
         adapter, _resolver = _adapter(session)
