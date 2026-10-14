@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-099 / S14-T05
-Measure noding/snapping/routing timing/candidate counters on reference graphs.
+UG-AI-100 / S14-T06
+Measure building/infrastructure placement/accessibility hotspots and validate cache/index fixes.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

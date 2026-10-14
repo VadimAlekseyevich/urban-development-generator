@@ -95,6 +95,20 @@ jobs:
             uv run pytest tests/integration/test_s3_artifact_store_minio.py
       - name: Road reference benchmark
         run: uv run python -m benchmarks.road_network_reference
+      - name: S14 road hotpath multi-scale evidence
+        run: |
+          uv run python -m benchmarks.road_hotpath_profile \
+            --grid-sizes 8 16 32 --repetitions 2 \
+            --snap-queries 128 --path-queries 32 \
+            --output /tmp/udg-road-hotpath-profile.json
+      - name: Upload road hotpath evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-hotpath-profile
+          path: /tmp/udg-road-hotpath-profile.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Block parcel reference benchmark
         run: uv run python -m benchmarks.block_parcel_reference
       - name: Building reference benchmark
