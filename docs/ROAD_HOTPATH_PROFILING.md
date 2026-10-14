@@ -75,3 +75,28 @@ actual candidate counts, deterministic per-algorithm work counters, bounded
 profiling configuration, multi-scale metric names, and CLI JSON emission.
 The ordinary reference graph benchmark and existing road/network tests also
 remain mandatory CI gates.
+
+
+## First measured CI baseline — 2026-10-14
+
+Exact feature-head `eff64858b2b1fbb869e46d159687d2bc409ba92c`,
+[CI run 38540611757](https://github.com/VadimAlekseyevich/urban-development-generator/actions/runs/38540611757):
+all four jobs succeeded. [Download measured JSON](https://github.com/VadimAlekseyevich/urban-development-generator/actions/runs/38540611757/artifacts/11881848443)
+from the actual retained CI artifact (`road-hotpath-profile`, 14 days).
+
+The table reports the **median of two runs**, milliseconds, on GitHub's
+CI runner (Python 3.12.3). It is not a production CPU benchmark or a
+threshold for deployment.
+
+| Grid | Nodes | Snap (ms, 128 queries) | Noding (ms) | Dijkstra (ms, 32 paths) | A* (ms, 32 paths) | Noding pairs | Evaluated edges Dijkstra / A* |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 8×8 | 64 | 2.597 | 19.860 | 5.548 | 5.046 | 64 | 3,428 / 2,624 |
+| 16×16 | 256 | 2.561 | 96.823 | 22.762 | 19.835 | 256 | 14,684 / 10,240 |
+| 32×32 | 1,024 | 2.532 | 500.516 | 94.461 | 76.533 | 1,024 | 60,025 / 40,256 |
+
+Each case returned exactly **128 snap candidates** (one per query) and
+Dijkstra/A* had identical canonical distance checksums. Noding grows
+faster in elapsed time than the noding-candidate counter itself on this
+small reference workload; this alone does not identify a safe code
+optimization without profiles and denser topology. Avoid speculative
+STRtree or routing rewrites from one small synthetic runner.
