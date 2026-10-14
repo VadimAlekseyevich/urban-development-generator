@@ -21,6 +21,7 @@ from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
+from backend.app.models.source_layer import SourceBuilding, SourceFacility, SourceRoad, SourceWater
 from core.urban_generator.domain import (
     ArtifactRef,
     ArtifactStat,
@@ -29,6 +30,7 @@ from core.urban_generator.domain import (
     ResolvedConfigBinding,
     RunMode,
     SnapshotLayerKind,
+    SnapshotLayerRef,
 )
 
 WORKING_SRID = 32637
@@ -295,6 +297,84 @@ def test_adapter_maps_supported_dataset_kinds_to_core_snapshot_layers(
         )
         assert len(matching) == 1
         assert matching[0].source_ref == f"dataset-version:{version.id}:v1"
+
+
+def test_adapter_maps_real_osm_version_to_populated_typed_layers() -> None:
+    with Session(engine, expire_on_commit=False) as session:
+        project = _project(session)
+        osm = _dataset_version(session, project, kind="osm")
+        unrelated = _dataset_version(session, project, kind="facilities")
+        session.add_all(
+            [
+                SourceRoad(
+                    dataset_version_id=osm.id,
+                    source_feature_id="osm:way:1",
+                    road_class="local",
+                    geometry=WKTElement(
+                        "MULTILINESTRING((0 0, 10 10))", srid=WORKING_SRID
+                    ),
+                ),
+                SourceBuilding(
+                    dataset_version_id=osm.id,
+                    source_feature_id="osm:way:2",
+                    building_class="residential",
+                    geometry=WKTElement(
+                        "MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))",
+                        srid=WORKING_SRID,
+                    ),
+                ),
+                SourceWater(
+                    dataset_version_id=osm.id,
+                    source_feature_id="osm:way:3",
+                    water_class="river",
+                    geometry=WKTElement(
+                        "LINESTRING((0 0, 10 10))", srid=WORKING_SRID
+                    ),
+                ),
+                SourceFacility(
+                    dataset_version_id=unrelated.id,
+                    source_feature_id="osm:node:4",
+                    facility_class="education",
+                    geometry=WKTElement("POINT(5 5)", srid=WORKING_SRID),
+                ),
+            ]
+        )
+        session.flush()
+        run = _run(session, project, dataset_versions=(osm,))
+        adapter, _resolver = _adapter(session)
+
+        context = adapter.assemble(run.id)
+
+        expected_ref = f"dataset-version:{osm.id}:v1"
+        assert context.snapshot.roads == (
+            SnapshotLayerRef(kind=SnapshotLayerKind.ROADS, source_ref=expected_ref),
+        )
+        assert context.snapshot.buildings == (
+            SnapshotLayerRef(kind=SnapshotLayerKind.BUILDINGS, source_ref=expected_ref),
+        )
+        assert context.snapshot.water == (
+            SnapshotLayerRef(kind=SnapshotLayerKind.WATER, source_ref=expected_ref),
+        )
+        # An absent layer is not fabricated, and a different version must not
+        # leak into the requested OSM snapshot even in the same project.
+        assert not context.snapshot.facilities
+        assert not context.snapshot.landuse
+        assert not context.snapshot.constraints
+        assert adapter.assemble(run.id).snapshot.layer_refs == context.snapshot.layer_refs
+
+
+def test_adapter_rejects_ready_osm_version_without_canonical_source_rows() -> None:
+    with Session(engine, expire_on_commit=False) as session:
+        project = _project(session)
+        empty_osm = _dataset_version(session, project, kind="osm")
+        run = _run(session, project, dataset_versions=(empty_osm,))
+        adapter, _resolver = _adapter(session)
+
+        with pytest.raises(
+            PipelineContextAssemblyError,
+            match="ready OSM dataset version has no canonical source rows",
+        ):
+            adapter.assemble(run.id)
 
 
 def test_adapter_rejects_unready_or_unknown_dataset_versions() -> None:
