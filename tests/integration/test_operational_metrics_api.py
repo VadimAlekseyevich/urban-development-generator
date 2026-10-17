@@ -30,6 +30,9 @@ QUEUE_DEPTHS = {
     "ingest": 3, "generation": 1, "analysis": 0, "export": 2, "legacy": 0,
 }
 
+# Save real reader before the autouse fixture stubs scrape dependencies.
+_READ_REAL_REDIS_DEPTHS = operational_metrics._redis_queue_depths
+
 
 @pytest.fixture(scope="module", autouse=True)
 def migrated_database() -> None:
@@ -197,7 +200,7 @@ def test_redis_depth_reader_uses_arq_sorted_sets(
         operational_metrics.Redis, "from_url",
         lambda *_args, **_kwargs: fake,
     )
-    assert operational_metrics._redis_queue_depths() == QUEUE_DEPTHS
+    assert _READ_REAL_REDIS_DEPTHS() == QUEUE_DEPTHS
     assert fake.pipeline_instance.queues == [
         "arq:queue:ingest", "arq:queue:generation",
         "arq:queue:analysis", "arq:queue:export", "arq:queue",
