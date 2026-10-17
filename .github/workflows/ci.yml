@@ -130,6 +130,22 @@ jobs:
           path: /tmp/udg-placement-hotspot-profile.json
           if-no-files-found: ignore
           retention-days: 14
+      - name: S14 composite territory 25 and 100 km2 profiles
+        run: |
+          uv run python -m benchmarks.territory_composite_profile \
+            --area-km2 25 --output /tmp/udg-territory-25km2.json
+          uv run python -m benchmarks.territory_composite_profile \
+            --area-km2 100 --output /tmp/udg-territory-100km2.json
+      - name: Upload S14 composite territory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: territory-composite-25-100
+          path: |
+            /tmp/udg-territory-25km2.json
+            /tmp/udg-territory-100km2.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Migration smoke
         run: |
           uv run alembic upgrade head

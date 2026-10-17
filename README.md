@@ -140,6 +140,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/JOB_ADMISSION.md` — S14 DB-authoritative per-project active job budgets and HTTP 429 backpressure;
 - `docs/DB_QUERY_PROFILING.md` and `docs/RASTER_MEMORY_PROFILING.md` — S14 measured SQL/PostGIS plans and raster peak memory/streamed fingerprints;
 - `docs/ROAD_HOTPATH_PROFILING.md` — S14 repeated noding/snap/routing performance and bounded-work counters, archived as CI JSON;
+- `docs/TERRITORY_COMPOSITE_PROFILING.md` — S14 reproducible 25/100 km² composite reference workloads, machine metadata and budgets;
 - `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
 - `docs/DATA_MODEL.md` — модель данных;
@@ -164,7 +165,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
 Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Playwright браузерный E2E с синтетическими persisted fixtures добавлен в S13-T14; полноценный пользовательский импорт и расчёт по реальным данным всё ещё требуют отдельного подтверждения. Эксперименты воспроизводимости — S15. Следующий ordered execution item —
-**`UG-AI-101 / S14-T07`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+**`UG-AI-102 / S14-T08`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.

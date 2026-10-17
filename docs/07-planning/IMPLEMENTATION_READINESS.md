@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-101 / S14-T07
-Build 25 km²/100 km² integrated benchmark profiles with machine metadata and budgets.
+UG-AI-102 / S14-T08
+Expose queue/job/stage operational metrics behind Prometheus-ready adapter.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
