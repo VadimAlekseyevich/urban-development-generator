@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-103 / S14-T09
-Implement artifact GC dry-run/expiry/orphan policy and bounded deletion.
+UG-AI-104 / S14-T10
+Add production-like Docker profile with no dev mounts and externalizable dependencies.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
