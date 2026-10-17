@@ -115,6 +115,21 @@ jobs:
         run: uv run python -m benchmarks.building_reference --building-counts 1000 10000
       - name: Infrastructure reference benchmark
         run: uv run python -m benchmarks.infrastructure_reference
+      - name: S14 building and infrastructure hotspot evidence
+        run: |
+          uv run python -m benchmarks.placement_hotpath_profile \
+            --building-counts 1000 3000 \
+            --infrastructure-scales 32x8 64x16 \
+            --repetitions 2 \
+            --output /tmp/udg-placement-hotspot-profile.json
+      - name: Upload building and infrastructure hotspot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: placement-hotspot-profile
+          path: /tmp/udg-placement-hotspot-profile.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Migration smoke
         run: |
           uv run alembic upgrade head

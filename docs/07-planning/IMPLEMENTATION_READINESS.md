@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-100 / S14-T06
-Measure building/infrastructure placement/accessibility hotspots and validate cache/index fixes.
+UG-AI-101 / S14-T07
+Build 25 km²/100 km² integrated benchmark profiles with machine metadata and budgets.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

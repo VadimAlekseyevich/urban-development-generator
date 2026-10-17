@@ -102,10 +102,16 @@ class InfrastructureBenchmarkResult:
     routing_call_count: int
     routing_call_count_after_greedy: int
     greedy_iteration_count: int
+    benefit_evaluation_count: int
+    coverage_cache_entry_count: int
+    coverage_cache_row_count: int
     accepted_facility_count: int
     remaining_demand: float
     accessibility_ms: float
     greedy_ms: float
+    benefit_calculation_ms: float
+    candidate_selection_ms: float
+    cache_application_ms: float
     deterministic_digest: str
 
 
@@ -308,32 +314,52 @@ def run_reference_infrastructure_benchmark(
         _candidate_refs(config),
         candidate_accessibility=accessibility,
     )
+    coverage_cache_row_count = sum(
+        len(item.accessibility) for item in state.coverage_cache
+    )
+    if coverage_cache_row_count != subject_count:
+        raise RuntimeError(
+            "reference full-reachability cache no longer has one row per subject"
+        )
     placement_policy = InfrastructureGreedyPlacementPolicy(
         max_facilities=config.max_facilities,
         max_iterations=config.max_facilities,
     )
 
     greedy_started = perf_counter_ns()
+    benefits_ns = 0
+    selection_ns = 0
+    apply_ns = 0
+    benefit_evaluations = 0
     for iteration_index in range(config.max_facilities):
+        phase_started = perf_counter_ns()
         benefits = calculate_infrastructure_candidate_benefits(
             state,
             infrastructure_type=infrastructure_type,
         )
+        benefits_ns += perf_counter_ns() - phase_started
+        benefit_evaluations += len(benefits)
+
+        phase_started = perf_counter_ns()
         selection = select_infrastructure_greedy_candidate(
             state,
             benefits,
             iteration_index=iteration_index,
             policy=placement_policy,
         )
+        selection_ns += perf_counter_ns() - phase_started
         if selection.status is not InfrastructurePlacementSelectionStatus.SELECTED:
             raise RuntimeError(
                 "reference greedy fixture stopped before configured iterations"
             )
+
+        phase_started = perf_counter_ns()
         state = apply_infrastructure_greedy_selection(
             state,
             selection,
             infrastructure_type=infrastructure_type,
         )
+        apply_ns += perf_counter_ns() - phase_started
     greedy_finished = perf_counter_ns()
 
     routing_after_greedy = backend.routing_call_count
@@ -380,6 +406,9 @@ def run_reference_infrastructure_benchmark(
         routing_call_count=backend.routing_call_count,
         routing_call_count_after_greedy=routing_after_greedy,
         greedy_iteration_count=config.max_facilities,
+        benefit_evaluation_count=benefit_evaluations,
+        coverage_cache_entry_count=len(state.coverage_cache),
+        coverage_cache_row_count=coverage_cache_row_count,
         accepted_facility_count=len(state.accepted_facilities),
         remaining_demand=remaining_demand,
         accessibility_ms=_elapsed_ms(
@@ -387,6 +416,9 @@ def run_reference_infrastructure_benchmark(
             accessibility_finished,
         ),
         greedy_ms=_elapsed_ms(greedy_started, greedy_finished),
+        benefit_calculation_ms=benefits_ns / 1_000_000.0,
+        candidate_selection_ms=selection_ns / 1_000_000.0,
+        cache_application_ms=apply_ns / 1_000_000.0,
         deterministic_digest=digest.hexdigest(),
     )
 

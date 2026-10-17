@@ -136,7 +136,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-097** — **S14-T03** — Profile top DB queries with EXPLAIN ANALYZE and change indexes only from evidence.
 - [x] **UG-AI-098** — **S14-T04** — Measure raster peak memory/windowing and eliminate accidental full-raster paths.
 - [x] **UG-AI-099** — **S14-T05** — Measure noding/snapping/routing timing/candidate counters on reference graphs.
-- [ ] **UG-AI-100** — **S14-T06** — Measure building/infrastructure placement/accessibility hotspots and validate cache/index fixes.
+- [x] **UG-AI-100** — **S14-T06** — Measure building/infrastructure placement/accessibility hotspots and validate cache/index fixes.
 - [ ] **UG-AI-101** — **S14-T07** — Build 25 km²/100 km² integrated benchmark profiles with machine metadata and budgets.
 - [ ] **UG-AI-102** — **S14-T08** — Expose queue/job/stage operational metrics behind Prometheus-ready adapter.
 - [ ] **UG-AI-103** — **S14-T09** — Implement artifact GC dry-run/expiry/orphan policy and bounded deletion.
