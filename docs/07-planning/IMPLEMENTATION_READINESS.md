@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-102 / S14-T08
-Expose queue/job/stage operational metrics behind Prometheus-ready adapter.
+UG-AI-103 / S14-T09
+Implement artifact GC dry-run/expiry/orphan policy and bounded deletion.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
