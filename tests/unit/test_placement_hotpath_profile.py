@@ -80,7 +80,7 @@ def test_hotspot_profile_matches_real_reference_work_and_digest_is_stable() -> N
 def test_hotspot_workload_bounds_are_strict() -> None:
     with pytest.raises(ValueError, match="building count"):
         run_placement_hotspot_profile(building_counts=(10_001,))
-    with pytest.raises(ValueError, match="sizes"):
+    with pytest.raises(ValueError, match="size is required"):
         run_placement_hotspot_profile(infrastructure_scales=())
     with pytest.raises(ValueError, match="repetitions"):
         run_placement_hotspot_profile(building_counts=(10,), repetitions=5)
