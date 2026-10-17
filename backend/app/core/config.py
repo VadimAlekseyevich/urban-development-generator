@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     max_active_generation_jobs_per_project: int = Field(default=10, ge=1, le=128)
     max_active_ingest_jobs_per_project: int = Field(default=4, ge=1, le=128)
     max_active_export_jobs_per_project: int = Field(default=4, ge=1, le=128)
+    metrics_bearer_token: SecretStr | None = None
     artifact_store_backend: Literal["local", "s3"] = "local"
     storage_root: Path = Path("./storage")
     s3_endpoint_url: str | None = None
@@ -45,6 +46,13 @@ class Settings(BaseSettings):
         value = value.strip()
         if not value:
             raise ValueError("value must not be empty")
+        return value
+
+    @field_validator("metrics_bearer_token")
+    @classmethod
+    def validate_metrics_token(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("METRICS_BEARER_TOKEN must be at least 32 characters")
         return value
 
     @model_validator(mode="after")
