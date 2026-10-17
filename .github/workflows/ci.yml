@@ -395,7 +395,7 @@ jobs:
             run --rm --no-deps --entrypoint python api -c \
             "from backend.app.main import app; assert app.title == 'Urban Development Generator API'"
           docker compose --env-file .env.production -f compose.production.yml \
-            run --rm --no-deps --entrypoint nginx frontend -t
+            run --rm --no-deps --add-host api:127.0.0.1 --entrypoint nginx frontend -t
       - name: Build and start complete stack
         run: docker compose up -d --build
       - name: Wait for API readiness
