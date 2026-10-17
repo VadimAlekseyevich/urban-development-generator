@@ -1,0 +1,137 @@
+# S14-T10: self-contained production-like APP stack. No local DB/Redis
+# containers; all state lives in external PostgreSQL, Redis and S3.
+# Start: docker compose --env-file .env.production -f compose.production.yml up -d --build
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: docker/backend.production.Dockerfile
+  env_file:
+    - .env.production
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    ARTIFACT_STORE_BACKEND: s3
+  user: "10001:10001"
+  read_only: true
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    - /tmp:rw,nosuid,size=1g
+  mem_limit: 4g
+  pids_limit: 256
+  restart: unless-stopped
+  networks:
+    - app
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-worker-health: &worker-health
+  test:
+    - CMD
+    - python
+    - -c
+    - "from redis import Redis; from backend.app.core.config import settings; c=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=1); c.ping(); c.close()"
+  interval: 15s
+  timeout: 3s
+  retries: 5
+  start_period: 15s
+
+x-worker: &worker
+  <<: *backend
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+  healthcheck: *worker-health
+
+services:
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    mem_limit: 1g
+
+  api:
+    <<: *backend
+    command: ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    # API is intentionally NOT published on the host: only nginx is public.
+
+  worker-ingest:
+    <<: *worker
+    command: ["arq", "worker.settings.IngestWorkerSettings"]
+
+  worker-generation:
+    <<: *worker
+    command: ["arq", "worker.settings.GenerationWorkerSettings"]
+
+  worker-analysis:
+    <<: *worker
+    command: ["arq", "worker.settings.AnalysisWorkerSettings"]
+
+  worker-export:
+    <<: *worker
+    command: ["arq", "worker.settings.ExportWorkerSettings"]
+
+  worker-legacy:
+    <<: *worker
+    command: ["arq", "worker.settings.LegacyWorkerSettings"]
+
+  dispatcher:
+    <<: *backend
+    command: ["python", "-m", "worker.outbox_dispatcher"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.production.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    read_only: true
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,nosuid,size=64m
+    mem_limit: 256m
+    pids_limit: 64
+    restart: unless-stopped
+    ports:
+      - "${PUBLIC_BIND_ADDRESS:-127.0.0.1}:${PUBLIC_PORT:-8080}:8080"
+    networks:
+      - app
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+networks:
+  app:
+    driver: bridge
