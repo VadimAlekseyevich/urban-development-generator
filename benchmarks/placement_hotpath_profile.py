@@ -110,7 +110,9 @@ def _profile_callable(
     }
 
 
-def _infrastructure_config(demand_count: int, candidate_count: int) -> InfrastructureBenchmarkConfig:
+def _infrastructure_config(
+    demand_count: int, candidate_count: int
+) -> InfrastructureBenchmarkConfig:
     if not 1 <= demand_count <= MAX_DEMANDS:
         raise ValueError("demand_count must be 1..256")
     if not 1 <= candidate_count <= MAX_CANDIDATES:
