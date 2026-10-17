@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     max_active_generation_jobs_per_project: int = Field(default=10, ge=1, le=128)
     max_active_ingest_jobs_per_project: int = Field(default=4, ge=1, le=128)
     max_active_export_jobs_per_project: int = Field(default=4, ge=1, le=128)
+    artifact_gc_min_age_hours: int = Field(default=2, ge=1, le=720)
+    artifact_gc_max_batch: int = Field(default=50, ge=1, le=500)
+    artifact_gc_max_scan: int = Field(default=5000, ge=1, le=100000)
+    artifact_gc_dry_run: bool = False
     metrics_bearer_token: SecretStr | None = None
     artifact_store_backend: Literal["local", "s3"] = "local"
     storage_root: Path = Path("./storage")
