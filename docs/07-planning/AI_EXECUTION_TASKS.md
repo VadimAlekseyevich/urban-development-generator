@@ -140,7 +140,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-101** — **S14-T07** — Build 25 km²/100 km² integrated benchmark profiles with machine metadata and budgets.
 - [x] **UG-AI-102** — **S14-T08** — Expose queue/job/stage operational metrics behind Prometheus-ready adapter.
 - [x] **UG-AI-103** — **S14-T09** — Implement artifact GC dry-run/expiry/orphan policy and bounded deletion.
-- [ ] **UG-AI-104** — **S14-T10** — Add production-like Docker profile with no dev mounts and externalizable dependencies.
+- [x] **UG-AI-104** — **S14-T10** — Add production-like Docker profile with no dev mounts and externalizable dependencies.
 - [ ] **UG-AI-105** — **S14-T11** — Run upload/path/SQL/CORS/container-user security hardening audit and targeted fixes.
 - [ ] **UG-AI-106** — **S14-T12** — Add documented metadata DB dump/restore smoke preserving external-artifact references.
 - [ ] **UG-AI-107** — **S14-T13** — Harden migration-from-zero CI across full release integration matrix; do not duplicate existing smoke only.
