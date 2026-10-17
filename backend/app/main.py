@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
+from backend.app.api.v1.endpoints import operational_metrics
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
 from backend.app.core.logging import configure_logging
@@ -39,6 +40,7 @@ async def job_admission_backpressure(
 
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+app.include_router(operational_metrics.router)
 
 
 @app.get("/")
