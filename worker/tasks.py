@@ -289,7 +289,7 @@ def _build_artifact_gc() -> SqlAlchemyArtifactGc:
     return SqlAlchemyArtifactGc(store=get_runtime_artifact_store())
 
 
-async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
+async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int | bool]:
     """Hourly bounded cleanup of aged run-stage blobs and temporary DB rows."""
     override = ctx.get("artifact_gc")
     collector = (
@@ -312,4 +312,8 @@ async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
         "expired_rows": result.expired_rows,
         "untracked_keys": result.untracked_keys,
         "examined_candidates": result.examined_candidates,
+        "dry_run": result.dry_run,
+        "eligible_rows": result.eligible_rows,
+        "eligible_untracked_keys": result.eligible_untracked_keys,
+        "protected_active": result.protected_active,
     }
