@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from datetime import timedelta
 from functools import lru_cache
 from typing import Any, cast
 
@@ -22,6 +23,7 @@ from backend.app.application.geopackage_exports import (
     GeoPackageExportRunStatus,
 )
 from backend.app.application.ingest import IngestJobRunStatus, IngestJobService
+from backend.app.core.config import settings
 from backend.app.db.artifact_gc import SqlAlchemyArtifactGc
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.geojson_export_page_reader import SqlAlchemyGeoJsonExportPageReader
@@ -287,7 +289,7 @@ def _build_artifact_gc() -> SqlAlchemyArtifactGc:
     return SqlAlchemyArtifactGc(store=get_runtime_artifact_store())
 
 
-async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
+async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int | bool]:
     """Hourly bounded cleanup of aged run-stage blobs and temporary DB rows."""
     override = ctx.get("artifact_gc")
     collector = (
@@ -295,9 +297,23 @@ async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
         if override is not None
         else _build_artifact_gc()
     )
-    result = await asyncio.to_thread(collector.collect)
+    # Preserve injected collectors' existing no-arg integration seam.
+    if override is not None:
+        result = await asyncio.to_thread(collector.collect)
+    else:
+        result = await asyncio.to_thread(
+            collector.collect,
+            min_age=timedelta(hours=settings.artifact_gc_min_age_hours),
+            max_batch=settings.artifact_gc_max_batch,
+            max_scan=settings.artifact_gc_max_scan,
+            dry_run=settings.artifact_gc_dry_run,
+        )
     return {
         "expired_rows": result.expired_rows,
         "untracked_keys": result.untracked_keys,
         "examined_candidates": result.examined_candidates,
+        "dry_run": result.dry_run,
+        "eligible_rows": result.eligible_rows,
+        "eligible_untracked_keys": result.eligible_untracked_keys,
+        "protected_active": result.protected_active,
     }

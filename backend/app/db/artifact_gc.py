@@ -18,6 +18,7 @@ from backend.app.models.artifact import (
     ArtifactLifecycleState,
     run_stage_result_artifacts,
 )
+from backend.app.models.generation_run import GenerationRun
 from core.urban_generator.domain import ArtifactRef, ArtifactState
 
 
@@ -54,6 +55,10 @@ class ArtifactGcResult:
     expired_rows: int
     untracked_keys: int
     examined_candidates: int
+    dry_run: bool = False
+    eligible_rows: int = 0
+    eligible_untracked_keys: int = 0
+    protected_active: int = 0
 
 
 class SqlAlchemyArtifactGc:
@@ -81,7 +86,10 @@ class SqlAlchemyArtifactGc:
         min_age: timedelta = timedelta(hours=2),
         max_batch: int = 50,
         max_scan: int = 5000,
+        dry_run: bool = False,
     ) -> ArtifactGcResult:
+        if type(dry_run) is not bool:
+            raise TypeError("GC dry_run must be bool")
         if min_age < timedelta(hours=1):
             raise ValueError("GC min_age must be at least one hour")
         if not 1 <= max_batch <= 500:
@@ -92,9 +100,13 @@ class SqlAlchemyArtifactGc:
         if cutoff.tzinfo is None or cutoff.utcoffset() is None:
             raise ValueError("GC clock must return timezone-aware datetime")
 
-        # The DB pass does not depend on directory scan ordering; SKIP LOCKED
-        # permits parallel collectors without claiming the same live row.
+        # DB rows are locked before deciding, as in the existing publisher/
+        # collector contract. Dry-run takes the same bounded lock/check path
+        # but never transitions state or calls ArtifactStore.delete.
         expired = 0
+        eligible_rows = 0
+        protected_active = 0
+        planned_keys: set[str] = set()
         with self._session_factory() as session:
             with session.begin():
                 rows = session.scalars(
@@ -119,27 +131,44 @@ class SqlAlchemyArtifactGc:
                     ref = self._ref(row.uri)
                     if ref is None or self._is_linked(session, row.id):
                         continue
-                    if (
+                    if self._is_live_run(session, ref):
+                        protected_active += 1
+                        continue
+                    stale_or_missing = (
+                        not self._has_storage(ref)
+                        or self._store.is_stale_run_ref(ref, older_than=cutoff)
+                    )
+                    if not stale_or_missing:
+                        continue
+                    eligible_rows += 1
+                    planned_keys.add(ref.key)
+                    if not dry_run and (
                         not self._has_storage(ref)
                         or self._delete_if_stale(ref, cutoff=cutoff)
                     ):
                         row.transition_to(ArtifactLifecycleState.EXPIRED)
                         expired += 1
 
-        # The storage pass finds both metadata-only and payload-only residue,
-        # including a crash after put() but before inserting a DB row.
+        # Storage-only orphans (including crash after put before DB insert)
+        # receive no more than the remaining per-pass deletion budget.
+        # A dry-run consumes planned slots so its plan respects that same cap.
         untracked = 0
-        remaining = max_batch - expired
+        eligible_untracked = 0
+        remaining = max_batch - eligible_rows
         candidates = (
             self._store.stale_run_refs(
                 older_than=cutoff,
                 max_scan=max_scan,
-                max_results=remaining,
+                max_results=max_batch,
             )
             if remaining else ()
         )
         for ref in candidates:
-            if self._ref(f"artifact://{ref.key}") is None:
+            if eligible_rows + eligible_untracked >= max_batch:
+                break
+            # A dry-run leaves the DB object's bytes in place. Do not
+            # recount it when scanning storage candidates in the same pass.
+            if ref.key in planned_keys or self._ref(f"artifact://{ref.key}") is None:
                 continue
             with self._session_factory() as session:
                 with session.begin():
@@ -148,9 +177,10 @@ class SqlAlchemyArtifactGc:
                         .where(Artifact.uri == f"artifact://{ref.key}")
                         .with_for_update()
                     )
+                    if self._is_live_run(session, ref):
+                        protected_active += 1
+                        continue
                     if candidate is not None:
-                        # A referenced, recently touched, expired, or locked row
-                        # must never be treated as a storage-only orphan.
                         if (
                             candidate.state == ArtifactLifecycleState.REFERENCED.value
                             or candidate.owner_id is not None
@@ -159,20 +189,31 @@ class SqlAlchemyArtifactGc:
                             or self._is_linked(session, candidate.id)
                         ):
                             continue
-                        if self._delete_if_stale(ref, cutoff=cutoff):
-                            if candidate.state in {
-                                ArtifactLifecycleState.TEMPORARY.value,
-                                ArtifactLifecycleState.READY.value,
-                            }:
-                                candidate.transition_to(ArtifactLifecycleState.EXPIRED)
+                    if not self._store.is_stale_run_ref(ref, older_than=cutoff):
+                        continue
+                    if candidate is not None and candidate.state in {
+                        ArtifactLifecycleState.TEMPORARY.value,
+                        ArtifactLifecycleState.READY.value,
+                    }:
+                        eligible_rows += 1
+                        if not dry_run and self._delete_if_stale(ref, cutoff=cutoff):
+                            candidate.transition_to(ArtifactLifecycleState.EXPIRED)
                             expired += 1
-                    elif self._delete_if_stale(ref, cutoff=cutoff):
-                        untracked += 1
+                    else:
+                        # This also includes leftover bytes for an already
+                        # EXPIRED metadata row: count that storage reclamation.
+                        eligible_untracked += 1
+                        if not dry_run and self._delete_if_stale(ref, cutoff=cutoff):
+                            untracked += 1
 
         return ArtifactGcResult(
             expired_rows=expired,
             untracked_keys=untracked,
             examined_candidates=len(candidates),
+            dry_run=dry_run,
+            eligible_rows=eligible_rows,
+            eligible_untracked_keys=eligible_untracked,
+            protected_active=protected_active,
         )
 
     def _has_storage(self, ref: ArtifactRef) -> bool:
@@ -184,6 +225,19 @@ class SqlAlchemyArtifactGc:
         self._store.delete(ref)
         self._store.delete(ArtifactRef(ref.key, state=ArtifactState.READY))
         return True
+
+    @staticmethod
+    def _is_live_run(session: Session, ref: ArtifactRef) -> bool:
+        """A queued/running run may still be publishing even old stage bytes.
+
+        If a run row was already purged after completion, a two-hour-old
+        detached blob may still be cleaned up as an ordinary orphan.
+        """
+        run_id = uuid.UUID(ref.key.split("/", 2)[1])
+        status = session.scalar(
+            select(GenerationRun.status).where(GenerationRun.id == run_id)
+        )
+        return status in {"queued", "running"}
 
     @staticmethod
     def _is_linked(session: Session, artifact_id: uuid.UUID) -> bool:

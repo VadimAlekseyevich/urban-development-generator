@@ -90,6 +90,15 @@ def _running_stage() -> tuple[uuid.UUID, uuid.UUID]:
         return run.id, stage.id
 
 
+def _finish_run(run_id: uuid.UUID) -> None:
+    """Abandoned run-stage bytes are reclaimable after a terminal run."""
+    with SessionFactory() as session:
+        with session.begin():
+            run = session.get(GenerationRun, run_id)
+            assert run is not None
+            run.status = "failed"
+
+
 def _ref(run_id: uuid.UUID, leaf: str = "result.json") -> ArtifactRef:
     return ArtifactRef(f"runs/{run_id}/stages/roads/{leaf}")
 
@@ -265,6 +274,7 @@ def test_gc_expires_stale_temporary_rows_and_storage_only_orphans(
             {"stale": stale, "artifact_id": artifact_id},
         )
 
+    _finish_run(run_id)
     collector = SqlAlchemyArtifactGc(
         store=store, session_factory=SessionFactory
     )
@@ -304,6 +314,7 @@ def test_gc_reconciles_untracked_ready_and_sidecar_only_storage(
     for ref in (ready_ref, partial_ref):
         _age_storage(root, ref, old)
 
+    _finish_run(run_id)
     collected = SqlAlchemyArtifactGc(
         store=store, session_factory=SessionFactory
     ).collect(max_batch=2, max_scan=1000)
@@ -347,6 +358,7 @@ def test_gc_worker_entrypoint_and_limits(tmp_path: Path) -> None:
         ref = _ref(run_id, name)
         store.put(ref, BytesIO(name.encode()))
         _age_storage(root, ref, stale)
+    _finish_run(run_id)
     collector = SqlAlchemyArtifactGc(
         store=store, session_factory=SessionFactory
     )
@@ -369,9 +381,108 @@ def test_gc_worker_entrypoint_and_limits(tmp_path: Path) -> None:
         "expired_rows": 0,
         "untracked_keys": 1,
         "examined_candidates": 1,
+        "dry_run": False,
+        "eligible_rows": 0,
+        "eligible_untracked_keys": 1,
+        "protected_active": 0,
     }
     assert len(store.stale_run_refs(
         older_than=datetime.now(UTC) - timedelta(hours=2),
         max_scan=1000,
         max_results=10,
     )) == 2
+
+
+def test_gc_dry_run_plans_both_sources_without_mutating_rows_or_bytes(
+    tmp_path: Path,
+) -> None:
+    run_id, _ = _running_stage()
+    root = tmp_path / "storage"
+    store = LocalArtifactStore(root)
+    cutoff = datetime.now(UTC) - timedelta(hours=5)
+    owned = _ref(run_id, "unreferenced-db.json")
+    orphan = _ref(run_id, "orphan-no-db.json")
+    stat = store.put(owned, BytesIO(b"db"))
+    store.put(orphan, BytesIO(b"orphan"))
+    _age_storage(root, owned, cutoff)
+    _age_storage(root, orphan, cutoff)
+    with SessionFactory() as session:
+        session.add(Artifact(
+            uri=f"artifact://{owned.key}", checksum=stat.checksum,
+            size_bytes=stat.size_bytes, state="temporary",
+        ))
+        session.commit()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE artifacts SET created_at=:stale, updated_at=:stale "
+                "WHERE uri=:uri"
+            ),
+            {"stale": cutoff, "uri": f"artifact://{owned.key}"},
+        )
+    _finish_run(run_id)
+    gc = SqlAlchemyArtifactGc(store=store, session_factory=SessionFactory)
+    preview = gc.collect(dry_run=True, max_batch=2, max_scan=1000)
+
+    assert preview.dry_run is True
+    assert preview.expired_rows == preview.untracked_keys == 0
+    assert preview.eligible_rows == 1
+    assert preview.eligible_untracked_keys == 1
+    assert preview.eligible_rows + preview.eligible_untracked_keys <= 2
+    assert _published_row(owned.key).state == "temporary"
+    assert store.stat(owned).size_bytes == 2
+    assert store.stat(orphan).size_bytes == 6
+
+    # Fresh adapter = independent scan cursor, as for a restarted worker.
+    executed = SqlAlchemyArtifactGc(
+        store=LocalArtifactStore(root), session_factory=SessionFactory
+    ).collect(dry_run=False, max_batch=2, max_scan=1000)
+    assert executed.expired_rows == 1
+    assert executed.untracked_keys == 1
+    assert executed.eligible_rows == 1
+    assert executed.eligible_untracked_keys == 1
+    assert _published_row(owned.key).state == "expired"
+    assert not store.has_run_ref(owned)
+    assert not store.has_run_ref(orphan)
+
+
+def test_gc_never_reclaims_stale_bytes_of_active_run(tmp_path: Path) -> None:
+    run_id, _ = _running_stage()
+    root = tmp_path / "storage"
+    store = LocalArtifactStore(root)
+    cutoff = datetime.now(UTC) - timedelta(hours=5)
+    ref = _ref(run_id, "slow-running-stage.json")
+    stat = store.put(ref, BytesIO(b"unpublished but in use"))
+    _age_storage(root, ref, cutoff)
+    with SessionFactory() as session:
+        session.add(Artifact(
+            uri=f"artifact://{ref.key}", checksum=stat.checksum,
+            size_bytes=stat.size_bytes, state="temporary",
+        ))
+        session.commit()
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE artifacts SET created_at=:stale, updated_at=:stale WHERE uri=:uri"),
+            {"stale": cutoff, "uri": f"artifact://{ref.key}"},
+        )
+
+    collector = SqlAlchemyArtifactGc(store=store, session_factory=SessionFactory)
+    ignored = collector.collect(max_batch=2, max_scan=1000)
+    assert ignored.protected_active >= 1
+    assert ignored.expired_rows == ignored.untracked_keys == 0
+    assert _published_row(ref.key).state == "temporary"
+    assert store.stat(ref).checksum == stat.checksum
+
+    _finish_run(run_id)
+    finished = collector.collect(max_batch=2, max_scan=1000)
+    assert finished.expired_rows == 1
+    assert not store.has_run_ref(ref)
+
+
+def test_gc_dry_run_rejects_nonboolean_flag(tmp_path: Path) -> None:
+    collector = SqlAlchemyArtifactGc(
+        store=LocalArtifactStore(tmp_path / "storage"),
+        session_factory=SessionFactory,
+    )
+    with pytest.raises(TypeError, match="dry_run"):
+        collector.collect(dry_run=1)  # type: ignore[arg-type]
