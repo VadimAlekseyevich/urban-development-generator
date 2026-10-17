@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-104 / S14-T10
-Add production-like Docker profile with no dev mounts and externalizable dependencies.
+UG-AI-105 / S14-T11
+Run upload/path/SQL/CORS/container-user security hardening audit and targeted fixes.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
