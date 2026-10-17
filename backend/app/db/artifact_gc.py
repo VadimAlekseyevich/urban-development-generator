@@ -106,6 +106,7 @@ class SqlAlchemyArtifactGc:
         expired = 0
         eligible_rows = 0
         protected_active = 0
+        planned_keys: set[str] = set()
         with self._session_factory() as session:
             with session.begin():
                 rows = session.scalars(
@@ -140,6 +141,7 @@ class SqlAlchemyArtifactGc:
                     if not stale_or_missing:
                         continue
                     eligible_rows += 1
+                    planned_keys.add(ref.key)
                     if not dry_run and (
                         not self._has_storage(ref)
                         or self._delete_if_stale(ref, cutoff=cutoff)
@@ -157,12 +159,16 @@ class SqlAlchemyArtifactGc:
             self._store.stale_run_refs(
                 older_than=cutoff,
                 max_scan=max_scan,
-                max_results=remaining,
+                max_results=max_batch,
             )
             if remaining else ()
         )
         for ref in candidates:
-            if self._ref(f"artifact://{ref.key}") is None:
+            if eligible_rows + eligible_untracked >= max_batch:
+                break
+            # A dry-run leaves the DB object's bytes in place. Do not
+            # recount it when scanning storage candidates in the same pass.
+            if ref.key in planned_keys or self._ref(f"artifact://{ref.key}") is None:
                 continue
             with self._session_factory() as session:
                 with session.begin():
