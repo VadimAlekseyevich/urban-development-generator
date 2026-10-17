@@ -1,11 +1,13 @@
 import asyncio
 import uuid
+from datetime import timedelta
 from functools import lru_cache
 from typing import Any, cast
 
 from arq import Retry
 
 from backend.app.adapters import get_runtime_artifact_store
+from backend.app.core.config import settings
 from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
@@ -295,7 +297,17 @@ async def gc_orphan_artifacts(ctx: dict[str, Any]) -> dict[str, int]:
         if override is not None
         else _build_artifact_gc()
     )
-    result = await asyncio.to_thread(collector.collect)
+    # Preserve injected collectors' existing no-arg integration seam.
+    if override is not None:
+        result = await asyncio.to_thread(collector.collect)
+    else:
+        result = await asyncio.to_thread(
+            collector.collect,
+            min_age=timedelta(hours=settings.artifact_gc_min_age_hours),
+            max_batch=settings.artifact_gc_max_batch,
+            max_scan=settings.artifact_gc_max_scan,
+            dry_run=settings.artifact_gc_dry_run,
+        )
     return {
         "expired_rows": result.expired_rows,
         "untracked_keys": result.untracked_keys,
