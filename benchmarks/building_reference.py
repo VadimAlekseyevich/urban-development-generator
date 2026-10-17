@@ -78,6 +78,11 @@ class BuildingBenchmarkResult:
     target_coverage_ratio: float
     target_far: float
     accepted_count: int
+    proposal_count: int
+    placement_iteration_count: int
+    spacing_rejected_count: int
+    target_window_rejected_count: int
+    proposal_creation_ms: float
     placement_ms: float
     attribute_assignment_ms: float
     area_metrics_ms: float
@@ -149,7 +154,9 @@ def _proposals(
 def run_reference_building_benchmark(
     config: BuildingBenchmarkConfig,
 ) -> BuildingBenchmarkResult:
+    proposals_started = perf_counter_ns()
     proposals = _proposals(config)
+    proposals_finished = perf_counter_ns()
     footprint_area = config.footprint_size_m**2
     site_area_m2 = config.building_count * config.cell_size_m**2
     target_coverage = config.building_count * footprint_area / site_area_m2
@@ -251,6 +258,11 @@ def run_reference_building_benchmark(
         target_coverage_ratio=target_coverage,
         target_far=target_far,
         accepted_count=placement.diagnostics.accepted_count,
+        proposal_count=placement.diagnostics.proposal_count,
+        placement_iteration_count=placement.diagnostics.iteration_count,
+        spacing_rejected_count=placement.diagnostics.spacing_rejected_count,
+        target_window_rejected_count=placement.diagnostics.target_window_rejected_count,
+        proposal_creation_ms=_elapsed_ms(proposals_started, proposals_finished),
         placement_ms=_elapsed_ms(placement_started, placement_finished),
         attribute_assignment_ms=_elapsed_ms(
             assignment_started,
