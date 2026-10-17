@@ -381,6 +381,10 @@ def test_gc_worker_entrypoint_and_limits(tmp_path: Path) -> None:
         "expired_rows": 0,
         "untracked_keys": 1,
         "examined_candidates": 1,
+        "dry_run": False,
+        "eligible_rows": 0,
+        "eligible_untracked_keys": 1,
+        "protected_active": 0,
     }
     assert len(store.stale_run_refs(
         older_than=datetime.now(UTC) - timedelta(hours=2),
