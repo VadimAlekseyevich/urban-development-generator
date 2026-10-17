@@ -13,12 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.db.session import SessionLocal
-from backend.app.models.generation_run import GenerationRun
 from backend.app.models.artifact import (
     Artifact,
     ArtifactLifecycleState,
     run_stage_result_artifacts,
 )
+from backend.app.models.generation_run import GenerationRun
 from core.urban_generator.domain import ArtifactRef, ArtifactState
 
 
@@ -140,9 +140,10 @@ class SqlAlchemyArtifactGc:
                     if not stale_or_missing:
                         continue
                     eligible_rows += 1
-                    if not dry_run:
-                        if self._has_storage(ref):
-                            self._delete_if_stale(ref, cutoff=cutoff)
+                    if not dry_run and (
+                        not self._has_storage(ref)
+                        or self._delete_if_stale(ref, cutoff=cutoff)
+                    ):
                         row.transition_to(ArtifactLifecycleState.EXPIRED)
                         expired += 1
 
@@ -189,16 +190,14 @@ class SqlAlchemyArtifactGc:
                         ArtifactLifecycleState.READY.value,
                     }:
                         eligible_rows += 1
-                        if not dry_run:
-                            self._delete_if_stale(ref, cutoff=cutoff)
+                        if not dry_run and self._delete_if_stale(ref, cutoff=cutoff):
                             candidate.transition_to(ArtifactLifecycleState.EXPIRED)
                             expired += 1
                     else:
                         # This also includes leftover bytes for an already
                         # EXPIRED metadata row: count that storage reclamation.
                         eligible_untracked += 1
-                        if not dry_run:
-                            self._delete_if_stale(ref, cutoff=cutoff)
+                        if not dry_run and self._delete_if_stale(ref, cutoff=cutoff):
                             untracked += 1
 
         return ArtifactGcResult(
