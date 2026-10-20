@@ -73,21 +73,21 @@ jobs:
           path: /tmp/udg-raster-memory.json
           if-no-files-found: ignore
           retention-days: 14
-      - name: S3 ArtifactStore MinIO contract smoke
+      - name: S3 ArtifactStore pinned SILO-compatible server contract smoke
         run: |
-          # Run the pinned published binary image. Building MinIO from Git
-          # fetches hundreds of Go modules and can fail independently of the
-          # S3 contract (as on main CI run 39482587790).
-          docker run --detach --name udg-minio-contract --network host \
+          # Upstream MinIO Docker Hub and Quay images became anonymously
+          # inaccessible in September 2026. Use a maintained, digest-pinned
+          # S3/MinIO-compatible open-source fork, with bundled mcli.
+          docker run --detach --name udg-silo-contract --network host \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z \
+            docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46 \
             server /data
-          trap 'docker logs udg-minio-contract || true; docker rm -f udg-minio-contract >/dev/null 2>&1 || true' EXIT
+          trap 'docker logs udg-silo-contract || true; docker rm -f udg-silo-contract >/dev/null 2>&1 || true' EXIT
           timeout 90 bash -c 'until curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; do sleep 2; done'
-          docker run --rm --network host --entrypoint /bin/sh \
-            quay.io/minio/aistor/mc:latest -c \
-            'mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && mc mb --ignore-existing local/udg-artifacts'
+          docker exec udg-silo-contract mcli alias set local \
+            http://127.0.0.1:9000 minioadmin minioadmin
+          docker exec udg-silo-contract mcli mb --ignore-existing local/udg-artifacts
           MINIO_TEST_ENDPOINT_URL=http://127.0.0.1:9000 \
           MINIO_TEST_BUCKET=udg-artifacts \
           MINIO_TEST_ACCESS_KEY=minioadmin \
