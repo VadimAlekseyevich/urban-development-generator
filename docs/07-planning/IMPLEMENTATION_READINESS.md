@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-105 / S14-T11
-Run upload/path/SQL/CORS/container-user security hardening audit and targeted fixes.
+UG-AI-107 / S14-T13
+Harden migration-from-zero CI across full release integration matrix; do not duplicate existing smoke only.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.

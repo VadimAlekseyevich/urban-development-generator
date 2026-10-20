@@ -278,6 +278,42 @@ jobs:
           uv run alembic downgrade base
           uv run alembic upgrade head
 
+
+      - name: S14 isolated PostGIS metadata dump/restore smoke
+        run: |
+          set -euo pipefail
+          uv run python -m scripts.metadata_restore_smoke prepare \
+            --manifest /tmp/udg-db-restore-manifest.json
+
+          # Clients run from the same PostgreSQL 16 major as the CI server.
+          # Only synthetic fixture metadata is archived; never publish a
+          # database dump as a GitHub Actions artifact.
+          docker run --rm --network host -e PGPASSWORD=urban \
+            -v /tmp:/backup --entrypoint pg_dump postgis/postgis:16-3.4 \
+            -h 127.0.0.1 -U urban -d urban_generator -Fc \
+            --no-owner --no-acl -f /backup/udg-metadata.dump
+
+          cleanup() {
+            docker run --rm --network host -e PGPASSWORD=urban \
+              --entrypoint dropdb postgis/postgis:16-3.4 \
+              -h 127.0.0.1 -U urban --if-exists urban_generator_restore_smoke \
+              >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --rm --network host -e PGPASSWORD=urban \
+            --entrypoint createdb postgis/postgis:16-3.4 \
+            -h 127.0.0.1 -U urban -T template0 urban_generator_restore_smoke
+          docker run --rm --network host -e PGPASSWORD=urban \
+            -v /tmp:/backup --entrypoint pg_restore postgis/postgis:16-3.4 \
+            -h 127.0.0.1 -U urban -d urban_generator_restore_smoke \
+            --no-owner --no-acl --exit-on-error /backup/udg-metadata.dump
+
+          DATABASE_URL=postgresql+psycopg://urban:urban@127.0.0.1:5432/urban_generator_restore_smoke \
+            uv run python -m scripts.metadata_restore_smoke verify \
+            --manifest /tmp/udg-db-restore-manifest.json \
+            --expected-database urban_generator_restore_smoke
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
