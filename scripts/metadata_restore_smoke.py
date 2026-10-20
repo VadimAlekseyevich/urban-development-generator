@@ -75,7 +75,7 @@ def prepare(*, database_url: str, manifest_path: Path) -> dict[str, object]:
                 text(
                     "INSERT INTO dataset_versions "
                     "(id, dataset_id, version, status, checksum_sha256, source_metadata) "
-                    "VALUES (:id, :dataset, 1, 'ready', :digest, "
+                    "VALUES (:id, :dataset, 1, 'processing', :digest, "
                     "CAST(:metadata AS jsonb))"
                 ),
                 {
@@ -97,12 +97,17 @@ def prepare(*, database_url: str, manifest_path: Path) -> dict[str, object]:
                 ),
                 {"id": ids["road"], "version": ids["version"]},
             )
+            # Readiness is terminal; insert the source layer before sealing it.
+            conn.execute(
+                text("UPDATE dataset_versions SET status='ready' WHERE id=:id"),
+                {"id": ids["version"]},
+            )
             conn.execute(
                 text(
                     "INSERT INTO generation_runs "
                     "(id, project_id, status, mode, seed, working_srid, config_json, "
                     "config_schema_version, commit_sha, metrics_json) "
-                    "VALUES (:id, :project, 'succeeded', 'EXPANSION', 42, 3857, "
+                    "VALUES (:id, :project, 'running', 'EXPANSION', 42, 3857, "
                     "'{}'::jsonb, '1', :commit, '{\"roads.length_density_km_per_km2\": 1}'::jsonb)"
                 ),
                 {
@@ -185,6 +190,10 @@ def prepare(*, database_url: str, manifest_path: Path) -> dict[str, object]:
                         "task": "run_generation", "run_id": ids["run"],
                     }),
                 },
+            )
+            conn.execute(
+                text("UPDATE generation_runs SET status='succeeded' WHERE id=:id"),
+                {"id": ids["run"]},
             )
     finally:
         engine.dispose()
