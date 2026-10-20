@@ -143,7 +143,7 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 - [x] **UG-AI-104** — **S14-T10** — Add production-like Docker profile with no dev mounts and externalizable dependencies.
 - [x] **UG-AI-105** — **S14-T11** — Run upload/path/SQL/CORS/container-user security hardening audit and targeted fixes.
 - [x] **UG-AI-106** — **S14-T12** — Add documented metadata DB dump/restore smoke preserving external-artifact references.
-- [ ] **UG-AI-107** — **S14-T13** — Harden migration-from-zero CI across full release integration matrix; do not duplicate existing smoke only.
+- [x] **UG-AI-107** — **S14-T13** — Harden migration-from-zero CI across full release integration matrix; do not duplicate existing smoke only.
 - [ ] **UG-AI-108** — **S14-T14** — Add worker crash/duplicate delivery/retry/cancel/stale checkpoint/orphan artifact reliability E2E.
 - [ ] **UG-AI-109** — **S14-T15** — Synchronize deployment/troubleshooting/invariants/benchmark reproduction docs with measured system.
 - [ ] **UG-AI-110** — **S15-T01** — Implement experiment matrix schema that creates normal ScenarioBatch/runs rather than a parallel execution path.
