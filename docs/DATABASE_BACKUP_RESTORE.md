@@ -115,7 +115,8 @@ pg_restore -h 127.0.0.1 -U urban -d urban_generator_restore_smoke \
   --no-owner --no-acl --exit-on-error /tmp/udg-metadata.dump
 DATABASE_URL=postgresql+psycopg://urban@127.0.0.1:5432/urban_generator_restore_smoke \
   uv run python -m scripts.metadata_restore_smoke verify \
-  --manifest /tmp/udg-db-restore-manifest.json
+  --manifest /tmp/udg-db-restore-manifest.json \
+  --expected-database urban_generator_restore_smoke
 ```
 
 **Scope:** This is an isolated *database-only* regression smoke, not an S3
