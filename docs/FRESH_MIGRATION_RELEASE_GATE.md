@@ -70,7 +70,7 @@ S3 job failed while downloading/compiling MinIO dependencies. This was not
 evidence of an S3 adapter contract failure.
 
 The S3 step now runs the **published pinned**
-`minio/minio:RELEASE.2025-05-24T17-08-30Z` OCI image and uses the
+`quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z` OCI image and uses the
 same health check, test bucket and real adapter contract as before.
 It never silently skips the MinIO test when the dependency is unavailable;
 the job remains red if the container cannot be started or S3 operations fail.
