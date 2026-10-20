@@ -311,7 +311,8 @@ jobs:
 
           DATABASE_URL=postgresql+psycopg://urban:urban@127.0.0.1:5432/urban_generator_restore_smoke \
             uv run python -m scripts.metadata_restore_smoke verify \
-            --manifest /tmp/udg-db-restore-manifest.json
+            --manifest /tmp/udg-db-restore-manifest.json \
+            --expected-database urban_generator_restore_smoke
 
   frontend:
     runs-on: ubuntu-latest
