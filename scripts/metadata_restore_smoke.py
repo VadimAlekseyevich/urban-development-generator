@@ -205,7 +205,7 @@ def prepare(*, database_url: str, manifest_path: Path) -> dict[str, object]:
     return manifest
 
 
-def verify(*, database_url: str, manifest_path: Path) -> dict[str, object]:
+def verify(\n    *, database_url: str, manifest_path: Path, expected_database: str\n) -> dict[str, object]:
     """Fail closed when any ownership, checksum, spatial or migration link drifts."""
     manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != SCHEMA:
@@ -215,6 +215,12 @@ def verify(*, database_url: str, manifest_path: Path) -> dict[str, object]:
     engine = create_engine(database_url, pool_pre_ping=True)
     try:
         with engine.connect() as conn:
+            current_database = conn.execute(text("SELECT current_database()")).scalar_one()
+            if current_database != expected_database:
+                raise ValueError(
+                    "restore verification must target the isolated database: "
+                    f"{current_database!r} != {expected_database!r}"
+                )
             row = conn.execute(
                 text(
                     "SELECT p.working_srid, ST_Area(p.boundary), "
@@ -308,12 +314,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "verify"))
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--expected-database")
     args = parser.parse_args()
     if args.action == "prepare":
         report = prepare(database_url=settings.database_url, manifest_path=args.manifest)
         print(json.dumps({"schema": report["schema"], "prepared": True}))
     else:
-        result = verify(database_url=settings.database_url, manifest_path=args.manifest)
+        if not args.expected_database:
+            parser.error("--expected-database is required for verify")
+        result = verify(
+            database_url=settings.database_url, manifest_path=args.manifest,
+            expected_database=args.expected_database,
+        )
         print(json.dumps(result, sort_keys=True))
 
 
