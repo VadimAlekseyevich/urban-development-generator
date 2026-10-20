@@ -81,7 +81,7 @@ jobs:
           docker run --detach --name udg-minio-contract --network host \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:RELEASE.2025-05-24T17-08-30Z \
+            quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z \
             server /data
           trap 'docker logs udg-minio-contract || true; docker rm -f udg-minio-contract >/dev/null 2>&1 || true' EXIT
           timeout 90 bash -c 'until curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; do sleep 2; done'
