@@ -37,7 +37,11 @@ def test_restore_verification_rejects_wrong_manifest_schema(
     manifest = tmp_path / "restore.json"
     manifest.write_text(json.dumps({"schema": schema}), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest schema"):
-        verify(database_url="not-a-postgres-url", manifest_path=manifest)
+        verify(
+            database_url="not-a-postgres-url",
+            manifest_path=manifest,
+            expected_database="urban_generator_restore_smoke",
+        )
 
 
 def test_restore_schema_identifier_is_fixed() -> None:
