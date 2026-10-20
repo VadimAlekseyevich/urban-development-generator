@@ -205,7 +205,9 @@ def prepare(*, database_url: str, manifest_path: Path) -> dict[str, object]:
     return manifest
 
 
-def verify(\n    *, database_url: str, manifest_path: Path, expected_database: str\n) -> dict[str, object]:
+def verify(
+    *, database_url: str, manifest_path: Path, expected_database: str
+) -> dict[str, object]:
     """Fail closed when any ownership, checksum, spatial or migration link drifts."""
     manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != SCHEMA:
