@@ -38,7 +38,8 @@ and an **S3-compatible object store**. They are *not* launched here.
 ```sh
 cp .env.production.example .env.production
 # Edit .env.production: DATABASE_URL, REDIS_URL, S3_* credentials,
-# METRICS_BEARER_TOKEN, CORS_ORIGINS and external endpoints.
+# METRICS_BEARER_TOKEN and external endpoints. Keep CORS_ORIGINS empty
+# for the same-origin nginx frontend; if needed, use explicit HTTPS origins.
 chmod 600 .env.production
 docker compose --env-file .env.production -f compose.production.yml config --quiet
 docker compose --env-file .env.production -f compose.production.yml up -d --build
@@ -93,4 +94,5 @@ rollout. Existing S14 `JOB_ADMISSION`, `WORKER_QUEUES`,
 **Non-goals:** no embedded external dependencies, automated DNS/TLS,
 cluster autoscaling, Kubernetes manifests, completed auth model, secrets
 manager, database backup service, guaranteed Stage execution or load-test SLO.
-Later UG-AI-105 must audit upload/path/SQL/CORS/container hardening.
+The scoped UG-AI-105 security assessment, safeguards and outstanding risks are in
+[SECURITY_AUDIT_S14_T11.md](SECURITY_AUDIT_S14_T11.md).

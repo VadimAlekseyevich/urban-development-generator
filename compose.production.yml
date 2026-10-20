@@ -102,6 +102,7 @@ services:
         condition: service_completed_successfully
 
   frontend:
+    user: "101:101"  # nginx-unprivileged runtime identity, never root
     build:
       context: .
       dockerfile: docker/frontend.production.Dockerfile
