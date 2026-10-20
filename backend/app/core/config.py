@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -51,6 +52,51 @@ class Settings(BaseSettings):
         if not value:
             raise ValueError("value must not be empty")
         return value
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, value: str) -> str:
+        """Reject wildcard, opaque, credential-bearing and malformed browser origins."""
+        for origin in (part.strip() for part in value.split(",")):
+            if not origin:
+                continue
+            try:
+                parsed = urlsplit(origin)
+                port = parsed.port
+            except ValueError as exc:
+                raise ValueError("CORS_ORIGINS contains an invalid origin") from exc
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or any(character.isspace() for character in parsed.netloc)
+                or "*" in parsed.netloc
+                or parsed.netloc.endswith(":")
+                or port == 0
+                or origin != f"{parsed.scheme}://{parsed.netloc}"
+            ):
+                raise ValueError(
+                    "CORS_ORIGINS requires exact http(s) origins without paths or wildcards"
+                )
+        return value
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Self:
+        if self.app_env.casefold() != "production":
+            return self
+        if self.app_debug:
+            raise ValueError("APP_DEBUG must be false in production")
+        for origin in self.cors_origin_list:
+            parsed = urlsplit(origin)
+            if parsed.scheme != "https" and parsed.hostname not in {
+                "localhost", "127.0.0.1", "::1"
+            }:
+                raise ValueError("production CORS_ORIGINS requires HTTPS for remote origins")
+        return self
 
     @field_validator("metrics_bearer_token")
     @classmethod
