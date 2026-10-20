@@ -99,8 +99,8 @@ Before starting an AI task:
 ## 7. Current next action
 
 ```text
-UG-AI-107 / S14-T13
-Harden migration-from-zero CI across full release integration matrix; do not duplicate existing smoke only.
+UG-AI-108 / S14-T14
+Add worker crash/duplicate delivery/retry/cancel/stale checkpoint/orphan artifact reliability E2E.
 ```
 
 Feature work may resume only through this ordered backlog; do not skip directly to a later item.
