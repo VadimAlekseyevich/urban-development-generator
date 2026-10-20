@@ -69,11 +69,20 @@ all application Python tests, frontend, Compose and browser passed, but the
 S3 job failed while downloading/compiling MinIO dependencies. This was not
 evidence of an S3 adapter contract failure.
 
-The S3 step now runs the **published pinned**
-`quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z` OCI image and uses the
-same health check, test bucket and real adapter contract as before.
-It never silently skips the MinIO test when the dependency is unavailable;
-the job remains red if the container cannot be started or S3 operations fail.
+Both historical `minio/minio` (Docker Hub) and
+`quay.io/minio/minio` subsequently returned authentication errors to
+anonymous CI runners. We therefore run the **maintained AGPL S3-compatible
+SILO fork**, pinned to the published `RELEASE.2026-09-16T00-00-00Z`
+**and manifest SHA-256** in `docker.io/pgsty/silo`. This preserves the
+relevant MinIO-compatible S3 API and uses `mcli` bundled in the same
+container, avoiding another unauthenticated third-party image pull.
+The canonical `S3ArtifactStore` test still creates, promotes, reads,
+deletes and checks immutable content against a **real S3 service**, not a
+mock. The old integration test file retains its historical `_minio`
+name for compatibility, but **this gate no longer tests the original
+MinIO server binary**. Reintroducing genuine upstream MinIO execution
+would require a separately available, independently verified image or
+binary. The job remains red if the server or adapter operations fail.
 
 ## Remaining risks
 
