@@ -314,6 +314,87 @@ jobs:
             --manifest /tmp/udg-db-restore-manifest.json \
             --expected-database urban_generator_restore_smoke
 
+
+  release-migration-from-zero:
+    # Distinct from the Python job's historical upgrade/downgrade smoke:
+    # the entire integration test matrix starts on a brand-new template0 DB.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: urban_generator
+          POSTGRES_USER: urban
+          POSTGRES_PASSWORD: urban
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U urban -d urban_generator"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://urban:urban@127.0.0.1:5432/urban_generator_release_gate
+      REDIS_URL: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.13'
+          python-version: '3.12'
+          enable-cache: true
+      - run: uv sync --frozen --dev
+      - name: Create genuinely empty independent PostGIS database
+        run: |
+          uv run python - <<'PY'
+          import psycopg
+          with psycopg.connect(
+              "postgresql://urban:urban@127.0.0.1:5432/postgres",
+              autocommit=True,
+          ) as connection:
+              connection.execute(
+                  "CREATE DATABASE urban_generator_release_gate TEMPLATE template0"
+              )
+          PY
+          uv run python -m scripts.fresh_migration_gate \
+            --phase empty --expected-database urban_generator_release_gate \
+            --output /tmp/udg-release-migration-empty.json
+      - name: Migrate from zero and verify production ORM/schema/PostGIS contracts
+        run: |
+          uv run alembic upgrade head
+          uv run python -m scripts.fresh_migration_gate \
+            --phase migrated --expected-database urban_generator_release_gate \
+            --output /tmp/udg-release-migration-head.json
+      - name: Run full release integration suite against freshly migrated database
+        run: uv run pytest tests/integration
+      - name: Verify integration suite did not drift the Alembic head
+        run: |
+          uv run alembic upgrade head
+          uv run python -m scripts.fresh_migration_gate \
+            --phase migrated --expected-database urban_generator_release_gate \
+            --output /tmp/udg-release-migration-after-tests.json
+      - name: Save migration-from-zero evidence (no database dump)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-release-migration-evidence
+          path: |
+            /tmp/udg-release-migration-empty.json
+            /tmp/udg-release-migration-head.json
+            /tmp/udg-release-migration-after-tests.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
