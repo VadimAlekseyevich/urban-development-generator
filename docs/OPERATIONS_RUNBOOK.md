@@ -106,7 +106,21 @@ delivery cannot safely redo a partially written GIS stage. Follow
 [generation crash recovery](GENERATION_CRASH_RECOVERY.md): explicit
 worker-stop confirmation, inactivity cutoff, terminalization without
 replay, and separate orphan cleanup. This recovery remains conditional
-on PR #196 being integrated into the deployed commit.
+on PR #196 being integrated into the deployed commit. A preview does
+**not** query or mutate the DB. To execute, first verify all generation
+worker replicas have stopped and no old process can resume:
+
+```sh
+uv run python -m worker.recover_interrupted_generation \
+  --run-id 00000000-0000-0000-0000-000000000000 --stale-minutes 60
+# Only after checking the actual run ID and stopping *all* workers:
+uv run python -m worker.recover_interrupted_generation \
+  --run-id 00000000-0000-0000-0000-000000000000 --stale-minutes 60 \
+  --confirm-workers-stopped --execute
+```
+
+Never use the example zero UUID on a real system. A stale timestamp
+and explicit CLI flags cannot independently prove a process is dead.
 
 Internal \`/internal/metrics\` is disabled by default (404); a distinct
 32+ character token enables private bearer access (401 invalid token,
