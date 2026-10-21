@@ -888,9 +888,9 @@ def test_crash_before_stage_keeps_duplicate_delivery_safe_and_is_recoverable(
     assert job.error_json is not None and job.error_json["retryable"] is False
     assert job.attempt_count == 1
     assert not stages and not probe.calls
-    # A duplicate ARQ delivery cannot restart an abandoned attempt.
+    # A duplicate worker delivery cannot restart an abandoned attempt.
     with pytest.raises(GenerationTaskFailed):
-        asyncio.run(run_generation({}, str(run_id)))
+        _invoke(run_id, _factory(tmp_path, probe))
 
 
 def test_crash_mid_dag_preserves_completed_provenance_and_reclaims_orphan(
