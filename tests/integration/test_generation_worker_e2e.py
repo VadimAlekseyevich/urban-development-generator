@@ -31,6 +31,7 @@ from backend.app.application.checkpoints import (
     build_resolved_input_hash,
 )
 from backend.app.application.generation import (
+    GenerationExecutionError,
     GenerationJobService,
     GenerationRetryScheduled,
     StageInvocation,
