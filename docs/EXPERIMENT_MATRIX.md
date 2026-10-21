@@ -97,7 +97,7 @@ Do not submit untrusted manifests against a production API account.
 ## Acceptance and limits
 
 \`\`\`sh
-uv run pytest tests/unit/test_experiment_matrix.py
+uv run pytest tests/unit/test_experiment_manifest.py
 uv run pytest tests/integration/test_experiment_matrix.py
 uv run ruff check .
 uv run mypy backend core worker
