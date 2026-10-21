@@ -170,4 +170,6 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..090 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-091 / S13-T11. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..090 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The earliest unchecked item is UG-AI-108 / S14-T14 (PR #196, required CI green,
+review pending); UG-AI-109 / S14-T15 is stacked documentation. Neither task is
+complete merely because its PR exists. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

@@ -96,3 +96,7 @@ cluster autoscaling, Kubernetes manifests, completed auth model, secrets
 manager, database backup service, guaranteed Stage execution or load-test SLO.
 The scoped UG-AI-105 security assessment, safeguards and outstanding risks are in
 [SECURITY_AUDIT_S14_T11.md](SECURITY_AUDIT_S14_T11.md).
+
+For cross-service troubleshooting, failure recovery order and measured benchmark
+reproduction, see the [operations runbook](OPERATIONS_RUNBOOK.md). This document
+remains the canonical owner of the production Compose deployment contract.

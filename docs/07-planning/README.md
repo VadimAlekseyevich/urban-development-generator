@@ -1,6 +1,7 @@
 # 07 — Planning
 
-> **Current gate:** M0 complete; feature development resumed at UG-AI-015 / S10-T06
+> **Current gate:** UG-AI-107 merged; UG-AI-108 (PR #196) passed CI, awaits review.
+> UG-AI-109 documentation is stacked on that branch. M5 and M6 remain open.
 >
 > Stabilization evidence commit: `39eaa1688e06669b0e01e999304710873fd9cf0e`
 >
@@ -20,4 +21,7 @@
 
 Capability roadmap remains at `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
 
-The next implementation request must start from **UG-AI-015**, not from a broad sprint prompt.
+Follow the earliest unchecked item in `AI_EXECUTION_TASKS.md`. Do not
+skip UG-AI-108 review/merge because UG-AI-109 documentation is available
+in a stacked PR. For deployment, troubleshooting and benchmark reproduction
+see [the operations runbook](../OPERATIONS_RUNBOOK.md).
