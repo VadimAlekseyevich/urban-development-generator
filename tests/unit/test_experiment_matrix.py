@@ -106,7 +106,10 @@ def test_scenario_specs_are_normal_full_config_matrix_inputs() -> None:
     with pytest.raises(ExperimentMatrixError, match="unknown"):
         manifest.territory("missing")
     with pytest.raises(ExperimentMatrixError, match="does not belong"):
-        manifest.to_scenario_spec(_load({**_payload(), "experiment_id": "other"}).territories[0])
+        manifest.to_scenario_spec(_load({**_payload(), "territories": [{
+            "name": "other", "project_id": "00000000-0000-0000-0000-000000000099",
+            "mode": "EXPANSION", "dataset_version_ids": [VERSION_A],
+        }]}).territories[0])
 
 
 @pytest.mark.parametrize(
