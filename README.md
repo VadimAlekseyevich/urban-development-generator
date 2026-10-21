@@ -146,6 +146,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/OPERATIONAL_METRICS.md` — S14 disabled-by-default token-guarded Prometheus DB/Redis operational telemetry;
 - `docs/DB_QUERY_PROFILING.md` and `docs/RASTER_MEMORY_PROFILING.md` — S14 measured SQL/PostGIS plans and raster peak memory/streamed fingerprints;
 - `docs/ROAD_HOTPATH_PROFILING.md` — S14 repeated noding/snap/routing performance and bounded-work counters, archived as CI JSON;
+- `docs/EXPERIMENT_MATRIX.md` — S15 versioned territory × config × ablation × seed manifest, canonical ScenarioBatch submission and limitations;
 - `docs/TERRITORY_COMPOSITE_PROFILING.md` — S14 reproducible 25/100 km² composite reference workloads, machine metadata and budgets;
 - `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
 - `docs/ARCHITECTURE.md` — стабильные системные границы;
