@@ -31,7 +31,7 @@ from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import StageResult
-from core.urban_generator.domain.errors import CancelledError, UrbanGeneratorError
+from core.urban_generator.domain.errors import CancelledError, TransientError, UrbanGeneratorError
 from core.urban_generator.stages.registry import StageAny, StageSkipReason
 
 _GENERATION_JOB_TYPE = "generation_run"
@@ -105,6 +105,106 @@ class SqlAlchemyGenerationStateStore:
                 job.error_code = None
                 job.error_json = None
                 return GenerationClaimDisposition.STARTED
+
+    def finalize_abandoned(
+        self,
+        *,
+        run_id: uuid.UUID,
+        stale_before: datetime,
+        workers_stopped: bool,
+    ) -> str:
+        """Operator-fenced recovery after a worker has actually been terminated.
+
+        No automatic timeout is safe without heartbeats and a fenced execution
+        token: a legitimate long-running GIS stage could still be writing bytes.
+        The operator must stop the relevant workers before invoking this method.
+        We always close the old attempt, NEVER replay stages or re-dispatch a
+        possibly already accepted Redis job. A manual retry creates a NEW run.
+        """
+        if workers_stopped is not True:
+            raise ValueError("confirm all generation workers are stopped before recovery")
+        if stale_before.tzinfo is None or stale_before.utcoffset() is None:
+            raise ValueError("stale_before must be timezone-aware")
+        now = self._clock()
+        if stale_before > now:
+            raise ValueError("stale_before cannot be in the future")
+
+        with self._session_factory() as session:
+            with session.begin():
+                run = self._run(session, run_id)
+                job = self._job(session, run)
+                if run.status == job.status and run.status in {
+                    "succeeded", "failed", "cancelled"
+                }:
+                    return run.status
+                if run.status != "running" or job.status != "running":
+                    raise GenerationExecutionError(
+                        "recovery requires matching running run and job states"
+                    )
+                stages = session.scalars(
+                    select(RunStageResult)
+                    .where(RunStageResult.run_id == run_id)
+                    .order_by(RunStageResult.stage_name)
+                    .with_for_update()
+                ).all()
+                timestamps = [run.started_at, job.started_at]
+                timestamps.extend(stage.updated_at for stage in stages)
+                if any(
+                    stamp is None or stamp > stale_before
+                    for stamp in timestamps
+                ):
+                    raise GenerationExecutionError(
+                        "run has recent or unknown persisted activity; refuse recovery"
+                    )
+                active_stages = [stage for stage in stages if stage.status == "running"]
+                if len(active_stages) > 1:
+                    raise GenerationExecutionError(
+                        "multiple active stages require manual investigation"
+                    )
+                active = active_stages[0] if active_stages else None
+                stage_name = active.stage_name if active is not None else "assembly"
+                was_cancelled = job.cancel_requested_at is not None
+
+                if active is not None:
+                    active.status = "cancelled" if was_cancelled else "failed"
+                    active.finished_at = now
+                    active.output_fingerprint = None
+                    active.diagnostics_json = [
+                        {
+                            "code": (
+                                "stage.cancelled"
+                                if was_cancelled else "stage.worker_interrupted"
+                            ),
+                            "message": (
+                                "generation cancellation requested"
+                                if was_cancelled else "worker stopped without stage completion"
+                            ),
+                            "level": "INFO" if was_cancelled else "ERROR",
+                        }
+                    ]
+
+                if was_cancelled:
+                    self._set_cancelled(run, job, stage_name=stage_name, now=now)
+                    return "cancelled"
+
+                error = TransientError(
+                    "generation worker interrupted; manual retry requires a new run",
+                    details={"stage_name": stage_name, "recovery": "operator_confirmed"},
+                )
+                run.status = "failed"
+                run.finished_at = now
+                run.error_json = {
+                    "error_class": error.category.value,
+                    "error_code": error.code.value,
+                    "message": error.message,
+                    "details": dict(error.details),
+                    "retryable": False,
+                }
+                job.record_failure(error)
+                assert job.error_json is not None
+                job.error_json = {**job.error_json, "retryable": False}
+                job.finished_at = now
+                return "failed"
 
     def request_cancel(self, *, run_id: uuid.UUID) -> bool:
         """Persist a one-way request; queued runs can be cancelled immediately.
