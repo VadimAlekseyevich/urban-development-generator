@@ -29,7 +29,7 @@ from core.urban_generator.domain import RunMode
 
 EXPERIMENT_SCHEMA_VERSION = "s15-experiment-matrix-v1"
 MAX_TERRITORIES = 4
-_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,23}$"
+_NAME_PATTERN = r"^[a-z](?:[a-z0-9]|_[a-z0-9]|-[a-z0-9])*$"
 _EXPERIMENT_ID_PATTERN = r"^[a-z][a-z0-9_-]{0,63}$"
 
 
@@ -42,7 +42,7 @@ class ExperimentTerritory(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    name: str = Field(pattern=_NAME_PATTERN)
+    name: str = Field(max_length=24, pattern=_NAME_PATTERN)
     project_id: uuid.UUID
     mode: RunMode
     dataset_version_ids: tuple[uuid.UUID, ...]
@@ -53,8 +53,8 @@ class ExperimentCell(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    config_name: str = Field(pattern=_NAME_PATTERN)
-    ablation_name: str = Field(pattern=_NAME_PATTERN)
+    config_name: str = Field(max_length=24, pattern=_NAME_PATTERN)
+    ablation_name: str = Field(max_length=24, pattern=_NAME_PATTERN)
     config_json: dict[str, Any]
 
     def canonical_variant(self) -> ScenarioConfigVariant:
