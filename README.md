@@ -64,6 +64,8 @@ curl http://localhost:8000/api/v1/health/ready
 непривилегированными контейнерами используйте `compose.production.yml`;
 сохраните секреты в локальном `.env.production`, не публикуйте их в Git.
 Подробности: [docs/PRODUCTION_COMPOSE.md](docs/PRODUCTION_COMPOSE.md).
+Практические команды эксплуатации, диагностика очередей, восстановление и профили:
+[docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
 
 ## Разработка
 
@@ -100,7 +102,7 @@ npm run dev
 
 ## Quality gates
 
-Required CI проверяет Python lint/typecheck/tests, полный Alembic `upgrade → downgrade → upgrade`, frontend typecheck/build и smoke-запуск полного Docker Compose stack. Work item не считается завершённым при красном HEAD CI.
+Required CI проверяет Python lint/typecheck/tests, Alembic `upgrade → downgrade → upgrade`, frontend typecheck/build, browser Playwright, dev/production-like Compose smoke и отдельный fresh-PostGIS migration/integration gate. Work item не считается завершённым при красном HEAD CI.
 
 ## Документация
 
@@ -124,6 +126,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/VIOLATIONS_LAYER.md` — S11 run-scoped canonical validation persistence, API and MapLibre violations UI;
 - `docs/METRICS_DASHBOARD.md` — S11 persisted score explanation API/UI with canonical raw metric units;
 - `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
+- `docs/OPERATIONS_RUNBOOK.md` — S14 операторский маршрут: деплой, мониторинг, восстановление и воспроизводимые бенчмарки;
 - `docs/GENERATION_CRASH_RECOVERY.md` — S14 manual fenced crash recovery, replay/cancel/orphan regression and limitations;
 - `docs/PROVENANCE_MANIFEST.md` — S12 canonical successful-run provenance JSON, ordering and validation contract;
 - `docs/RUN_COMPARE.md` — S12 bounded persisted scenario comparison over canonical raw metrics and validation;
@@ -171,8 +174,10 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
 - future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
 
-Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Playwright браузерный E2E с синтетическими persisted fixtures добавлен в S13-T14; полноценный пользовательский импорт и расчёт по реальным данным всё ещё требуют отдельного подтверждения. Эксперименты воспроизводимости — S15. Следующий ordered execution item —
-**`UG-AI-107 / S14-T13`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Playwright браузерный E2E с синтетическими persisted fixtures добавлен в S13-T14; полноценный пользовательский импорт и расчёт по реальным данным всё ещё требуют отдельного подтверждения. Эксперименты воспроизводимости — S15. В `main` закрыт UG-AI-107. UG-AI-108 (worker crash recovery, PR #196)
+прошёл required CI и ожидает ревью; UG-AI-109 готовится отдельным зависимым PR.
+Обе задачи останутся открытыми до принятия изменений. Актуальный порядок —
+`docs/07-planning/AI_EXECUTION_TASKS.md`.
 
 Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
 прогресс определяется milestone gates и ordered UG-AI backlog.
