@@ -124,6 +124,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/VIOLATIONS_LAYER.md` — S11 run-scoped canonical validation persistence, API and MapLibre violations UI;
 - `docs/METRICS_DASHBOARD.md` — S11 persisted score explanation API/UI with canonical raw metric units;
 - `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
+- `docs/GENERATION_CRASH_RECOVERY.md` — S14 manual fenced crash recovery, replay/cancel/orphan regression and limitations;
 - `docs/PROVENANCE_MANIFEST.md` — S12 canonical successful-run provenance JSON, ordering and validation contract;
 - `docs/RUN_COMPARE.md` — S12 bounded persisted scenario comparison over canonical raw metrics and validation;
 - `docs/RUN_CONTROL.md` — S12 project-scoped run create/cancel/retry API and bounded frontend progress polling;

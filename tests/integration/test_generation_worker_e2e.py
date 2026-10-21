@@ -7,10 +7,12 @@ boundary without substituting mocked persistence or rerunning expensive GIS algo
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -29,10 +31,12 @@ from backend.app.application.checkpoints import (
     build_resolved_input_hash,
 )
 from backend.app.application.generation import (
+    GenerationExecutionError,
     GenerationJobService,
     GenerationRetryScheduled,
     StageInvocation,
 )
+from backend.app.db.artifact_gc import SqlAlchemyArtifactGc
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -41,6 +45,7 @@ from backend.app.models.job import Job
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain import (
+    ArtifactRef,
     ConfigRef,
     PipelineContext,
     ResolvedConfigBinding,
@@ -813,3 +818,186 @@ def test_queued_retry_can_be_cancelled_without_starting_another_attempt(
     assert run.status == job.status == "cancelled"
     assert job.attempt_count == 1 and job.error_class == "cancelled"
     assert resolver.calls == 1 and rows == {}
+
+
+class SimulatedWorkerCrash(BaseException):
+    """Process-level interruption: bypasses normal Exception failure handling."""
+
+
+def _abandoned_recovery_store() -> tuple[SqlAlchemyGenerationStateStore, datetime]:
+    # The DB uses actual wall-clock updated_at for stage rows. Advance a
+    # dedicated operator clock to emulate >1h of inactivity without sleeping.
+    operator_now = datetime.now(UTC) + timedelta(hours=2)
+    return (
+        SqlAlchemyGenerationStateStore(
+            session_factory=SessionFactory, clock=lambda: operator_now
+        ),
+        operator_now - timedelta(minutes=45),
+    )
+
+
+def test_crash_before_stage_keeps_duplicate_delivery_safe_and_is_recoverable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    factory = _factory(tmp_path, probe)
+
+    def crash_during_assembly(*, run_id: uuid.UUID) -> None:
+        raise SimulatedWorkerCrash("lost worker before materialized stages")
+
+    monkeypatch.setattr(factory, "create", crash_during_assembly)
+    service = GenerationJobService(
+        state_store=SqlAlchemyGenerationStateStore(session_factory=SessionFactory),
+        runtime_factory=factory,
+    )
+    with pytest.raises(SimulatedWorkerCrash):
+        service.run(run_id=run_id)
+
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "running"
+    assert job.attempt_count == 1 and stages == {}
+    # Re-delivery MUST NOT increment attempts or start any stage while the
+    # authoritative PostgreSQL state still says the original worker owns it.
+    assert asyncio.run(run_generation({}, str(run_id)))["status"] == "in_progress"
+    assert _persisted(run_id, job_id)[1].attempt_count == 1
+
+    recovery, cutoff = _abandoned_recovery_store()
+    with pytest.raises(ValueError, match="workers are stopped"):
+        recovery.finalize_abandoned(
+            run_id=run_id, stale_before=cutoff, workers_stopped=False
+        )
+    with pytest.raises(GenerationExecutionError, match="recent or unknown"):
+        recovery.finalize_abandoned(
+            run_id=run_id, stale_before=datetime.now(UTC) - timedelta(days=1),
+            workers_stopped=True,
+        )
+    assert _persisted(run_id, job_id)[0].status == "running"
+
+    assert recovery.finalize_abandoned(
+        run_id=run_id, stale_before=cutoff, workers_stopped=True
+    ) == "failed"
+    assert recovery.finalize_abandoned(
+        run_id=run_id, stale_before=cutoff, workers_stopped=True
+    ) == "failed"
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "failed"
+    assert run.error_json is not None
+    assert run.error_json["details"]["recovery"] == "operator_confirmed"
+    assert job.error_class == "transient"
+    assert job.error_json is not None and job.error_json["retryable"] is False
+    assert job.attempt_count == 1
+    assert not stages and not probe.calls
+    # A duplicate worker delivery cannot restart an abandoned attempt.
+    with pytest.raises(GenerationTaskFailed):
+        _invoke(run_id, _factory(tmp_path, probe))
+
+
+def test_crash_mid_dag_preserves_completed_provenance_and_reclaims_orphan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    factory = _factory(tmp_path, probe)
+    original_execute = FixtureStage.execute
+
+    def abrupt_exit(
+        self: FixtureStage, *, snapshot: TerritorySnapshot, context: RunContext,
+        stage_input: int, config: FixtureStageConfig,
+    ) -> StageResult[int]:
+        if self.name == "beta":
+            raise SimulatedWorkerCrash("stage worker terminated after DB start")
+        return original_execute(
+            self, snapshot=snapshot, context=context,
+            stage_input=stage_input, config=config,
+        )
+
+    monkeypatch.setattr(FixtureStage, "execute", abrupt_exit)
+    service = GenerationJobService(
+        state_store=SqlAlchemyGenerationStateStore(session_factory=SessionFactory),
+        runtime_factory=factory,
+    )
+    with pytest.raises(SimulatedWorkerCrash):
+        service.run(run_id=run_id)
+    run, job, before = _persisted(run_id, job_id)
+    assert run.status == job.status == "running"
+    assert job.attempt_count == 1
+    assert before["root"].status == before["alpha"].status == "succeeded"
+    assert before["beta"].status == "running"
+    assert before["beta"].output_fingerprint is None
+    completed = {
+        key: (before[key].id, before[key].input_hash, before[key].output_fingerprint)
+        for key in ("root", "alpha")
+    }
+
+    store = LocalArtifactStore(tmp_path / "crash-storage")
+    orphan = ArtifactRef(f"runs/{run_id}/stages/beta/interrupted.bin")
+    store.put(orphan, BytesIO(b"unreferenced interrupted stage bytes"))
+    old = datetime.now(UTC) - timedelta(hours=4)
+    for path in (
+        tmp_path / "crash-storage" / "temporary" / orphan.key,
+        tmp_path / "crash-storage" / ".metadata" / "temporary" /
+        f"{orphan.key}.json",
+    ):
+        os.utime(path, (old.timestamp(), old.timestamp()))
+    collector = SqlAlchemyArtifactGc(store=store, session_factory=SessionFactory)
+    protected = collector.collect(max_batch=2, max_scan=1000)
+    assert protected.untracked_keys == 0 and protected.protected_active >= 1
+    assert store.stat(orphan).size_bytes > 0
+    assert _invoke(run_id, factory)["status"] == "in_progress"
+
+    recovery, cutoff = _abandoned_recovery_store()
+    assert recovery.finalize_abandoned(
+        run_id=run_id, stale_before=cutoff, workers_stopped=True
+    ) == "failed"
+    run, job, after = _persisted(run_id, job_id)
+    assert run.status == job.status == "failed"
+    assert after["beta"].status == "failed"
+    assert after["beta"].diagnostics_json[0]["code"] == "stage.worker_interrupted"
+    assert after["beta"].output_fingerprint is None
+    assert {
+        key: (after[key].id, after[key].input_hash, after[key].output_fingerprint)
+        for key in ("root", "alpha")
+    } == completed
+    assert job.attempt_count == 1
+    gc_result = collector.collect(max_batch=2, max_scan=1000)
+    assert gc_result.untracked_keys == 1
+    assert not store.has_run_ref(orphan)
+
+
+def test_cancelled_interrupted_worker_finishes_as_cancelled_not_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, job_id, _ = _setup()
+    probe = ExecutionProbe(run_id=run_id, job_id=job_id)
+    factory = _factory(tmp_path, probe)
+
+    def crash_stage(
+        self: FixtureStage, *, snapshot: TerritorySnapshot, context: RunContext,
+        stage_input: int, config: FixtureStageConfig,
+    ) -> StageResult[int]:
+        raise SimulatedWorkerCrash("worker death during first stage")
+
+    monkeypatch.setattr(FixtureStage, "execute", crash_stage)
+    service = GenerationJobService(
+        state_store=SqlAlchemyGenerationStateStore(session_factory=SessionFactory),
+        runtime_factory=factory,
+    )
+    with pytest.raises(SimulatedWorkerCrash):
+        service.run(run_id=run_id)
+    assert SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory
+    ).request_cancel(run_id=run_id)
+
+    recovery, cutoff = _abandoned_recovery_store()
+    assert recovery.finalize_abandoned(
+        run_id=run_id, stale_before=cutoff, workers_stopped=True
+    ) == "cancelled"
+    run, job, stages = _persisted(run_id, job_id)
+    assert run.status == job.status == "cancelled"
+    assert job.cancel_requested_at is not None
+    assert job.attempt_count == 1
+    assert stages["root"].status == "cancelled"
+    assert stages["root"].output_fingerprint is None
+    assert stages["root"].diagnostics_json[0]["code"] == "stage.cancelled"
+    assert _invoke(run_id, factory)["status"] == "cancelled"
