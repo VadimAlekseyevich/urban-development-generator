@@ -33,7 +33,7 @@ def frames(reverse: bool = False) -> dict[str, gpd.GeoDataFrame]:
          "geometry": LineString([(39.69, 54.62), (39.70, 54.68)])},
     ], geometry="geometry", crs="EPSG:4326")
     buildings = gpd.GeoDataFrame([
-        {"osm_id": "-55", "building": "yes",
+        {"osm_id": "55", "osm_way_id": None, "building": "yes",
          "geometry": Polygon([(39.70, 54.64), (39.71, 54.64),
                               (39.71, 54.65), (39.70, 54.65)])},
     ], geometry="geometry", crs="EPSG:4326")
