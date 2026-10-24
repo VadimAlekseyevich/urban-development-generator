@@ -134,3 +134,25 @@ def test_source_crs_and_empty_required_layer_fail_closed(spec: object, tmp_path:
     with pytest.raises(ValueError, match="requires real roads and buildings"):
         prepare(spec, source=source, expected_sha256=digest, output_dir=tmp_path / "empty",
                 read_layer=_reader(empty))
+def test_multipolygon_way_identity_and_immutable_output(spec: object, tmp_path: Path) -> None:
+    source, digest = _source(tmp_path)
+    from_way = frames()
+    from_way["multipolygons"].loc[0, "osm_id"] = None
+    from_way["multipolygons"].loc[0, "osm_way_id"] = "77"
+    out = tmp_path / "way"
+    prepare(spec, source=source, expected_sha256=digest, output_dir=out,
+            read_layer=_reader(from_way))
+    building = json.loads((out / "buildings.geojson").read_text(encoding="utf-8"))["features"][0]
+    assert building["id"] == "osm:way:77"
+    with pytest.raises(FileExistsError, match="already exists"):
+        prepare(spec, source=source, expected_sha256=digest, output_dir=out,
+                read_layer=_reader(from_way))
+
+
+def test_ambiguous_multipolygon_identity_rejected(spec: object, tmp_path: Path) -> None:
+    source, digest = _source(tmp_path)
+    ambiguous = frames()
+    ambiguous["multipolygons"].loc[0, "osm_way_id"] = "77"
+    with pytest.raises(ValueError, match="exactly one way or relation"):
+        prepare(spec, source=source, expected_sha256=digest, output_dir=tmp_path / "bad",
+                read_layer=_reader(ambiguous))
