@@ -14,6 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import geopandas as gpd
+import pandas as pd
 import pyogrio
 from pyproj import CRS
 from shapely import make_valid, set_precision
@@ -172,21 +173,34 @@ def _geometry_family(geometry: BaseGeometry, category: OsmFeatureCategory) -> Ba
     return None
 
 
-def _osm_identity(row: Mapping[str, object], layer: str) -> tuple[OsmElementType, int]:
-    raw_id = row.get("osm_id")
-    if raw_id is None or isinstance(raw_id, bool):
-        raise ValueError(f"OSM {layer} is missing a stable osm_id")
+def _optional_osm_id(raw: object, *, field: str) -> int | None:
+    if raw is None or pd.isna(raw):
+        return None
+    if isinstance(raw, bool):
+        raise ValueError(f"OSM {field} cannot be boolean")
     try:
-        parsed = int(str(raw_id))
+        parsed = int(str(raw))
     except ValueError as exc:
-        raise ValueError(f"OSM {layer} contains an invalid osm_id") from exc
-    if parsed == 0:
-        raise ValueError(f"OSM {layer} contains zero osm_id")
-    element_type = (
-        OsmElementType.RELATION if layer == "multipolygons" and parsed < 0
-        else OsmElementType.NODE if layer == "points" else OsmElementType.WAY
-    )
-    return element_type, abs(parsed)
+        raise ValueError(f"OSM {field} must be a positive integer") from exc
+    if parsed <= 0:
+        raise ValueError(f"OSM {field} must be a positive integer")
+    return parsed
+
+
+def _osm_identity(row: Mapping[str, object], layer: str) -> tuple[OsmElementType, int]:
+    if layer == "multipolygons":
+        way = _optional_osm_id(row.get("osm_way_id"), field="osm_way_id")
+        relation = _optional_osm_id(row.get("osm_id"), field="osm_id")
+        if (way is None) == (relation is None):
+            raise ValueError("OSM multipolygon requires exactly one way or relation id")
+        if way is not None:
+            return OsmElementType.WAY, way
+        assert relation is not None
+        return OsmElementType.RELATION, relation
+    osm_id = _optional_osm_id(row.get("osm_id"), field="osm_id")
+    if osm_id is None:
+        raise ValueError(f"OSM {layer} is missing a stable osm_id")
+    return (OsmElementType.NODE if layer == "points" else OsmElementType.WAY), osm_id
 
 
 def _collect(
@@ -199,8 +213,9 @@ def _collect(
 ) -> None:
     if frame.crs is None or CRS.from_user_input(frame.crs) != CRS.from_epsg(4326):
         raise ValueError(f"OSM {source_layer} must declare EPSG:4326")
-    if "osm_id" not in frame.columns:
-        raise ValueError(f"OSM {source_layer} must provide stable osm_id")
+    if ("osm_id" not in frame.columns and
+            (source_layer != "multipolygons" or "osm_way_id" not in frame.columns)):
+        raise ValueError(f"OSM {source_layer} must provide stable OSM identity")
     for row in frame.to_dict("records"):
         geometry = row.get(frame.geometry.name)
         if not isinstance(geometry, BaseGeometry) or geometry.is_empty:
