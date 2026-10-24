@@ -61,7 +61,13 @@ Create one project (working SRID 32637); for each emitted GeoJSON file, use the
 regular upload flow followed by `POST /api/v1/projects/{project_id}/ingests`
 with `artifact_id` from upload, `dataset_kind` and `source_format` from the
 package-manifest layer record. Wait until each DatasetVersion is really `ready`;
-record each returned ID and source checksum in the experiment ledger. Do not
+record each returned ID and source checksum in the experiment ledger.
+**Important:** the current API creates a *separate* DatasetVersion for each
+uploaded layer. It does not yet combine five successful ingests into one
+multi-layer DatasetVersion, so these individual ready versions are **not**
+evidence that the entire Territory A generation input is assembled or runnable.
+A later verified composition/import step is required before full-run experiments.
+Do not
 insert source rows by SQL, mark versions `ready` manually, or use
 `scripts/import_ryazan_from_geofabrik.py` as a substitute for the canonical
 uploaded-artifact worker ingestion. See `docs/INGEST_SUBMISSION.md`.
