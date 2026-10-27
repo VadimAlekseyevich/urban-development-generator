@@ -20,8 +20,15 @@ import pyogrio
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from pyproj import CRS, Transformer
 from shapely import make_valid
-from shapely.geometry import GeometryCollection, LineString, MultiLineString, MultiPolygon
-from shapely.geometry import Polygon, box, mapping
+from shapely.geometry import (
+    GeometryCollection,
+    LineString,
+    MultiLineString,
+    MultiPolygon,
+    Polygon,
+    box,
+    mapping,
+)
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
