@@ -94,7 +94,7 @@ Do not bypass ingestion with direct SQL or mark versions READY manually.
 
 See [ingest submission](INGEST_SUBMISSION.md), [OSM reader](OSM_PBF_READER.md),
 [normalization](VECTOR_NORMALIZATION.md) and
-[research experiment matrix](../docs/adr/0007-deterministic-scenario-matrix.md)
+[research experiment matrix](adr/0007-deterministic-scenario-matrix.md)
 (the application-level UG-AI-110 PR is still pending review).
 
 \`\`\`sh
