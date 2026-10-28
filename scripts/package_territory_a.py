@@ -53,7 +53,7 @@ KIND_SOURCES = {
     "roads": ("lines",),
     "buildings": ("multipolygons",),
     "landuse": ("multipolygons",),
-    "water": ("lines", "multipolygons"),
+    "water": ("multipolygons",),
 }
 READ_CHUNK = 512
 
@@ -253,7 +253,7 @@ def prepare_territory_a(
             for kind in selected:
                 clip_input = _geometry_family(
                     geom, polygonal=kind in {"buildings", "landuse"}
-                    or (kind == "water" and layer == "multipolygons"),
+                    or kind == "water",
                 )
                 if clip_input is None:
                     continue
@@ -340,6 +340,7 @@ def prepare_territory_a(
             "boundary_wgs84_bbox": list(wgs_bbox),
             "boundary_geojson_sha256": hashlib.sha256(boundary_bytes).hexdigest(),
             "source_rows_in_bbox": raw_counts,
+            "excluded_waterway_lines": "water source uses polygons only; linear waterway segments are not exported",
             "derived_artifacts": artifacts,
             "preprocessor": SCHEMA,
             "note": (
