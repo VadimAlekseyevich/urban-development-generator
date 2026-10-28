@@ -4,7 +4,7 @@
 
 This package is an **offline recipe plus a versioned input manifest**, not a
 pretend set of real OSM features checked into Git. Territory A uses the Ryazan
-reference city ([reference policy](DEMO_REFERENCE.md)), \`EXPANSION\` mode
+reference city ([reference policy](DEMO_REFERENCE.md)), `EXPANSION` mode
 and the existing EPSG:32637 metre working CRS. The test corpus is synthetic;
 no Geofabrik PBF has been downloaded, validated or stored by repository CI.
 Do not report real feature counts or validated output checksums until an
@@ -15,20 +15,23 @@ operator actually prepares an exact snapshot from external data.
 - Upstream OSM extract: [Geofabrik Central Federal District PBF](https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf)
   (OSM data © OpenStreetMap contributors, ODbL 1.0). Preserve attribution
   and review upstream usage/attribution terms for redistribution.
-- This URL's \`latest\` name is **mutable**. The package only proceeds when
-  \`source_sha256\` matches the locally downloaded byte-for-byte PBF. Copy
-  that PBF, its checksum, source acquisition timestamp and \`uv.lock\` /
+- This URL's `latest` name is **mutable**. The package only proceeds when
+  `source_sha256` matches the locally downloaded byte-for-byte PBF. Copy
+  that PBF, its checksum, source acquisition timestamp and `uv.lock` /
   application commit into the private research archive. The manifest template
   contains a deliberate untrusted placeholder—not an invented hash.
 - A 5,000 × 5,000 m metric square centred at 39.74 E / 54.62 N (EPSG:4326)
   is transformed into EPSG:32637 before clipping. The **projected** area is
   exactly 25,000,000 m² (25 km²); it is neither an administrative Ryazan
-  boundary nor a claim about real-world developable area. \`boundary.geojson\`
+  boundary nor a claim about real-world developable area. `boundary.geojson`
   is provided in WGS84 for the ordinary project boundary API.
-- The script reads GDAL reconstructed OSM \`lines\` and \`multipolygons\`
+- The script reads GDAL reconstructed OSM `lines` and `multipolygons`
   spatially filtered to the WGS84 envelope, clips in the metric CRS, then
-  emits bounded GeoJSON \`roads\`, \`buildings\`, \`landuse\`, \`water\`
-  files with stable sorted OSM IDs/tags. The **classification/tag/OSM
+  emits bounded GeoJSON `roads`, `buildings`, `landuse`, `water`
+  files with stable sorted OSM IDs/tags. **Only polygonal water** is included in
+  `water.geojson`; linear streams/rivers are not mixed into that polygon
+  FeatureCollection because canonical ingest takes a single geometry family.
+  Linear waterways need a separate, future source ingestion workflow. The **classification/tag/OSM
   identity rules are reused from the S03 reader**, not invented research
   class names. The normal worker still owns GeoJSON inspection,
   normalization, reclassification, DatasetVersion promotion and persistence.
@@ -40,9 +43,9 @@ operator actually prepares an exact snapshot from external data.
 
 ## Prepare an immutable input package
 
-Run from the repository root after \`uv sync --frozen --dev\`:
+Run from the repository root after `uv sync --frozen --dev`:
 
-\`\`\`sh
+```sh
 mkdir -p /private/udg-sources
 # Download the actual PBF yourself from the Geofabrik source above.
 # Save it, for example, as:
@@ -60,11 +63,11 @@ uv run python -m scripts.package_territory_a \
   --manifest /private/udg-sources/territory-a.json \
   --source /private/udg-sources/central-fed-district-snapshot.osm.pbf \
   --output-dir /private/udg-sources/territory-a
-\`\`\`
+```
 
-**Outputs:** \`boundary.geojson\` (WGS84 projected-square footprint),
-\`roads.geojson\`, \`buildings.geojson\`, \`landuse.geojson\`,
-\`water.geojson\`, and \`package-report.json\`. The report captures the
+**Outputs:** `boundary.geojson` (WGS84 projected-square footprint),
+`roads.geojson`, `buildings.geojson`, `landuse.geojson`,
+`water.geojson`, and `package-report.json`. The report captures the
 actual input digest, spatial bounds, source row counts, per-kind feature
 counts, file sizes and SHA-256 checksums. Re-run with the **same raw PBF,
 manifest, code and pinned Python/GDAL/GEOS/PROJ environment** to compare
@@ -84,11 +87,11 @@ temporary directory and needs operator cleanup **after inspection**.
 ## Canonical data flow and evidence
 
 Use the ordinary project creation API to set EPSG:32637 and the exact
-prepared boundary; submit each nonempty \`*.geojson\` through the existing
-\`POST /api/v1/uploads\` and
-\`POST /api/v1/projects/{project_id}/ingests\` with matching \`dataset_kind\`
-and \`source_format=geojson\`. Poll until the **worker**, not this script,
-marks each DatasetVersion \`ready\`. Record project ID, four input artifact
+prepared boundary; submit each nonempty `*.geojson` through the existing
+`POST /api/v1/uploads` and
+`POST /api/v1/projects/{project_id}/ingests` with matching `dataset_kind`
+and `source_format=geojson`. Poll until the **worker**, not this script,
+marks each DatasetVersion `ready`. Record project ID, four input artifact
 hashes, ready DatasetVersion IDs, input snapshot checksum and code commit.
 Do not bypass ingestion with direct SQL or mark versions READY manually.
 
@@ -97,11 +100,11 @@ See [ingest submission](INGEST_SUBMISSION.md), [OSM reader](OSM_PBF_READER.md),
 [research experiment matrix](adr/0007-deterministic-scenario-matrix.md)
 (the application-level UG-AI-110 PR is still pending review).
 
-\`\`\`sh
+```sh
 uv run pytest tests/unit/test_territory_a_package.py
 uv run ruff check scripts/package_territory_a.py tests/unit/test_territory_a_package.py
 uv run mypy backend core worker
-\`\`\`
+```
 
 Regression uses a **synthetic local multi-layer GeoPackage**, not a
 downloaded Ryazan PBF. It executes the real Pyogrio/GDAL reader,
