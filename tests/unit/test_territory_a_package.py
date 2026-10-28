@@ -251,7 +251,6 @@ def test_feature_caps_are_fail_closed_not_truncated(tmp_path: Path) -> None:
 
 
 def test_rejects_missing_canonical_osm_layers(tmp_path: Path) -> None:
-    source = _fixture_source(tmp_path)
     # A new GeoPackage has the right CRS but not OSM's required layer names.
     replacement = tmp_path / "wrong.gpkg"
     pyogrio.write_dataframe(
