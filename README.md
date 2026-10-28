@@ -111,6 +111,7 @@ Required CI проверяет Python lint/typecheck/tests, полный Alembic
 - `docs/07-planning/IMPLEMENTATION_READINESS.md` — архитектурный gate перед feature work;
 - `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md` — текущий аудит архитектурного долга;
 - `docs/02-architecture/PIPELINE_MODEL.md` — канонический Stage/pipeline execution contract;
+- `docs/TERRITORY_A_DATASET.md` — S15 Ryazan Territory A exact-PBF-SHA bounded offline input preparation; real data never bundled in CI;
 - `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
 - `docs/METRIC_REGISTRY.md` — canonical RawMetricId/MetricDefinition registry и runtime metadata;
 - `docs/LAND_BUILDING_METRICS.md` — S11 land/building raw metric adapter и source policy;

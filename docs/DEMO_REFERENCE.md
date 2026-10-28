@@ -12,6 +12,7 @@ City-specific assumptions must not be embedded into `core`, persistence schemas,
 
 - `README.md` — how to start the complete development stack.
 - `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — what is being implemented next and when new UI vertical slices appear.
+- `docs/TERRITORY_A_DATASET.md` — SHA-pinned, offline Ryazan expansion-source package for S15 experiments (not yet an archived real dataset).
 - `docs/INGEST_WORKER.md` — how uploaded vector/raster source data is normalized and promoted to a ready DatasetVersion.
 - `docs/SOURCE_LAYER_GEOJSON_API.md` — API used to read normalized source layers by viewport.
 - `docs/SOURCE_LAYERS_UI.md` — interactive source-map capabilities: boundary, roads, buildings, water, landuse, layer toggles, fit and feature inspector.

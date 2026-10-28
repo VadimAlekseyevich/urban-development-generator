@@ -1,0 +1,14 @@
+{
+  "schema_version": "territory-a-expansion-osm-v1",
+  "territory_id": "ryazan-a",
+  "mode": "EXPANSION",
+  "source_url": "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf",
+  "source_sha256": "REPLACE_WITH_64_HEX_SHA256_OF_THE_EXACT_DOWNLOADED_PBF",
+  "source_license": "ODbL-1.0",
+  "working_srid": 32637,
+  "center_lon": 39.74,
+  "center_lat": 54.62,
+  "side_m": 5000,
+  "max_source_features_per_layer": 30000,
+  "max_output_features_per_kind": 20000
+}
