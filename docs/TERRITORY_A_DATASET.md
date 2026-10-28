@@ -86,14 +86,23 @@ temporary directory and needs operator cleanup **after inspection**.
 
 ## Canonical data flow and evidence
 
-Use the ordinary project creation API to set EPSG:32637 and the exact
-prepared boundary; submit each nonempty `*.geojson` through the existing
-`POST /api/v1/uploads` and
+Create a project through the ordinary project API with EPSG:32637;
+the API currently persists `boundary_metadata` but **does not accept or
+persist the geometry of `Project.boundary`**. The generated
+`boundary.geojson` is a reproducible geometry handoff, not proof that
+project-boundary ingestion is implemented. A supported boundary-setting
+adapter/API is required before ordinary scenario creation can validate a
+non-null project boundary. Do not bypass this release blocker with undocumented
+manual SQL or claim that the package can immediately run a full generation.
+
+For the source layers, submit each **nonempty** `*.geojson` through the
+existing `POST /api/v1/uploads` and
 `POST /api/v1/projects/{project_id}/ingests` with matching `dataset_kind`
 and `source_format=geojson`. Poll until the **worker**, not this script,
-marks each DatasetVersion `ready`. Record project ID, four input artifact
-hashes, ready DatasetVersion IDs, input snapshot checksum and code commit.
-Do not bypass ingestion with direct SQL or mark versions READY manually.
+marks each DatasetVersion `ready`. Record project ID, successful input
+Artifact checksums, ready DatasetVersion IDs, the raw PBF checksum and the
+application commit. Do not bypass ingestion with direct SQL or mark versions
+READY manually.
 
 See [ingest submission](INGEST_SUBMISSION.md), [OSM reader](OSM_PBF_READER.md),
 [normalization](VECTOR_NORMALIZATION.md) and
