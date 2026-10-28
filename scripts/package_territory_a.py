@@ -340,7 +340,10 @@ def prepare_territory_a(
             "boundary_wgs84_bbox": list(wgs_bbox),
             "boundary_geojson_sha256": hashlib.sha256(boundary_bytes).hexdigest(),
             "source_rows_in_bbox": raw_counts,
-            "excluded_waterway_lines": "water source uses polygons only; linear waterway segments are not exported",
+            "excluded_waterway_lines": (
+                "water source uses polygons only; "
+                "linear waterway segments are not exported"
+            ),
             "derived_artifacts": artifacts,
             "preprocessor": SCHEMA,
             "note": (
