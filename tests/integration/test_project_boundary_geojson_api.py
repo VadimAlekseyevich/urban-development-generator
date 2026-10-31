@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.db.session import engine
 from backend.app.main import app
-from backend.app.models.project import Project
 from backend.app.models.generation_run import GenerationRun
+from backend.app.models.project import Project
 
 WORKING_SRID = 3857
 _TO_WORKING = Transformer.from_crs(4326, WORKING_SRID, always_xy=True)
