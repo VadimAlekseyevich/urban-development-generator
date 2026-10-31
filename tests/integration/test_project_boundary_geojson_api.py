@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.session import engine
 from backend.app.main import app
 from backend.app.models.project import Project
+from backend.app.models.generation_run import GenerationRun
 
 WORKING_SRID = 3857
 _TO_WORKING = Transformer.from_crs(4326, WORKING_SRID, always_xy=True)
@@ -102,3 +103,118 @@ def test_project_boundary_geojson_preserves_empty_boundary_and_404_scope() -> No
 
     missing = client.get(f"/api/v1/projects/{uuid.uuid4()}/boundary/geojson")
     assert missing.status_code == 404
+
+
+
+def _boundary_payload() -> dict[str, object]:
+    return {
+        "source_srid": 4326,
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-0.15, 51.49],
+                [-0.05, 51.49],
+                [-0.05, 51.55],
+                [-0.15, 51.55],
+                [-0.15, 51.49],
+            ]],
+        },
+    }
+
+
+def _create_api_project(client: TestClient) -> str:
+    response = client.post(
+        "/api/v1/projects",
+        json={"name": "Writable boundary", "working_srid": WORKING_SRID},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def test_boundary_upload_roundtrip_transforms_and_sets_metadata() -> None:
+    client = TestClient(app)
+    project_id = _create_api_project(client)
+
+    response = client.put(
+        f"/api/v1/projects/{project_id}/boundary",
+        json=_boundary_payload(),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["boundary_metadata"] == {
+        "source_srid": 4326,
+        "geometry_type": "MULTIPOLYGON",
+        "feature_count": 1,
+    }
+    with Session(engine) as session:
+        project = session.get(Project, uuid.UUID(project_id))
+        assert project is not None
+        assert project.boundary is not None
+        assert project.boundary.srid == WORKING_SRID
+
+    projected = client.get(f"/api/v1/projects/{project_id}/boundary/geojson")
+    assert projected.status_code == 200
+    geometry = projected.json()["geometry"]
+    assert geometry["type"] == "MultiPolygon"
+    longitude, latitude = geometry["coordinates"][0][0][0]
+    assert longitude == pytest.approx(-0.15, abs=1e-6)
+    assert latitude == pytest.approx(51.49, abs=1e-6)
+
+
+def test_boundary_upload_rejects_invalid_data_and_unknown_project() -> None:
+    client = TestClient(app)
+    project_id = _create_api_project(client)
+    invalid = _boundary_payload()
+    invalid["source_srid"] = 3857
+    assert client.put(
+        f"/api/v1/projects/{project_id}/boundary", json=invalid
+    ).status_code == 422
+
+    invalid = _boundary_payload()
+    invalid["geometry"] = {"type": "Point", "coordinates": [0, 0]}
+    assert client.put(
+        f"/api/v1/projects/{project_id}/boundary", json=invalid
+    ).status_code == 422
+    assert client.get(
+        f"/api/v1/projects/{project_id}/boundary/geojson"
+    ).json()["geometry"] is None
+
+    assert client.put(
+        f"/api/v1/projects/{uuid.uuid4()}/boundary",
+        json=_boundary_payload(),
+    ).status_code == 404
+
+
+def test_boundary_and_working_crs_are_immutable_after_a_run_exists() -> None:
+    client = TestClient(app)
+    project_id = _create_api_project(client)
+    assert client.put(
+        f"/api/v1/projects/{project_id}/boundary",
+        json=_boundary_payload(),
+    ).status_code == 200
+
+    locked_crs = client.patch(
+        f"/api/v1/projects/{project_id}", json={"working_srid": 32630}
+    )
+    assert locked_crs.status_code == 409
+
+    with Session(engine) as session:
+        session.add(
+            GenerationRun(
+                project_id=uuid.UUID(project_id),
+                status="queued",
+                mode="EXPANSION",
+                seed=17,
+                working_srid=WORKING_SRID,
+                config_json={},
+                config_schema_version="1",
+                commit_sha="a" * 40,
+            )
+        )
+        session.commit()
+
+    overwritten = client.put(
+        f"/api/v1/projects/{project_id}/boundary",
+        json=_boundary_payload(),
+    )
+    assert overwritten.status_code == 409
+    assert "cannot change after" in overwritten.json()["detail"]
