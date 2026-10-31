@@ -63,6 +63,15 @@ class ProjectUpdate(BaseModel):
         return value
 
 
+class ProjectBoundaryWrite(BaseModel):
+    """Canonical boundary upload: GeoJSON geometry in longitude/latitude."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_srid: Literal[4326] = 4326
+    geometry: dict[str, object]
+
+
 class ProjectRead(ProjectBase):
     model_config = ConfigDict(from_attributes=True)
 
