@@ -32,7 +32,7 @@ def parse_project_boundary(geometry: Mapping[str, object]) -> MultiPolygon:
     kind = geometry["type"]
     coords = geometry["coordinates"]
     if kind == "Polygon":
-        polygons = [coords]
+        polygons: object = [coords]
     elif kind == "MultiPolygon":
         polygons = coords
     else:
