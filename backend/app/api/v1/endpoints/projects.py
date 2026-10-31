@@ -83,6 +83,8 @@ def update_project(
         )
     except ProjectNotFoundError as exc:
         _raise_project_not_found(exc)
+    except ProjectBoundaryLockedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
