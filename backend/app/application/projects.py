@@ -3,6 +3,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from shapely.geometry import MultiPolygon
+
+from backend.app.application.project_boundary import parse_project_boundary
+
 from backend.app.models.project import Project
 
 
@@ -31,6 +35,10 @@ class ProjectRepository(Protocol):
         """Persist a new project and return its refreshed state."""
         ...
 
+    def set_boundary(self, project_id: uuid.UUID, geometry: MultiPolygon) -> Project | None:
+        """Atomically set a boundary only before any generation run exists."""
+        ...
+
     def save(self, project: Project) -> Project:
         """Persist changes to an existing project and return refreshed state."""
         ...
@@ -38,6 +46,10 @@ class ProjectRepository(Protocol):
     def delete(self, project: Project) -> None:
         """Delete one project."""
         ...
+
+
+class ProjectBoundaryLockedError(ValueError):
+    """Changing a fixed boundary would invalidate existing run provenance."""
 
 
 class ProjectNotFoundError(LookupError):
@@ -79,6 +91,22 @@ class ProjectService:
             boundary_metadata=dict(command.boundary_metadata),
         )
         return self._repository.create(project)
+
+    def set_boundary(
+        self,
+        project_id: uuid.UUID,
+        geometry_wgs84: Mapping[str, object],
+    ) -> Project:
+        """Write a valid input boundary in the project metric CRS.
+
+        The repository owns the row lock and the check for existing runs so
+        concurrent run creation cannot observe a partially changed boundary.
+        """
+        boundary = parse_project_boundary(geometry_wgs84)
+        project = self._repository.set_boundary(project_id, boundary)
+        if project is None:
+            raise ProjectNotFoundError(project_id)
+        return project
 
     def update_project(
         self,
