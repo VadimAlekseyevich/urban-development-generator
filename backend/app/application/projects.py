@@ -6,7 +6,6 @@ from typing import Protocol
 from shapely.geometry import MultiPolygon
 
 from backend.app.application.project_boundary import parse_project_boundary
-
 from backend.app.models.project import Project
 
 
