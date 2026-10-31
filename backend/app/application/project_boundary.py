@@ -70,7 +70,9 @@ def parse_project_boundary(geometry: Mapping[str, object]) -> MultiPolygon:
                     or not -180 <= longitude <= 180
                     or not -90 <= latitude <= 90
                 ):
-                    raise ProjectBoundaryValidationError("boundary coordinates must be finite WGS84")
+                    raise ProjectBoundaryValidationError(
+                        "boundary coordinates must be finite WGS84"
+                    )
                 positions.append((longitude, latitude))
             if positions[0] != positions[-1]:
                 raise ProjectBoundaryValidationError("boundary rings must be closed")
