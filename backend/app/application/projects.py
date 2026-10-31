@@ -119,6 +119,14 @@ class ProjectService:
             raise ValueError(f"unsupported project update fields: {unsupported}")
 
         project = self.get_project(project_id)
+        if (
+            "working_srid" in changes
+            and changes["working_srid"] != project.working_srid
+            and (project.boundary is not None or bool(project.runs))
+        ):
+            raise ProjectBoundaryLockedError(
+                "project working_srid cannot change after boundary or run creation"
+            )
         for field_name, value in changes.items():
             setattr(project, field_name, value)
         return self._repository.save(project)
