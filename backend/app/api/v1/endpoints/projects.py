@@ -4,9 +4,19 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from backend.app.api.dependencies import ProjectServiceDep
-from backend.app.application.projects import CreateProjectCommand, ProjectNotFoundError
+from backend.app.application.project_boundary import ProjectBoundaryValidationError
+from backend.app.application.projects import (
+    CreateProjectCommand,
+    ProjectBoundaryLockedError,
+    ProjectNotFoundError,
+)
 from backend.app.models.project import Project
-from backend.app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from backend.app.schemas.project import (
+    ProjectBoundaryWrite,
+    ProjectCreate,
+    ProjectRead,
+    ProjectUpdate,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -33,6 +43,23 @@ def create_project(payload: ProjectCreate, service: ProjectServiceDep) -> Projec
         boundary_metadata=payload.boundary_metadata.model_dump(),
     )
     return service.create_project(command)
+
+
+@router.put("/{project_id}/boundary", response_model=ProjectRead)
+def set_project_boundary(
+    project_id: uuid.UUID,
+    payload: ProjectBoundaryWrite,
+    service: ProjectServiceDep,
+) -> Project:
+    """Publish validated GeoJSON boundary once, before any generation run."""
+    try:
+        return service.set_boundary(project_id, payload.geometry)
+    except ProjectNotFoundError as exc:
+        _raise_project_not_found(exc)
+    except ProjectBoundaryLockedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ProjectBoundaryValidationError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
