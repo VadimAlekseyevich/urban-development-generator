@@ -30,6 +30,7 @@ from backend.app.services.osm_pbf_reader import (
     _osm_identity,
 )
 from scripts.package_territory_a import (
+    TerritoryPackageError,
     _geometry_family,
     _json_bytes,
     _rows,
@@ -161,10 +162,13 @@ def prepare_territory_b(
     row_counts: dict[str, int] = {}
 
     for layer in SOURCE_LAYERS:
-        rows = _rows(
-            source, layer=layer, bbox=geographic_bbox,
-            max_features=manifest.max_source_features_per_layer,
-        )
+        try:
+            rows = _rows(
+                source, layer=layer, bbox=geographic_bbox,
+                max_features=manifest.max_source_features_per_layer,
+            )
+        except TerritoryPackageError as exc:
+            raise TerritoryBPackageError(str(exc)) from exc
         row_counts[layer] = len(rows)
         for row in rows:
             tags = reader._extract_tags(row)
