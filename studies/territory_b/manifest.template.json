@@ -1,0 +1,14 @@
+{
+  "schema_version": "territory-b-from-scratch-osm-v1",
+  "territory_id": "tula-b",
+  "mode": "FROM_SCRATCH",
+  "source_url": "https://download.geofabrik.de/russia/central-fed-district-261102.osm.pbf",
+  "source_sha256": "REPLACE_WITH_64_HEX_SHA256_OF_EXACT_ARCHIVED_PBF",
+  "source_license": "ODbL-1.0",
+  "working_srid": 32637,
+  "center_lon": 37.6,
+  "center_lat": 54.25,
+  "side_m": 10000,
+  "max_source_features_per_layer": 50000,
+  "max_output_features_per_kind": 30000
+}
