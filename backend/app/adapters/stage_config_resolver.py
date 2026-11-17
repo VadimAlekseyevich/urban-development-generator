@@ -19,11 +19,11 @@ from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
 from core.urban_generator.domain import ConfigRef, ResolvedConfigBinding
 from core.urban_generator.stages import (
+    CANONICAL_STAGE_ORDER,
     BlocksAndParcelsStage,
     BlocksAndParcelsStageConfig,
     BuildingStage,
     BuildingStageConfig,
-    CANONICAL_STAGE_ORDER,
     ConstraintMaskStage,
     ConstraintMaskStageConfig,
     DemographyStage,
