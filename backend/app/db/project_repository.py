@@ -88,7 +88,51 @@ class SqlAlchemyProjectRepository:
         return project
 
     def save(self, project: Project) -> Project:
-        self._commit_and_refresh(project)
+        """Recheck working CRS invariants under the project's PostgreSQL row lock.
+
+        The application-level check can become stale while a concurrent
+        boundary PUT or GenerationRun INSERT commits. FOR UPDATE conflicts
+        with both the boundary writer and the FK KEY SHARE of a new run.
+        Query actual column values with autoflush disabled: the ORM instance
+        may already contain a pending, uncommitted CRS modification.
+        """
+        try:
+            with self._session.no_autoflush:
+                locked_id = self._session.scalar(
+                    select(Project.id)
+                    .where(Project.id == project.id)
+                    .with_for_update()
+                )
+                if locked_id is None:
+                    raise ValueError("project disappeared before update")
+                persisted_srid = self._session.scalar(
+                    select(Project.working_srid).where(Project.id == project.id)
+                )
+                if persisted_srid is None:
+                    raise ValueError("project working_srid is missing")
+                if project.working_srid != persisted_srid:
+                    boundary_id = self._session.scalar(
+                        select(Project.id)
+                        .where(
+                            Project.id == project.id,
+                            Project.boundary.is_not(None),
+                        )
+                        .limit(1)
+                    )
+                    run_id = self._session.scalar(
+                        select(GenerationRun.id)
+                        .where(GenerationRun.project_id == project.id)
+                        .limit(1)
+                    )
+                    if boundary_id is not None or run_id is not None:
+                        raise ProjectBoundaryLockedError(
+                            "project working_srid cannot change after boundary "
+                            "or run creation"
+                        )
+            self._commit_and_refresh(project)
+        except Exception:
+            self._session.rollback()
+            raise
         return project
 
     def delete(self, project: Project) -> None:
