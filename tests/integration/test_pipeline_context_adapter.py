@@ -13,16 +13,14 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from backend.app.adapters.pipeline_context import (
+    PipelineContextAssemblyError,
+    SqlAlchemyPipelineContextAdapter,
+)
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
     PersistedStageConfigError,
-)
-from core.urban_generator.stages import ConstraintMaskStageConfig
-
-from backend.app.adapters.pipeline_context import (
-    PipelineContextAssemblyError,
-    SqlAlchemyPipelineContextAdapter,
 )
 from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
@@ -39,6 +37,7 @@ from core.urban_generator.domain import (
     SnapshotLayerKind,
     SnapshotLayerRef,
 )
+from core.urban_generator.stages import ConstraintMaskStageConfig
 
 WORKING_SRID = 32637
 
