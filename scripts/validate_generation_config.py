@@ -17,7 +17,6 @@ from pathlib import Path
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
-    PersistedStageConfigError,
 )
 from core.urban_generator.domain import ConfigRef
 
