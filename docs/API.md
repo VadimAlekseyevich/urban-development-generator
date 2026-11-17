@@ -32,8 +32,38 @@
 }
 ```
 
-`boundary_metadata` описывает источник/форму project boundary отдельно от PostGIS geometry.
-Само поле boundary в persistence остаётся nullable `MULTIPOLYGON`; его ingest/normalization относится к следующим data tasks.
+"boundary_metadata" — только описательная информация; при `POST /projects` она
+не создаёт геометрию. Для работы генератора после создания проекта нужно задать
+территорию через **`PUT /projects/{project_id}/boundary`**:
+
+```json
+{
+  "source_srid": 4326,
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [37.60, 55.70], [37.61, 55.70],
+      [37.61, 55.71], [37.60, 55.71], [37.60, 55.70]
+    ]]
+  }
+}
+```
+
+Контракт принимает только GeoJSON Polygon/MultiPolygon в EPSG:4326 (lon, lat),
+проверяет замкнутость, топологию, конечность координат, лимит 10 000 вершин и
+64 полигонов, не поддерживает переход через антимеридиан. Геометрия сохраняется
+как PostGIS MULTIPOLYGON в метрической CRS проекта. Проверка существующего
+конвейера `GET /projects/{project_id}/boundary/geojson` возвращает её в EPSG:4326.
+
+`422` — ошибка формы, геометрии или преобразования; `404` — нет проекта;
+`409` — после появления любого GenerationRun граница становится неизменяемым
+входом для provenance. Изменение working_srid после записи границы или запуска
+также запрещено. Для другой территории нужно создать новый проект.
+
+Это **контракт записи входной границы**, а не доказательство готовности
+production generation runtime. Для real-data E2E дополнительно требуются
+настроенный generation worker, stage input/config resolvers и финальная
+проверка persisted GIS output без тестовой подмены.
 
 ## Generated buildings viewport API
 

@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Generator
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
@@ -33,6 +34,32 @@ class FakeProjectSession:
 
     def scalars(self, _statement: object) -> FakeScalarResult:
         return FakeScalarResult(list(self.projects.values()))
+
+    @property
+    def no_autoflush(self) -> object:
+        # The real repository must read the database, not auto-flush the
+        # pending Project. This fake only covers the CRUD API HTTP shape;
+        # PostgreSQL locking/race behavior has separate integration tests.
+        return nullcontext()
+
+    def scalar(self, statement: object) -> object:
+        from sqlalchemy.sql import Select
+
+        if not isinstance(statement, Select):
+            raise AssertionError("unexpected fake project query")
+        column = next(iter(statement.selected_columns))
+        table = getattr(getattr(column, "table", None), "name", None)
+        first = next(iter(self.projects.values()), None)
+        if table == "projects" and column.key == "id":
+            return None if first is None else first.id
+        if table == "projects" and column.key == "working_srid":
+            return None if first is None else first.working_srid
+        if table == "generation_runs" and column.key == "id":
+            return None
+        raise AssertionError(f"unexpected fake project query column {table}.{column.key}")
+
+    def rollback(self) -> None:
+        return None
 
     def commit(self) -> None:
         return None

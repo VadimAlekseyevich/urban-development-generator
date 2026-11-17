@@ -1,8 +1,16 @@
+import math
 import uuid
 
+from geoalchemy2.shape import from_shape
+from pyproj import Transformer
+from pyproj.exceptions import ProjError
+from shapely.geometry import MultiPolygon
+from shapely.ops import transform
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.application.projects import ProjectBoundaryLockedError
+from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
 
 
@@ -29,8 +37,102 @@ class SqlAlchemyProjectRepository:
         self._commit_and_refresh(project)
         return project
 
+    def set_boundary(self, project_id: uuid.UUID, geometry: MultiPolygon) -> Project | None:
+        """Atomically publish a fixed metric boundary only before the first run.
+
+        Locking the project row conflicts with the FK key-share acquired by
+        concurrent run insertion. A run can therefore never be based on a
+        boundary that changed between the run's creation and this commit.
+        """
+        try:
+            project = self._session.scalar(
+                select(Project).where(Project.id == project_id).with_for_update()
+            )
+            if project is None:
+                self._session.rollback()
+                return None
+            existing_run_id = self._session.scalar(
+                select(GenerationRun.id)
+                .where(GenerationRun.project_id == project_id)
+                .limit(1)
+            )
+            if existing_run_id is not None:
+                raise ProjectBoundaryLockedError(
+                    "project boundary cannot change after any generation run exists"
+                )
+            try:
+                project_to_working = Transformer.from_crs(
+                    4326, project.working_srid, always_xy=True
+                )
+                projected = transform(project_to_working.transform, geometry)
+            except (ProjError, ValueError) as exc:
+                raise ValueError("unable to transform boundary into project CRS") from exc
+            if (
+                projected.is_empty or not projected.is_valid or projected.area <= 0
+                or not all(math.isfinite(value) for value in projected.bounds)
+            ):
+                raise ValueError("boundary is invalid in project working CRS")
+            project.boundary = from_shape(
+                projected, srid=project.working_srid, extended=True
+            )
+            project.boundary_metadata = {
+                "source_srid": 4326,
+                "geometry_type": "MULTIPOLYGON",
+                "feature_count": len(geometry.geoms),
+            }
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        self._session.refresh(project)
+        return project
+
     def save(self, project: Project) -> Project:
-        self._commit_and_refresh(project)
+        """Recheck working CRS invariants under the project's PostgreSQL row lock.
+
+        The application-level check can become stale while a concurrent
+        boundary PUT or GenerationRun INSERT commits. FOR UPDATE conflicts
+        with both the boundary writer and the FK KEY SHARE of a new run.
+        Query actual column values with autoflush disabled: the ORM instance
+        may already contain a pending, uncommitted CRS modification.
+        """
+        try:
+            with self._session.no_autoflush:
+                locked_id = self._session.scalar(
+                    select(Project.id)
+                    .where(Project.id == project.id)
+                    .with_for_update()
+                )
+                if locked_id is None:
+                    raise ValueError("project disappeared before update")
+                persisted_srid = self._session.scalar(
+                    select(Project.working_srid).where(Project.id == project.id)
+                )
+                if persisted_srid is None:
+                    raise ValueError("project working_srid is missing")
+                if project.working_srid != persisted_srid:
+                    boundary_id = self._session.scalar(
+                        select(Project.id)
+                        .where(
+                            Project.id == project.id,
+                            Project.boundary.is_not(None),
+                        )
+                        .limit(1)
+                    )
+                    run_id = self._session.scalar(
+                        select(GenerationRun.id)
+                        .where(GenerationRun.project_id == project.id)
+                        .limit(1)
+                    )
+                    if boundary_id is not None or run_id is not None:
+                        raise ProjectBoundaryLockedError(
+                            "project working_srid cannot change after boundary "
+                            "or run creation"
+                        )
+            self._commit_and_refresh(project)
+        except Exception:
+            self._session.rollback()
+            raise
         return project
 
     def delete(self, project: Project) -> None:
