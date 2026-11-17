@@ -128,8 +128,15 @@ def _decode(value: object, annotation: Any, *, path: str, depth: int) -> Any:
             return value
         raise PersistedStageConfigError(f"{path} must be integer")
     if annotation is float:
-        if type(value) in (int, float) and math.isfinite(value):
-            return float(value)
+        if type(value) in (int, float):
+            try:
+                numeric = float(value)
+            except OverflowError as exc:
+                raise PersistedStageConfigError(
+                    f"{path} must be finite number"
+                ) from exc
+            if math.isfinite(numeric):
+                return numeric
         raise PersistedStageConfigError(f"{path} must be finite number")
 
     if isinstance(annotation, type) and issubclass(annotation, Enum):
