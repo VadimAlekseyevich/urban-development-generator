@@ -518,7 +518,8 @@ def test_real_jsonb_run_config_resolves_into_typed_canonical_stage() -> None:
 def test_persisted_unknown_config_version_refuses_pipeline_assembly() -> None:
     with Session(engine, expire_on_commit=False) as session:
         project = _project(session)
-        run = _run(session, project)
+        version = _dataset_version(session, project, kind="roads")
+        run = _run(session, project, dataset_versions=(version,))
         run.config_schema_version = "legacy-unsafe"
         run.config_json = {
             "schema_version": CONFIG_SCHEMA_VERSION,
