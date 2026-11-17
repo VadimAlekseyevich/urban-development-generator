@@ -13,6 +13,13 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from backend.app.adapters.stage_config_resolver import (
+    CONFIG_SCHEMA_VERSION,
+    CanonicalStageConfigResolver,
+    PersistedStageConfigError,
+)
+from core.urban_generator.stages import ConstraintMaskStageConfig
+
 from backend.app.adapters.pipeline_context import (
     PipelineContextAssemblyError,
     SqlAlchemyPipelineContextAdapter,
@@ -465,3 +472,74 @@ def test_adapter_requires_persisted_project_boundary_and_known_run() -> None:
             match=f"generation run does not exist: {missing_run_id}",
         ):
             adapter.assemble(missing_run_id)
+
+
+def test_real_jsonb_run_config_resolves_into_typed_canonical_stage() -> None:
+    """PostGIS -> PipelineContext uses the production decoder, not a fake one."""
+    with Session(engine, expire_on_commit=False) as session:
+        project = _project(session)
+        version = _dataset_version(session, project, kind="roads")
+        run = _run(session, project, dataset_versions=(version,))
+        run.config_schema_version = CONFIG_SCHEMA_VERSION
+        run.config_json = {
+            "schema_version": CONFIG_SCHEMA_VERSION,
+            "stages": {
+                "evaluate_constraints": {
+                    "stage_version": "1.0.0",
+                    "config": {
+                        "exclusion_policy": "ANY_TOUCH",
+                        "max_shapes": 17,
+                        "max_cells": 1024,
+                    },
+                },
+            },
+        }
+        session.commit()
+        session.expire(run)
+
+        adapter = SqlAlchemyPipelineContextAdapter(
+            session=session,
+            artifact_store=FakeArtifactStore(),
+            config_resolver=CanonicalStageConfigResolver(
+                stage_names=("evaluate_constraints",)
+            ),
+        )
+        context = adapter.assemble(run.id)
+        assert len(context.configs) == 1
+        binding = context.configs[0]
+        assert binding.stage_name == "evaluate_constraints"
+        assert isinstance(binding.value, ConstraintMaskStageConfig)
+        assert binding.value.max_shapes == 17
+        assert binding.value.max_cells == 1024
+        assert binding.source.ref == (
+            f"generation-run:{run.id}:config:{CONFIG_SCHEMA_VERSION}"
+        )
+
+
+def test_persisted_unknown_config_version_refuses_pipeline_assembly() -> None:
+    with Session(engine, expire_on_commit=False) as session:
+        project = _project(session)
+        run = _run(session, project)
+        run.config_schema_version = "legacy-unsafe"
+        run.config_json = {
+            "schema_version": CONFIG_SCHEMA_VERSION,
+            "stages": {
+                "evaluate_constraints": {
+                    "stage_version": "1.0.0", "config": {}
+                }
+            },
+        }
+        session.commit()
+        session.expire(run)
+
+        adapter = SqlAlchemyPipelineContextAdapter(
+            session=session,
+            artifact_store=FakeArtifactStore(),
+            config_resolver=CanonicalStageConfigResolver(
+                stage_names=("evaluate_constraints",)
+            ),
+        )
+        with pytest.raises(
+            PersistedStageConfigError, match="unsupported persisted"
+        ):
+            adapter.assemble(run.id)
