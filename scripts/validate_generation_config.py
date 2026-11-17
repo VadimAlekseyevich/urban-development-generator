@@ -22,6 +22,15 @@ from backend.app.adapters.stage_config_resolver import (
 from core.urban_generator.domain import ConfigRef
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema", action="store_true")
@@ -36,13 +45,16 @@ def main(argv: list[str] | None = None) -> None:
     if args.manifest is None:
         parser.error("provide --manifest or --schema")
     try:
-        data = json.loads(args.manifest.read_text(encoding="utf-8"))
+        data = json.loads(
+            args.manifest.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+        )
         bindings = resolver.resolve(
             config_json=data,
             schema_version=CONFIG_SCHEMA_VERSION,
             source=ConfigRef(name="generation", ref="local-config-validation"),
         )
-    except (OSError, UnicodeError, ValueError, TypeError, PersistedStageConfigError) as exc:
+    except (OSError, UnicodeError, ValueError, TypeError) as exc:
         parser.error(f"invalid canonical config: {exc}")
     print(json.dumps({
         "valid": True,
