@@ -415,7 +415,9 @@ jobs:
 
   browser-e2e:
     name: Browser E2E (Playwright)
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 does not support Ubuntu 26.04 (ubuntu-latest).
+    # Pin a supported runner; keep browser engine/version lock unchanged.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
