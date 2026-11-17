@@ -7,6 +7,7 @@ from alembic import command
 from alembic.config import Config
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from backend.app.adapters.hard_exclusion_source_reader import (
@@ -366,6 +367,8 @@ def test_reader_fails_closed_on_total_cap_and_wrong_geometry_srid() -> None:
     with pytest.raises(HardExclusionSourceReadError, match="configured limit"):
         reader.read(snapshot=snapshot)
 
+    # A real PostGIS trigger rejects mixed-SRID source rows at INSERT time.
+    # Never bypass that trigger to manufacture corrupted ready inputs.
     with _session() as session:
         project = _project(session)
         version = _version(session, project, kind="water")
@@ -373,15 +376,11 @@ def test_reader_fails_closed_on_total_cap_and_wrong_geometry_srid() -> None:
             session, version, feature_id="wrong-srid",
             geometry="LINESTRING(10 10, 20 20)", srid=3857,
         )
-        session.flush()
-        version.status = "ready"
-        session.flush()
-        run = _run(session, project, version)
-        snapshot = _snapshot(project, run, water=(version,))
-    with pytest.raises(HardExclusionSourceReadError, match="incompatible metric SRID"):
-        SqlAlchemyHardExclusionSourceReader(
-            session_factory=_session
-        ).read(snapshot=snapshot)
+        with pytest.raises(
+            DBAPIError, match="source entity geometry SRID must match"
+        ):
+            session.flush()
+        session.rollback()
 
 
 def test_reader_rejects_ambiguous_point_hard_exclusion() -> None:
