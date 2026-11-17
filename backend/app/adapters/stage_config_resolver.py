@@ -128,7 +128,7 @@ def _decode(value: object, annotation: Any, *, path: str, depth: int) -> Any:
             return value
         raise PersistedStageConfigError(f"{path} must be integer")
     if annotation is float:
-        if type(value) in (int, float):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
             try:
                 numeric = float(value)
             except OverflowError as exc:
