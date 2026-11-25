@@ -466,7 +466,7 @@ def _same_cell_attachment(
     )
 
 
-def _attachment_extension(center: NetworkPoint, fixed: NetworkPoint):
+def _attachment_extension(center: NetworkPoint, fixed: NetworkPoint) -> LineString | Point:
     if center == fixed:
         return Point(center.x_m, center.y_m)
     return LineString(((center.x_m, center.y_m), (fixed.x_m, fixed.y_m)))
