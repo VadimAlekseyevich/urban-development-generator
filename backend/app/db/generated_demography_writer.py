@@ -95,12 +95,19 @@ class SqlAlchemyGeneratedDemographyWriter:
                                 block_id=block.block_key,
                                 area_m2=block.area_m2,
                             )
-                            for block in blocks
+                            for block in by_key.values()
                             if block.block_key is not None
                             and block.area_m2 is not None
                         ),
                     )
 
+                    # Unassociated blocks have no legitimate zone identity;
+                    # do not fabricate a demographic allocation for them.
+                    for block in blocks:
+                        if block.block_key not in by_key:
+                            attributes = dict(block.attributes_json or {})
+                            attributes.pop("demography", None)
+                            block.attributes_json = attributes
                     for item in metrics.blocks:
                         block = by_key[item.block_id]
                         attributes = dict(block.attributes_json or {})
@@ -143,6 +150,13 @@ class SqlAlchemyGeneratedDemographyWriter:
                 raise GeneratedDemographyPersistenceError(
                     f"duplicate generated block_key: {block.block_key}"
                 )
+            zone_class = (block.attributes_json or {}).get("zone_class")
+            if block.zone_id is None and zone_class is None:
+                if block.association_status == "ASSOCIATED":
+                    raise GeneratedDemographyPersistenceError("associated block has no zone")
+                continue
+            if block.zone_id is None or zone_class is None:
+                raise GeneratedDemographyPersistenceError("block has inconsistent zone identity")
             by_key[block.block_key] = block
 
         expected = {item.block_id for item in aggregation.blocks}
