@@ -104,3 +104,13 @@ The fix completes associated block aggregates with explicit zero population,
 jobs and age cohorts; blocks lacking zone identity remain unassociated.
 Exact matching remains required for all associated blocks. The same end-to-end
 assertions remain mandatory and no success is claimed before a green rerun.
+
+
+The second FROM_SCRATCH attempt completed all twelve stages but returned
+zero buildings. The nonempty layer assertion remains mandatory. The next
+attempt uses a 20 m routing grid, bounded 40 growth iterations and 2 m
+building candidate spacing, with explicit discrete placement tolerances.
+No hard GIS validation is relaxed. Final validation now rejects a positive
+generated population target with zero allocation; stage diagnostics are
+exposed in run control so a user can see the reason. Partial positive
+allocation remains an explicit shortfall, not a universal failure.

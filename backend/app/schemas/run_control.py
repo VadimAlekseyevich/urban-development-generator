@@ -46,11 +46,18 @@ class RunJobRead(BaseModel):
     error_code: str | None
 
 
+class RunStageDiagnosticRead(BaseModel):
+    code: str
+    message: str
+    level: str
+
+
 class RunStageRead(BaseModel):
     stage_name: str
     stage_version: str
     status: str
     progress_percent: int
+    diagnostics: list[RunStageDiagnosticRead] = Field(default_factory=list)
     started_at: datetime | None
     finished_at: datetime | None
 

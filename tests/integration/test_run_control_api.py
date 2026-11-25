@@ -185,6 +185,10 @@ def test_running_cancel_sets_one_way_signal_and_reads_persisted_stage_progress()
                     stage_version="1",
                     status="running",
                     progress_percent=35,
+                    diagnostics_json=[{
+                        "code": "stage.test", "message": "Persisted diagnostic",
+                        "level": "WARNING",
+                    }],
                     input_hash="sha256:" + "1" * 64,
                     config_hash="sha256:" + "2" * 64,
                 )
@@ -194,6 +198,9 @@ def test_running_cancel_sets_one_way_signal_and_reads_persisted_stage_progress()
     assert before.status_code == 200
     assert before.json()["stages"][0]["stage_name"] == "prepare_snapshot"
     assert before.json()["stages"][0]["progress_percent"] == 35
+    assert before.json()["stages"][0]["diagnostics"] == [{
+        "code": "stage.test", "message": "Persisted diagnostic", "level": "WARNING",
+    }]
     requested = client.post(url + "/cancel")
     assert requested.status_code == 200
     assert requested.json()["status"] == "running"
