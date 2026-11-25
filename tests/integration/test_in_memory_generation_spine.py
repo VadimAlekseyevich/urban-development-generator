@@ -875,17 +875,39 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(
             )
             session.add(project)
             session.flush()
+            # This is a worker integration fixture, not an ingest API test.
+            source_geometries = (
+                MultiLineString([[(0, 0), (10, 0)], [(10, 0), (10, 10)],
+                                 [(10, 10), (0, 10)], [(0, 10), (0, 0)]]),
+                box(0, 0, 10, 10),
+                Point(0, 0),
+            )
             versions = []
-            for kind in ("roads", "landuse", "facilities"):
+            for kind, geometry in zip(
+                ("roads", "landuse", "facilities"), source_geometries, strict=True,
+            ):
                 dataset = Dataset(project_id=project.id, kind=kind)
                 session.add(dataset)
                 session.flush()
+                version_id = uuid.uuid4()
+                ref = ArtifactRef(f"uploads/{version_id}/source.geojson")
+                body = json.dumps({
+                    "type": "Feature", "geometry": mapping(geometry), "properties": {},
+                }).encode()
+                store.put(ref, BytesIO(body), content_type="application/geo+json")
+                stat = store.promote(ref)
                 version = DatasetVersion(
-                    dataset_id=dataset.id, version=1, status="processing",
-                    checksum_sha256="a" * 64, source_metadata={},
+                    id=version_id, dataset_id=dataset.id, version=1, status="processing",
+                    checksum_sha256=stat.checksum.removeprefix("sha256:"),
+                    source_metadata={"artifact_key": ref.key},
                 )
                 session.add(version)
                 session.flush()
+                session.add(Artifact(
+                    uri=f"artifact://{ref.key}", checksum=stat.checksum,
+                    size_bytes=stat.size_bytes, content_type=stat.content_type,
+                    state="referenced", owner_type="dataset_version", owner_id=version.id,
+                ))
                 versions.append(version)
             road_version, land_version, facility_version = versions
             session.add(SourceRoad(
@@ -907,27 +929,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(
                 geometry=WKTElement("POINT(0 0)", srid=WORKING_SRID),
             ))
             session.flush()
-            # This is a worker integration fixture, not an ingest API test.
-            source_geometries = (
-                MultiLineString([[(0, 0), (10, 0)], [(10, 0), (10, 10)],
-                                 [(10, 10), (0, 10)], [(0, 10), (0, 0)]]),
-                box(0, 0, 10, 10),
-                Point(0, 0),
-            )
-            for version, geometry in zip(versions, source_geometries, strict=True):
-                ref = ArtifactRef(f"uploads/{version.id}/source.geojson")
-                body = json.dumps({
-                    "type": "Feature", "geometry": mapping(geometry), "properties": {},
-                }).encode()
-                store.put(ref, BytesIO(body), content_type="application/geo+json")
-                stat = store.promote(ref)
-                version.checksum_sha256 = stat.checksum.removeprefix("sha256:")
-                version.source_metadata = {"artifact_key": ref.key}
-                session.add(Artifact(
-                    uri=f"artifact://{ref.key}", checksum=stat.checksum,
-                    size_bytes=stat.size_bytes, content_type=stat.content_type,
-                    state="referenced", owner_type="dataset_version", owner_id=version.id,
-                ))
+            for version in versions:
                 version.status = "ready"
             session.flush()
             run = GenerationRun(
