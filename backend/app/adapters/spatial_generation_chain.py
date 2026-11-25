@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, is_dataclass, replace
+from typing import cast
 
 import numpy as np
 from rasterio.features import shapes
@@ -299,8 +300,10 @@ def build_spatial_registry(
     requested = {factor.code for factor in config.suitability.factors if factor.weight > 0}
     if not requested <= supported:
         raise GenerationExecutionError(f"unconfigured suitability factors: {requested - supported}")
-    return StageRegistry(stages=(
+    # The heterogeneous concrete Stage inputs are narrowed by validate_input at dispatch.
+    stages = (
         PrepareSnapshotStage(), ConstraintMaskStage(), SuitabilityStage(factors=tuple(factors)),
         ZoningStage(constraint_engine=constraint_engine), RoadStage(),
         BlocksAndParcelsStage(), BuildingStage(), DemographyStage(),
-    ))
+    )
+    return StageRegistry(stages=cast(tuple[StageAny, ...], stages))
