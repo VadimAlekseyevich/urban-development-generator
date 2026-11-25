@@ -15,7 +15,10 @@ from collections.abc import Callable, Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.adapters.pipeline_context import PipelineContextAssemblyError, dataset_snapshot_kinds
+from backend.app.adapters.pipeline_context import (
+    PipelineContextAssemblyError,
+    dataset_snapshot_kinds,
+)
 from backend.app.adapters.stage_config_resolver import (
     COMPLETE_CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
