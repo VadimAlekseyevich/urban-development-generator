@@ -39,7 +39,13 @@ from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
-from backend.app.schemas.run_control import RunJobRead, RunListRead, RunStageRead, RunStateRead
+from backend.app.schemas.run_control import (
+    RunJobRead,
+    RunListRead,
+    RunStageDiagnosticRead,
+    RunStageRead,
+    RunStateRead,
+)
 from core.urban_generator.demography import PopulationTargetKind
 from core.urban_generator.domain import ConfigRef, ResolvedConfigBinding, SnapshotLayerKind
 from core.urban_generator.stages import DemographyStageConfig, RoadStageConfig
@@ -392,6 +398,17 @@ class SqlAlchemyRunControlService:
                     stage_version=stage.stage_version,
                     status=stage.status,
                     progress_percent=stage.progress_percent,
+                    diagnostics=[
+                        RunStageDiagnosticRead(
+                            code=item["code"][:128], message=item["message"][:512],
+                            level=item["level"][:32],
+                        )
+                        for item in (stage.diagnostics_json or [])[:32]
+                        if isinstance(item, dict)
+                        and all(isinstance(item.get(key), str) for key in (
+                            "code", "message", "level",
+                        ))
+                    ],
                     started_at=stage.started_at,
                     finished_at=stage.finished_at,
                 )

@@ -18,6 +18,7 @@ export type RunStage = {
   stage_version: string
   status: string
   progress_percent: number
+  diagnostics?: { code: string; message: string; level: string }[]
   started_at: string | null
   finished_at: string | null
 }
