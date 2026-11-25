@@ -24,6 +24,7 @@ from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.job import Job
 from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
+from scripts.generation_smoke_config import smoke_generation_config
 
 client = TestClient(app)
 COMMIT = "a" * 40
@@ -85,8 +86,8 @@ def _create(project_id: uuid.UUID, version_id: uuid.UUID):
             "mode": "EXPANSION",
             "seed": 7,
             "dataset_version_ids": [str(version_id)],
-            "config_json": {"scenario": {"density": "medium"}},
-            "config_schema_version": "1",
+            "config_json": smoke_generation_config(),
+            "config_schema_version": "canonical-stage-configs-v5",
             "commit_sha": COMMIT,
         },
     )

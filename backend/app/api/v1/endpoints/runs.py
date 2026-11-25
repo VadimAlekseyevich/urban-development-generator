@@ -8,13 +8,15 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, HTTPException, Query, status
 
 from backend.app.api.dependencies import RunControlServiceDep
-from backend.app.db.run_control import RunControlConflict, RunControlNotFound
+from backend.app.db.run_control import RunConfigInvalid, RunControlConflict, RunControlNotFound
 from backend.app.schemas.run_control import RunCreate, RunListRead, RunStateRead
 
 router = APIRouter(prefix="/projects/{project_id}/runs", tags=["runs"])
 
 
 def _raise_run_error(exc: RunControlNotFound | RunControlConflict) -> NoReturn:
+    if isinstance(exc, RunConfigInvalid):
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if isinstance(exc, RunControlNotFound):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     raise HTTPException(status_code=409, detail=str(exc)) from exc

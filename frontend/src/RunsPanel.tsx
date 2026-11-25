@@ -46,8 +46,8 @@ export function RunsPanel({
   const [selectedRunId, setSelectedRunId] = useState('')
   const [mode, setMode] = useState<RunState['mode']>('EXPANSION')
   const [seed, setSeed] = useState('42')
-  const [configVersion, setConfigVersion] = useState('1')
-  const [configText, setConfigText] = useState('{}')
+  const configVersion = 'canonical-stage-configs-v5'
+  const [configText, setConfigText] = useState('')
   const [commitSha, setCommitSha] = useState(import.meta.env.VITE_GENERATION_COMMIT_SHA ?? '')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -148,8 +148,7 @@ export function RunsPanel({
         </label>
         <label>
           Версия схемы config
-          <input value={configVersion} maxLength={64}
-            onChange={(event) => setConfigVersion(event.target.value)} required />
+          <input value={configVersion} readOnly />
         </label>
         <label>
           Исполняемый commit SHA (40 hex)
@@ -158,7 +157,7 @@ export function RunsPanel({
         </label>
         <label>
           Полная конфигурация (JSON)
-          <textarea rows={4} value={configText}
+          <textarea rows={4} value={configText} placeholder="Вставьте полную конфигурацию v5"
             onChange={(event) => setConfigText(event.target.value)} spellCheck={false} required />
         </label>
         <p className="helper-text">
