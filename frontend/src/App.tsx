@@ -700,6 +700,7 @@ function App() {
 
         <div className="workspace-section" hidden={view !== 'generation'} aria-label="Параметры и задания">
         <RunsPanel
+          active={view === 'generation'}
           mapRunId={mapRunId}
           onMapRunChange={handleMapRunChange}
           key={selection.projectId ?? 'no-project'}
