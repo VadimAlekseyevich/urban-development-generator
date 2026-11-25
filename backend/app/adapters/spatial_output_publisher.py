@@ -11,8 +11,8 @@ from backend.app.application.generation import GenerationExecutionError, StageCo
 from backend.app.db.generated_block_parcel_writer import SqlAlchemyGeneratedBlockParcelWriter
 from backend.app.db.generated_building_writer import SqlAlchemyGeneratedBuildingWriter
 from backend.app.db.generated_demography_writer import SqlAlchemyGeneratedDemographyWriter
-from backend.app.db.generated_road_writer import SqlAlchemyGeneratedRoadWriter
 from backend.app.db.generated_infrastructure_writer import SqlAlchemyGeneratedInfrastructureWriter
+from backend.app.db.generated_road_writer import SqlAlchemyGeneratedRoadWriter
 from backend.app.db.generated_zone_writer import SqlAlchemyGeneratedZoneWriter
 from backend.app.db.session import SessionLocal
 from backend.app.db.stage_artifact_publication import SqlAlchemyStageArtifactPublisher
