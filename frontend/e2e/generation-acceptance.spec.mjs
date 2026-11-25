@@ -68,6 +68,18 @@ test('real uploads → ingest worker → EXPANSION → all stages → GIS and pr
     expect(observed.job_status).toBe('succeeded')
   }
 
+  const runtime = await checked(await request.get(api + '/generation/revision'), 200)
+  expect(runtime.commit_sha).toBe(revision)
+  const mismatch = await request.post(root + '/runs', {
+    data: {
+      mode: 'EXPANSION', seed: 20260919, dataset_version_ids: ids,
+      config_schema_version: config.schema_version, config_json: config,
+      commit_sha: revision === 'a'.repeat(40) ? 'b'.repeat(40) : 'a'.repeat(40),
+    },
+  })
+  expect(mismatch.status()).toBe(409)
+  const before = await checked(await request.get(root + '/runs'), 200)
+  expect(before.runs).toHaveLength(0)
   const run = await checked(await request.post(root + '/runs', {
     data: {
       mode: 'EXPANSION', seed: 20260919, dataset_version_ids: ids,
