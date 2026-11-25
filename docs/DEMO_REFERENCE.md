@@ -11,7 +11,7 @@ City-specific assumptions must not be embedded into `core`, persistence schemas,
 ## Where to look
 
 - `README.md` — how to start the complete development stack.
-- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — what is being implemented next and when new UI vertical slices appear.
+- [WORKING_APPLICATION.md](WORKING_APPLICATION.md) — current functional priorities and real generation acceptance.
 - `docs/INGEST_WORKER.md` — how uploaded vector/raster source data is normalized and promoted to a ready DatasetVersion.
 - `docs/SOURCE_LAYER_GEOJSON_API.md` — API used to read normalized source layers by viewport.
 - `docs/SOURCE_LAYERS_UI.md` — interactive source-map capabilities: boundary, roads, buildings, water, landuse, layer toggles, fit and feature inspector.
@@ -20,7 +20,7 @@ City-specific assumptions must not be embedded into `core`, persistence schemas,
 
 ## Current hands-on status
 
-The source-layers map expects an existing project and a ready `dataset_version_id`. The suitability UI can now also open an existing canonical suitability artifact by `suitability_artifact_id` and display its heatmap, hard exclusions, statistics and factor metadata.
+A project can be created in the UI and its boundary uploaded as GeoJSON. The source-layers map expects a ready `dataset_version_id` produced by ingest. The suitability UI can now also open an existing canonical suitability artifact by `suitability_artifact_id` and display its heatmap, hard exclusions, statistics and factor metadata.
 
 For an immediately runnable suitability visualization, start the stack and seed the **synthetic demo only**:
 

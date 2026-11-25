@@ -29,7 +29,7 @@ production `GenerationInputResolver` should hydrate the fixed road inputs at
 the roads stage using this adapter, together with upstream typed zoning,
 suitability and constraint outputs. Production config decoding, stage
 registration, result persistence, final metric evaluation, ARQ startup
-composition and an unseeded real run remain release blocker #178.
+composition and an unseeded real run remain release blocker #202.
 
 ## Verification
 

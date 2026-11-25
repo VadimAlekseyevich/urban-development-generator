@@ -69,5 +69,5 @@ use that capability instead of growing its helper into application logic.
 ## Ordered follow-up
 
 S10-T13 is complete through UG-AI-043. Performance/all-pairs evidence remains UG-AI-044/045:
-the next task is UG-AI-044 / S10-T14, which adds the bounded candidate×demand performance fixture
+the next task in the historical S10 sequence was UG-AI-044 / S10-T14, which adds the bounded candidate×demand performance fixture
 and counters proving that greedy iterations do not repeat full all-pairs routing.

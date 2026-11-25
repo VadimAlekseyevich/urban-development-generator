@@ -1,14 +1,16 @@
 # Urban Development Generator — AI Execution Tasks
 
-> **Status: Active**
+> **Status: Historical work-item catalogue; not the active queue.**
+>
+> Current order: [WORKING_APPLICATION.md](../WORKING_APPLICATION.md) / issue #202. Existing technical constraints remain useful.
 >
 > Ordered one-request-sized execution backlog. Parent capability roadmap remains `docs/IMPLEMENTATION_VERSION_ROADMAP.md`.
 
 ## Rules
 
-- Execute one UG-AI task at a time unless a task explicitly names a paired acceptance step.
+- Historical rule for this catalogue: execute one UG-AI task at a time. Current work is grouped by functional acceptance and may cross former task boundaries.
 - Read `DOCUMENTATION_RULES.md`, `IMPLEMENTATION_READINESS.md`, the parent roadmap item, and canonical subsystem docs first.
-- Do not implement later UG-AI tasks opportunistically.
+- Do not add unrelated work while the real generation path is blocked.
 - Do not introduce a second Stage/Constraint/NetworkBackend/ArtifactStore/metric vocabulary.
 - Architecture change requires ADR before or with code.
 - Update tests and canonical docs in the same change.
@@ -170,4 +172,4 @@ Historical `STAB-*` labels below map to the finite M0 stabilization work. M0-01 
 
 ## Gate rule
 
-UG-AI-001..090 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task is UG-AI-091 / S13-T11. No sprint may skip its milestone integration gate merely because its individual tasks are checked.
+UG-AI-001..090 are complete; M0–M4 contract/integration gates are closed, M5 remains open, and IMPLEMENTATION_READINESS is Accepted. The next task at the time of this historical snapshot was UG-AI-091 / S13-T11. No sprint may skip its milestone integration gate merely because its individual tasks are checked.

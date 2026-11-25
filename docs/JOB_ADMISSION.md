@@ -75,7 +75,7 @@ silently discard queued work. Direct internal matrix creation raises
   change rule, not an optional optimization.
 - Candidate/grid/run-matrix per-operation caps remain owned by their typed
   algorithms/validators, not a new competing planner vocabulary.
-- The runtime worker composition blocker #178 is **not fixed** by admission.
+- The runtime worker composition blocker #202 is **not fixed** by admission.
 
 Mandatory regression evidence: `tests/integration/test_job_admission_api.py`
 checks 429 + `Retry-After`, atomic no-partial creation, per-project isolation,

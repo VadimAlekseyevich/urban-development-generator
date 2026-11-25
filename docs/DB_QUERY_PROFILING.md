@@ -107,5 +107,5 @@ are unchanged by the transaction.
   `SET LOCAL statement_timeout = '15000ms'` per plan.
 
 **No production-runtime generation success is claimed.** Release issue
-#178 (missing real Stage/typed input/config composition) remains independently
+#202 (missing real Stage/typed input/config composition) remains independently
 open and must be closed before a non-synthetic end-to-end release.

@@ -1,6 +1,8 @@
 # Implementation Readiness
 
-> **Status: ACCEPTED — M0 architecture stabilization complete**
+> **Historical M0 architecture acceptance: ACCEPTED. Current product readiness: BLOCKED (#202).**
+>
+> Current priorities and real-user acceptance: [WORKING_APPLICATION.md](../WORKING_APPLICATION.md). The older M0 record below is not a product-release assessment.
 >
 > Original audited baseline: `main@405890d820751d07156099f6f7073f22cdd083fa`
 >
@@ -10,7 +12,7 @@
 
 ## 1. Decision
 
-The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. S13-T02 adds an owner-authorized, 15-table-backed bounded bbox/UUID-keyset GeoJSON path; the project boundary, suitability raster and canonical integer-index validation report retain their specialized APIs. S13-T03 adds bounded, owner-scoped PostGIS MVT tiles for all 15 table-backed UUID layers, without introducing immutable caching before S13-T04. S13-T04 adds publication-qualified immutable tile ETags/304. S13-T05 introduces the frontend owner-qualified 18-layer registry and separated render recipes. S13-T06 builds the complete registry-derived tree. S13-T07 adds DB-outbox-backed single-layer GeoJSON export over immutable ready DatasetVersion/succeeded run owners, bounded keyset reads and referenced ArtifactStore publication. S13-T08 extends the same job/outbox/artifact authority to canonical-order multi-layer GeoPackage exports with exact dataset/run owners, 5,000-row keyset batches, hard per-layer/total caps and retry-safe ready-container reuse. S13-T09 adds bounded synchronous 1–10-run canonical raw-metrics CSV export from the persisted evaluation envelope, with no GIS/validation/score recomputation. S13-T10 exposes the existing deterministic S12 provenance manifest as a project-scoped JSON download, preserving normalized config, seed/working CRS, dataset-version/source checksums, code revision, stage fingerprints/artifacts and persisted evaluation without a second provenance model or GIS recomputation. S13-T11 adds a configurable S3/MinIO ArtifactStore with the same temporary/ready, checksum, promotion-retry and bounded run-orphan semantics as LocalArtifactStore, while keeping bucket/endpoint details outside the core port. S13-T11 adds S3/MinIO parity for the core ArtifactStore port. S13-T12 adds raw multipart upload progress/cancel/manual retry and read-only project-scoped DatasetVersion discovery without conflating uploaded Artifacts with ingested versions. S13-T13 composes project creation/selection, existing dataset-version discovery, shared map/run owner pinning, generation jobs, persisted metrics and scenario comparison into one navigable frontend workspace while retaining the canonical registries and their API bounds. The current ordered task is **UG-AI-094 / S13-T14**.
+The repository is architecture-ready for post-S10 feature development. S10/M1 and S11/M2 are complete; S12 is implemented through UG-AI-080, including DB-authoritative cancellation/retry, outbox recovery, stage artifact publication, bounded ScenarioBatch admission, deterministic seed/full-config matrix expansion, and exact successful-run input replay with strict source blob/checksum and code availability verification plus durable lineage (ADR-0006/0007/0008), and deterministic read-only successful-run provenance manifests. S13-T01 introduces the immutable application-layer LayerCatalog with no new delivery endpoint or database model. S13-T02 adds an owner-authorized, 15-table-backed bounded bbox/UUID-keyset GeoJSON path; the project boundary, suitability raster and canonical integer-index validation report retain their specialized APIs. S13-T03 adds bounded, owner-scoped PostGIS MVT tiles for all 15 table-backed UUID layers, without introducing immutable caching before S13-T04. S13-T04 adds publication-qualified immutable tile ETags/304. S13-T05 introduces the frontend owner-qualified 18-layer registry and separated render recipes. S13-T06 builds the complete registry-derived tree. S13-T07 adds DB-outbox-backed single-layer GeoJSON export over immutable ready DatasetVersion/succeeded run owners, bounded keyset reads and referenced ArtifactStore publication. S13-T08 extends the same job/outbox/artifact authority to canonical-order multi-layer GeoPackage exports with exact dataset/run owners, 5,000-row keyset batches, hard per-layer/total caps and retry-safe ready-container reuse. S13-T09 adds bounded synchronous 1–10-run canonical raw-metrics CSV export from the persisted evaluation envelope, with no GIS/validation/score recomputation. S13-T10 exposes the existing deterministic S12 provenance manifest as a project-scoped JSON download, preserving normalized config, seed/working CRS, dataset-version/source checksums, code revision, stage fingerprints/artifacts and persisted evaluation without a second provenance model or GIS recomputation. S13-T11 adds a configurable S3/MinIO ArtifactStore with the same temporary/ready, checksum, promotion-retry and bounded run-orphan semantics as LocalArtifactStore, while keeping bucket/endpoint details outside the core port. S13-T11 adds S3/MinIO parity for the core ArtifactStore port. S13-T12 adds raw multipart upload progress/cancel/manual retry and read-only project-scoped DatasetVersion discovery without conflating uploaded Artifacts with ingested versions. S13-T13 composes project creation/selection, existing dataset-version discovery, shared map/run owner pinning, generation jobs, persisted metrics and scenario comparison into one navigable frontend workspace while retaining the canonical registries and their API bounds. At that historical point the ordered task was **UG-AI-094 / S13-T14**.
 
 This decision means the cross-cutting contracts needed by the remaining roadmap are stable enough
 that S10-S15 can extend them without another pre-feature architecture rewrite.
@@ -62,7 +64,7 @@ threaten the stabilized cross-cutting architecture.
 
 ## 4. What remains intentionally future work
 
-Do not pull these forward merely because M0 is complete:
+Historical roadmap placement (the current product priority supersedes this ordering):
 
 - real-territory browser E2E across complete workspace — S13;
 - real-territory output reproducibility/tolerance experiments — S15;
@@ -88,7 +90,7 @@ The ordered execution tasks are UG-AI-015 through UG-AI-019.
 
 Before starting an AI task:
 
-- use the exact `UG-AI-xxx` entry;
+- use the current functional blocker in WORKING_APPLICATION.md / #202; consult historical UG-AI entries for existing contracts;
 - verify parent/prerequisites;
 - read the canonical contract owner;
 - state input/output contracts and non-goals;
@@ -98,9 +100,7 @@ Before starting an AI task:
 
 ## 7. Current next action
 
-```text
-UG-AI-108 / S14-T14
-Add worker crash/duplicate delivery/retry/cancel/stale checkpoint/orphan artifact reliability E2E.
-```
-
-Feature work may resume only through this ordered backlog; do not skip directly to a later item.
+Close [#202](https://github.com/VadimAlekseyevich/urban-development-generator/issues/202): compose and persist the
+canonical stages from real uploaded inputs, install the factory in the
+deployed worker, and prove the unseeded successful browser workflow.
+Do not prioritize historical UG-AI-108 or research work over this blocker.
