@@ -280,7 +280,7 @@ export function RunsPanel({
             return (
               <label className="run-input-option" key={version.id}>
                 <input type="checkbox" checked={checked}
-                  disabled={version.status !== 'ready' || (!checked && chosenInputs.length >= 32) || !revisionReady}
+                  disabled={version.status !== 'ready' || (!checked && chosenInputs.length >= 32)}
                   onChange={() => toggleInput(version)} />
                 <span>{version.dataset_kind} · v{version.version} · {shortId(version.id)} · {version.status}
                   {version.id === datasetVersionId ? ' · на карте' : ''}</span>
