@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections import Counter
 from collections.abc import Callable, Mapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.adapters.pipeline_context import PipelineContextAssemblyError, dataset_snapshot_kinds
 from backend.app.adapters.stage_config_resolver import (
     COMPLETE_CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
@@ -31,7 +33,10 @@ from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
 from backend.app.schemas.run_control import RunJobRead, RunListRead, RunStageRead, RunStateRead
-from core.urban_generator.domain import ConfigRef
+from core.urban_generator.demography import PopulationTargetKind
+from core.urban_generator.domain import ConfigRef, ResolvedConfigBinding, SnapshotLayerKind
+from core.urban_generator.stages import DemographyStageConfig, RoadStageConfig
+from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _MAX_SEED = (1 << 63) - 1
@@ -51,15 +56,67 @@ class RunConfigInvalid(RunControlConflict):
     """A new job would be incompatible with the deployed canonical runtime."""
 
 
-def _validate_config(config_json: Mapping[str, object], schema_version: str) -> None:
+def _validate_config(
+    config_json: Mapping[str, object], schema_version: str,
+) -> tuple[ResolvedConfigBinding, ...]:
     try:
-        CanonicalStageConfigResolver(schema_version=COMPLETE_CONFIG_SCHEMA_VERSION).resolve(
+        return CanonicalStageConfigResolver(schema_version=COMPLETE_CONFIG_SCHEMA_VERSION).resolve(
             config_json=config_json,
             schema_version=schema_version,
             source=ConfigRef(name="generation", ref="run-admission"),
         )
     except (PersistedStageConfigError, RecursionError) as exc:
         raise RunConfigInvalid(f"invalid generation config: {exc}") from exc
+
+
+def _check_input_compatibility(
+    session: Session, *, mode: str, versions: list[DatasetVersion],
+    bindings: tuple[ResolvedConfigBinding, ...],
+) -> None:
+    """Reject known impossible inputs before creating any run/job/outbox.
+
+    This is a structural preflight, not a coverage or topology proof.
+    Full source reads, checksum verification and algorithms stay in the worker.
+    """
+    try:
+        kinds = Counter(
+            kind for version in versions
+            for kind in dataset_snapshot_kinds(session, version.dataset.kind, version.id)
+        )
+    except PipelineContextAssemblyError as exc:
+        raise RunControlConflict(str(exc)) from exc
+
+    if mode == "FROM_SCRATCH" and any(kinds[kind] for kind in (
+        SnapshotLayerKind.ROADS, SnapshotLayerKind.BUILDINGS,
+        SnapshotLayerKind.FACILITIES, SnapshotLayerKind.ZONES,
+    )):
+        raise RunControlConflict(
+            "FROM_SCRATCH cannot consume fixed roads, buildings, facilities or zones"
+        )
+    if kinds[SnapshotLayerKind.ZONES] or kinds[SnapshotLayerKind.DEMOGRAPHY]:
+        raise RunControlConflict("fixed zone or population baseline hydration is not implemented")
+
+    for binding in bindings:
+        value = binding.value
+        if isinstance(value, PreparedSuitabilityStageConfig):
+            factors = {factor.code for factor in value.suitability.factors if factor.weight > 0}
+            unsupported = factors - {"slope", "landuse", "road_proximity"}
+            if unsupported:
+                raise RunConfigInvalid(
+                    "unsupported suitability factors: " + ", ".join(sorted(unsupported))
+                )
+            if "slope" in factors and kinds[SnapshotLayerKind.DEM] != 1:
+                raise RunControlConflict("positive slope factor requires exactly one ready DEM")
+            if "landuse" in factors and not kinds[SnapshotLayerKind.LANDUSE]:
+                raise RunControlConflict("positive landuse factor requires ready landuse data")
+            if "road_proximity" in factors and not kinds[SnapshotLayerKind.ROADS]:
+                raise RunControlConflict("positive road_proximity factor requires ready roads")
+        elif isinstance(value, RoadStageConfig):
+            if kinds[SnapshotLayerKind.ROADS] and value.fixed_attachment_policy is None:
+                raise RunConfigInvalid("fixed roads require a fixed attachment policy")
+        elif isinstance(value, DemographyStageConfig):
+            if value.scenario.population_target.kind is PopulationTargetKind.GROWTH_RATE:
+                raise RunConfigInvalid("population growth rate requires an unsupported baseline")
 
 
 class SqlAlchemyRunControlService:
@@ -167,7 +224,7 @@ class SqlAlchemyRunControlService:
             raise RunControlConflict("invalid config schema version")
         if _COMMIT_RE.fullmatch(commit_sha) is None:
             raise RunControlConflict("commit_sha must be a real lowercase 40-hex revision")
-        _validate_config(config_json, config_schema_version)
+        bindings = _validate_config(config_json, config_schema_version)
         try:
             config = ScenarioConfigVariant.from_config(
                 name="manual_run", config_json=config_json
@@ -182,6 +239,7 @@ class SqlAlchemyRunControlService:
                 versions = self._versions(
                     session, project_id=project_id, version_ids=dataset_version_ids
                 )
+                _check_input_compatibility(session, mode=mode, versions=versions, bindings=bindings)
                 run = GenerationRun(
                     id=uuid.uuid4(),
                     project_id=project_id,
@@ -240,7 +298,7 @@ class SqlAlchemyRunControlService:
                         raise RunControlConflict("source working SRID has changed")
                     if source.commit_sha is None or _COMMIT_RE.fullmatch(source.commit_sha) is None:
                         raise RunControlConflict("source code revision is missing")
-                    _validate_config(source.config_json, source.config_schema_version)
+                    bindings = _validate_config(source.config_json, source.config_schema_version)
                     try:
                         config = ScenarioConfigVariant.from_config(
                             name="manual_retry", config_json=source.config_json
@@ -250,6 +308,9 @@ class SqlAlchemyRunControlService:
                     version_ids = tuple(version.id for version in source.dataset_versions)
                     versions = self._versions(
                         session, project_id=project_id, version_ids=version_ids
+                    )
+                    _check_input_compatibility(
+                        session, mode=source.mode, versions=versions, bindings=bindings,
                     )
                     enforce_project_job_capacity(
                         session, project_id=project_id, job_type="generation_run"
