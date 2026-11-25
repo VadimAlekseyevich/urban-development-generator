@@ -95,3 +95,25 @@ reviewed and corrected. This is a targeted consistency review, not a claim
 that every historical algorithm specification has been revalidated against
 all current source code. Preserve contract evidence; correct subsystem details
 as part of the corresponding functional changes.
+
+
+### User-reported infrastructure routing failure (2026-11-25)
+
+Manual local run at main `4fde175`, seed 42, failed at infrastructure after
+39.38 seconds: 4,775,310 candidate-demand pairs > 1,000,000 result budget.
+Exact user's form values are not confirmed. The candidate fix retains all
+block demand rows and all existing capacity accounting; when the dense matrix
+would exceed configured result/routing bounds it selects a deterministic
+spatially distributed candidate shortlist, targeting at most 250,000 pairs
+when feasible. The existing exact calculation and hard validity checks still
+apply to shortlisted sites; approximate search can miss feasible alternatives.
+Stage diagnostics disclose the shortlist. A new unseeded 400 m, 10 m grid,
+seed 42, 1000 residents regression exercises the default-like configuration.
+A second user run (seed 20260919) also failed: 4,188,528 > 1,000,000.
+CI 45698917851 completed six browser tests but the dense profile did not
+trigger the shortlist; the corrected regression forces a 4,000-pair test
+budget and asserts the diagnostic and actual pair counts. A separate unit
+case checks a 4.8 million pair input against the production default budget.
+The previously suggested 40 m / 300 residents workaround also failed locally.
+Do not request further manual reruns before the corrected overflow gate passes.
+Exact local configuration and source-normalization differences remain unverified.

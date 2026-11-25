@@ -23,12 +23,12 @@ async function checked(response, status) {
   return JSON.parse(body)
 }
 
-for (const scenario of ['EXPANSION', 'FROM_SCRATCH', 'PLANNING_PROFILE']) {
+for (const scenario of ['EXPANSION', 'FROM_SCRATCH', 'PLANNING_PROFILE', 'DENSE_PROFILE']) {
 const mode = scenario === 'EXPANSION' ? 'EXPANSION' : 'FROM_SCRATCH'
 test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS and provenance', async ({ request, page }) => {
   test.setTimeout(300_000)
   // Generate bytes, not DB records. All state changes go through public HTTP routes.
-  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', scenario === 'PLANNING_PROFILE' ? '400' : mode === 'EXPANSION' ? '10' : '100'))
+  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', ['PLANNING_PROFILE', 'DENSE_PROFILE'].includes(scenario) ? '400' : mode === 'EXPANSION' ? '10' : '100'))
   let config = JSON.parse(python('scripts.generation_smoke_config'))
   // Explicitly exercise the normalized DEM in addition to vector suitability.
   config.stages.suitability.config.suitability.factors.push({
@@ -108,11 +108,20 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
     await expect(page.locator('.run-form textarea')).toHaveValue(JSON.stringify(config, null, 2))
   }
 
+  if (scenario === 'DENSE_PROFILE') {
+    // User-reported seed 42; default-like grid, then force actual shortlist overflow.
+    // Test-only smaller budget ensures this fixture exercises the failure path.
+    config = await checked(await request.post(api + '/generation/planning-config', {
+      data: { cell_size_m: 10, target_population: 1000 },
+    }), 200)
+    config.stages.infrastructure.config.candidate_policy.max_results = 4000
+  }
+
   const runtime = await checked(await request.get(api + '/generation/revision'), 200)
   expect(runtime.commit_sha).toBe(revision)
   const mismatch = await request.post(root + '/runs', {
     data: {
-      mode, seed: 20260919, dataset_version_ids: ids,
+      mode, seed: scenario === 'DENSE_PROFILE' ? 42 : 20260919, dataset_version_ids: ids,
       config_schema_version: config.schema_version, config_json: config,
       commit_sha: revision === 'a'.repeat(40) ? 'b'.repeat(40) : 'a'.repeat(40),
     },
@@ -121,7 +130,7 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   const before = await checked(await request.get(root + '/runs'), 200)
   expect(before.runs).toHaveLength(0)
   const payload = {
-    mode, seed: 20260919, dataset_version_ids: ids,
+    mode, seed: scenario === 'DENSE_PROFILE' ? 42 : 20260919, dataset_version_ids: ids,
     config_schema_version: config.schema_version, config_json: config, commit_sha: revision,
   }
   let run
@@ -148,12 +157,24 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   await expect.poll(async () => {
     result = await checked(await request.get(root + '/runs/' + run.id), 200)
     return ['succeeded', 'failed', 'cancelled'].includes(result.status)
-  }, { timeout: 90_000, intervals: [500, 1000, 2000], message: 'real generation worker' }).toBe(true)
+  }, { timeout: scenario === 'DENSE_PROFILE' ? 180_000 : 90_000, intervals: [500, 1000, 2000], message: 'real generation worker' }).toBe(true)
   expect(result.status, JSON.stringify(result)).toBe('succeeded')
   expect(result.job.status).toBe('succeeded')
   expect(result.stages.map((stage) => stage.stage_name).sort()).toEqual([...stages].sort())
   expect(result.stages.every((stage) => stage.status === 'succeeded')).toBe(true)
 
+  if (scenario === 'DENSE_PROFILE') {
+    const diagnostics = result.stages.find(stage => stage.stage_name === 'infrastructure').diagnostics
+    console.log('DENSE_PROFILE infrastructure diagnostics: ' + JSON.stringify(diagnostics))
+    const budget = diagnostics.find(item => item.code === 'infrastructure.candidate_budget')
+    expect(budget, 'must exercise real overflow, not only successful small routing').toBeDefined()
+    const match = budget.message.match(/selected (\d+) of (\d+) candidates for (\d+) demand rows/)
+    expect(match).not.toBeNull()
+    const [, kept, offered, demands] = match.map(Number)
+    expect(offered * demands).toBeGreaterThan(4000)
+    expect(kept * demands).toBeLessThanOrEqual(4000)
+    expect(kept).toBeGreaterThan(0)
+  }
   // Use a generous geographic viewport enclosing the tiny UTM fixture.
   const bounds = input.boundary.coordinates[0]
   const xs = bounds.map((point) => point[0]), ys = bounds.map((point) => point[1])
@@ -167,7 +188,7 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   const geometries = new Map()
   for (const [path, layer] of layers) {
     const collection = await checked(await request.get(
-      root + '/' + path + '/' + run.id + '/' + layer + '/geojson?bbox=' + bbox,
+      root + '/' + path + '/' + run.id + '/' + layer + '/geojson?limit=5000&bbox=' + bbox,
     ), 200)
     console.log(scenario + ' ' + layer + ': ' + collection.features.length + ' features')
     expect(collection.truncated, 'complete ' + layer + ' viewport').toBe(false)
