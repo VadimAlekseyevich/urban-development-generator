@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
-from dataclasses import asdict, replace
+from dataclasses import asdict, is_dataclass, replace
 
 import numpy as np
 from rasterio.features import shapes
@@ -260,11 +260,15 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
             )
         elif stage.name == DemographyStage.name and isinstance(config, DemographyStageConfig):
             if context.snapshot.demography:
-                raise GenerationExecutionError("fixed population baseline hydration not implemented")
+                raise GenerationExecutionError(
+                    "fixed population baseline hydration not implemented"
+                )
             buildings = _require(outputs, BuildingStage.name, BuildingStageOutput)
             value = DemographyStageInput(buildings=buildings)
         else:
             raise GenerationExecutionError(f"unsupported spatial stage or config: {stage.name}")
+        if not is_dataclass(config) or isinstance(config, type):
+            raise GenerationExecutionError("stage config must be a dataclass instance")
         return StageInvocation(
             stage_input=value, input_parts=parts,
             config_parts=(json.dumps(asdict(config), sort_keys=True, allow_nan=False,

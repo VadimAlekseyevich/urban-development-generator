@@ -263,3 +263,29 @@ def test_v2_prepared_grid_config_is_explicit_and_v1_is_unchanged() -> None:
         CanonicalStageConfigResolver().resolve(
             config_json=payload, schema_version=PREPARED_CONFIG_SCHEMA_VERSION, source=SOURCE,
         )
+
+
+def test_v2_positive_landuse_requires_explicit_mapping() -> None:
+    from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
+
+    resolver = CanonicalStageConfigResolver(
+        stage_names=("suitability",), schema_version=PREPARED_CONFIG_SCHEMA_VERSION,
+    )
+    config = _suitability()
+    config["suitability"]["factors"][0]["code"] = "landuse"
+    data = {
+        "schema_version": PREPARED_CONFIG_SCHEMA_VERSION,
+        "stages": {"suitability": _stage(config)},
+    }
+    with pytest.raises(PersistedStageConfigError, match="landuse_weights"):
+        resolver.resolve(
+            config_json=data, schema_version=PREPARED_CONFIG_SCHEMA_VERSION, source=SOURCE,
+        )
+    config["landuse_weights"] = {
+        "version": "v1", "classes": [{"class_name": "residential", "score": 0.8}],
+    }
+    parsed = resolver.resolve(
+        config_json=data, schema_version=PREPARED_CONFIG_SCHEMA_VERSION, source=SOURCE,
+    )[0].value
+    assert isinstance(parsed, PreparedSuitabilityStageConfig)
+    assert parsed.landuse_weights.score_for("residential") == 0.8

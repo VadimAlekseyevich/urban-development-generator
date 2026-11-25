@@ -811,9 +811,11 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
     from sqlalchemy import text
     from sqlalchemy.orm import Session
 
+    from backend.app.adapters.fixed_road_source_reader import SqlAlchemyFixedRoadSourceReader
     from backend.app.adapters.local_artifact_store import LocalArtifactStore
     from backend.app.adapters.pipeline_context import SqlAlchemyPipelineContextAdapter
     from backend.app.adapters.spatial_generation_chain import (
+        RunScopedRoadProximityFactor,
         SpatialGenerationInputResolver,
         build_spatial_registry,
     )
@@ -954,6 +956,12 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 publisher.publish(run_id=run_id, stage_name=stage.name, output=result.output)
 
         assert outputs["suitability"].valid_count == 100
+        distance = RunScopedRoadProximityFactor(
+            SqlAlchemyFixedRoadSourceReader(session_factory=session_factory),
+        ).evaluate(grid=outputs["suitability"].grid, snapshot=snapshot, context=run_context)
+        assert np.all(distance.valid_mask)
+        assert distance.values[0, 0] == pytest.approx(0.5)
+        assert distance.values[4, 4] == pytest.approx(4.5)
         assert outputs["buildings"].area_subjects
         assert outputs["demography"].population.diagnostics.allocated_generated_population == 8
         with session_factory() as session:

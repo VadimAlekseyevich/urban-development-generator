@@ -2,8 +2,8 @@
 
 First P0/#202 slice: this builds typed *existing* StageConfig dataclasses
 from JSONB, not execution bindings, live GIS input adapters or a production
-worker runtime. The canonical catalog has twelve identities but presently
-versioned subsets of concrete Stage implementations with typed configs; unimplemented
+worker runtime. The canonical catalog has twelve identities; schema versions
+select subsets of concrete Stage implementations with typed configs. Unimplemented
 stage identities are intentionally rejected rather than assigned fake stages.
 """
 
@@ -37,7 +37,6 @@ from core.urban_generator.stages import (
     ZoningStage,
     ZoningStageConfig,
 )
-
 from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
 
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
