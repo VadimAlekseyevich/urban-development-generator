@@ -9,6 +9,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from backend.app.api.dependencies import RunControlServiceDep
 from backend.app.application.planning_config import PlanningParameters, build_planning_config
+from backend.app.core.config import settings
+from backend.app.core.generation_revision import GenerationRevisionError, build_revision
 from backend.app.db.run_control import RunConfigInvalid, RunControlConflict, RunControlNotFound
 from backend.app.schemas.run_control import RunCreate, RunListRead, RunStateRead
 
@@ -54,6 +56,18 @@ def create_run(
         )
     except (RunControlNotFound, RunControlConflict) as exc:
         _raise_run_error(exc)
+
+
+@config_router.get("/revision")
+def generation_revision() -> dict[str, str | bool | None]:
+    try:
+        revision = build_revision()
+    except GenerationRevisionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {
+        "commit_sha": revision,
+        "required": settings.app_env.casefold() == "production",
+    }
 
 
 @config_router.post("/planning-config")
