@@ -1,6 +1,6 @@
 # P0 / issue #202 — canonical persisted Stage configuration schema
 
-**Scope: first configuration-only boundary, not production generation readiness.**
+**Scope: typed configuration contract; production admission requires complete v5.**
 
 `backend.app.adapters.stage_config_resolver.CanonicalStageConfigResolver`
 implements the existing
@@ -10,9 +10,9 @@ implements the existing
 dataclasses**, each bound to the *same* `ConfigRef` derived from the
 persisted run. It does not create another Stage model, registry or job type.
 
-`GenerationRun.config_schema_version` must equal
-`canonical-stage-configs-v1`, and the embedded schema-version field must
-match it. There is **no implicit migration** of old JSON/legacy configs,
+The deployed generation worker and new run submissions require
+`canonical-stage-configs-v5`, and the embedded schema-version field must
+match it. Older resolver versions remain available for offline tests. There is **no implicit migration** of old JSON/legacy configs,
 no defaulting an unknown version to the latest schema, and no silent
 coercion of strings, booleans, nonfinite numbers or omitted required
 fields.
@@ -38,19 +38,15 @@ fields.
 This **partial example** is valid *only* for a resolver explicitly configured
 with the `evaluate_constraints` stage in an isolated test. A real run must
 provide exactly the full selected typed Stage set. The default resolver
-requires all **seven currently implemented concrete stages**:
+requires the original **seven concrete stages** of v1:
 `evaluate_constraints`, `suitability`, `zoning`, `roads`,
 `blocks_and_parcels`, `buildings`, `demography`. Stage names and versions
 are taken directly from their core implementations, not from user-defined
 strings; JSON supplies no Python import or constructor path.
 
-The full stable canonical DAG has **twelve** identities. The remaining
-`prepare_snapshot`, `infrastructure`, `final_validation`, `metrics`
-and `persist_manifest` currently have **no corresponding complete typed
-Stage implementation/config binding**. This module deliberately rejects
-those entries instead of inventing no-op stages or falsely reporting a
-fully wired generation runtime. Do not turn the worker on merely because
-a valid seven-stage config has been decoded.
+The full canonical DAG has twelve stages. Versions v2–v5 extend the
+original v1 catalog; v5 includes prepare_snapshot, infrastructure,
+final_validation, metrics and persist_manifest. The worker requires v5.
 
 Each `config` object must be a closed, fully materialized tree compatible
 with the exact existing core dataclass. Optional defaults defined by core
@@ -79,20 +75,11 @@ config representation only, not GIS input validity or execution.
 
 ## Remaining P0 / #202 blockers
 
-1. Implement the missing canonical stage implementations with complete
-   real typed inputs, fixed-input semantics, generated output publication,
-   validation, metrics and manifest persistence.
-2. Compose the production StageRegistry/input resolver against the
-   existing PostGIS/ArtifactStore ports, and install a
-   `generation_runtime_factory` in the ARQ generation-worker lifecycle.
-3. Apply the schema to the generation submission API with backward
-   compatibility explicitly designed; old config payloads must not be
-   silently reinterpreted.
-4. Run **unseeded** project creation → geometry boundary → upload →
-   DatasetVersion `ready` → normal GenerationRun → actual worker →
-   persisted generated GIS/metrics with two modes and real datasets.
-5. Confirm release acceptance and CI on the exact merge/release commit.
-   The boundary-input PR #201 is related but separate.
+1. Complete the user-facing configuration workflow and multi-layer selection.
+2. Verify actual executable code identity and ready source compatibility.
+3. Run unseeded project creation → boundary → upload → DatasetVersion ready
+   → API run → actual worker → persisted GIS/metrics in both modes.
+4. Verify release acceptance and CI on the exact merge/release commit.
 
 Until these are complete, a green unit test and JSON schema must not be
 reported as a successful live production generation.
@@ -148,3 +135,9 @@ persist_manifest (schema_version "1"). The deployed worker requires this
 complete schema; v1-v4 remain offline/integration contracts. The final stage
 publishes provenance only for a valid report; failed hard bounds are preserved
 for diagnosis and block generation success.
+
+New run creation and creation of a new manual retry use the same v5 resolver
+as the worker before job admission. Invalid configs return HTTP 422 without
+creating run/job/outbox records. Historical runs remain readable and existing
+retry children retain their idempotent identity. Configuration admission alone
+does not prove input completeness or GIS success.
