@@ -28,7 +28,7 @@ successful evaluations are fixture snapshots, **not** the result of the job
 started in step 5. The comparison acceptance gate verifies composition and persistence
 at each implemented boundary; it does **not** establish a real raw-file-to-
 successful-generative-run workflow. The unseeded ingestion path is covered by the separate ingest journey;
-a real successful calculation path still requires production-level acceptance (#202).
+the later unseeded generation tests below verify the real successful calculation path.
 
 ## Isolation and determinism
 
@@ -56,6 +56,7 @@ With Docker, Docker Compose, Node 22 and Chromium prerequisites available:
 
 ```bash
 cp .env.example .env
+export GENERATION_BUILD_REVISION=$(git rev-parse HEAD)
 docker compose up -d --build
 cd frontend
 npm ci --no-audit --no-fund
@@ -93,7 +94,7 @@ EXPANSION, not a real-city quality benchmark or proof of the neighbourhood
 planning preset. A second acceptance case uses a 100 m square and only DEM/landuse source
 versions in FROM_SCRATCH, requiring generated roads, blocks, parcels, buildings
 and facilities without fixed urban state. Both modes must finish all twelve
-stages; empty layers are failures. The FROM_SCRATCH case is not yet proven.
+stages; empty layers are failures. Both modes passed the exact-head #222 CI.
 Browser interaction with actual successful outputs, revision enforcement and
 representative real territories remain separate acceptance work. The test is not claimed to pass until CI confirms it.
 
@@ -126,4 +127,21 @@ stages, checks nonempty spatial layers, pins the new result without reload
 and verifies the building viewport reads that run. The public background
 style alone is replaced offline. A second same-seed FROM_SCRATCH run must
 match complete geometry multisets and score metrics, not run UUIDs or
-timestamps. No database seeding. New gates are not confirmed until green CI.
+timestamps. No database seeding. All five browser journeys passed in #224 CI 45689793646: the profile produced 16 zones, 171 road features, 95 blocks, 80 parcels, 9 buildings and one facility; same-seed geometry and score replay passed. The PR is merged.
+
+
+## Quality calibration and actual export acceptance (candidate v2)
+
+The v1 profile has many small blocks and only nine buildings on the 400 m
+square. The candidate v2 profile bounds extra road routing attempts (40 by
+default), exposes the square footprint side (10 m by default), derives the
+minimum lot area as max(200, ceil(side² / target coverage)), and samples
+building anchors at footprint-side spacing. All geometry and spacing gates
+remain unchanged. The E2E test reconstructs the v1 parameters, runs both
+with the same inputs, seed and executable revision, logs actual population,
+target attainment and infrastructure metrics, and requires a strict building
+count improvement and no population regression. More buildings alone do not
+establish urban quality. It compares the two real completed runs in Chromium,
+downloads their metrics CSV, and checks a real asynchronous GeoPackage job
+for buildings and roads, feature counts, downloaded byte length and SHA-256.
+The v2 candidate is not yet accepted; see #202.
