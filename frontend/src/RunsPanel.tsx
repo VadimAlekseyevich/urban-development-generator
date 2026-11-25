@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import {
   cancelRun,
@@ -8,12 +8,14 @@ import {
   type RunState,
 } from './runApi'
 import { useRunPolling } from './runPolling'
+import { fetchDatasetVersions, type DatasetVersionInfo, type DatasetVersionPage } from './uploadApi'
 import './runs.css'
 
 type RunsPanelProps = {
   apiBase: string
   projectId: string | null
   datasetVersionId: string | null
+  active: boolean
   mapRunId: string | null
   onMapRunChange: (runId: string | null) => void
 }
@@ -39,7 +41,7 @@ function runOption(run: RunState): string {
 }
 
 export function RunsPanel({
-  apiBase, projectId, datasetVersionId, mapRunId, onMapRunChange,
+  apiBase, projectId, datasetVersionId, active, mapRunId, onMapRunChange,
 }: RunsPanelProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const { runs, truncated, loading, error } = useRunPolling(apiBase, projectId, refreshKey)
@@ -52,6 +54,40 @@ export function RunsPanel({
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [inputPage, setInputPage] = useState<DatasetVersionPage | null>(null)
+  const [inputOffset, setInputOffset] = useState(0)
+  const [inputRefresh, setInputRefresh] = useState(0)
+  const [inputLoading, setInputLoading] = useState(false)
+  const [inputError, setInputError] = useState<string | null>(null)
+  const [chosenInputs, setChosenInputs] = useState<DatasetVersionInfo[]>([])
+
+  useEffect(() => {
+    if (!projectId || !active) return
+    const controller = new AbortController()
+    setInputLoading(true)
+    setInputError(null)
+    setInputPage(null)
+    void fetchDatasetVersions(apiBase, projectId, controller.signal, inputOffset)
+      .then((page) => {
+        if (!controller.signal.aborted) setInputPage(page)
+      })
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) {
+          setInputError(caught instanceof Error ? caught.message : String(caught))
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setInputLoading(false)
+      })
+    return () => controller.abort()
+  }, [apiBase, projectId, active, inputOffset, inputRefresh])
+
+  function toggleInput(version: DatasetVersionInfo): void {
+    if (version.status !== 'ready') return
+    setChosenInputs((current) => current.some((item) => item.id === version.id)
+      ? current.filter((item) => item.id !== version.id)
+      : current.length < 32 ? [...current, version] : current)
+  }
 
   const selected = useMemo(
     () => runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null,
@@ -64,7 +100,7 @@ export function RunsPanel({
 
   async function submitCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
-    if (!projectId || !datasetVersionId || busy) return
+    if (!projectId || chosenInputs.length === 0 || busy) return
     setActionError(null)
     setActionMessage(null)
     if (!/^\d+$/.test(seed) || !Number.isSafeInteger(Number(seed))) {
@@ -87,7 +123,7 @@ export function RunsPanel({
       const run = await createRun(apiBase, projectId, {
         mode,
         seed: Number(seed),
-        dataset_version_ids: [datasetVersionId],
+        dataset_version_ids: chosenInputs.map((item) => item.id),
         config_json: config as Record<string, unknown>,
         config_schema_version: configVersion,
         commit_sha: commitSha.trim(),
@@ -160,11 +196,45 @@ export function RunsPanel({
           <textarea rows={4} value={configText} placeholder="Вставьте полную конфигурацию v5"
             onChange={(event) => setConfigText(event.target.value)} spellCheck={false} required />
         </label>
-        <p className="helper-text">
-          Привязка к выбранной DatasetVersion: {datasetVersionId ? shortId(datasetVersionId) : 'не выбрана'}.
-          Указывайте реальный исполняемый commit и поддерживаемую worker конфигурацию.
-        </p>
-        <button className="button button-primary" disabled={!projectId || !datasetVersionId || busy}
+        <fieldset className="run-inputs" disabled={!projectId || busy}>
+          <legend>Исходные данные генерации ({chosenInputs.length}/32)</legend>
+          <p className="helper-text">
+            Выберите готовые версии всех необходимых слоёв. Слой на карте не определяет состав запуска.
+          </p>
+          <button type="button" className="button" disabled={inputLoading}
+            onClick={() => setInputRefresh((value) => value + 1)}>Обновить исходные данные</button>
+          {inputLoading && <p role="status" className="helper-text">Загрузка наборов данных…</p>}
+          {inputError && <p role="alert" className="form-error">{inputError}</p>}
+          {inputPage?.versions.length === 0 && <p className="helper-text">На этой странице нет наборов данных.</p>}
+          {inputPage?.versions.map((version) => {
+            const checked = chosenInputs.some((item) => item.id === version.id)
+            return (
+              <label className="run-input-option" key={version.id}>
+                <input type="checkbox" checked={checked}
+                  disabled={version.status !== 'ready' || (!checked && chosenInputs.length >= 32)}
+                  onChange={() => toggleInput(version)} />
+                <span>{version.dataset_kind} · v{version.version} · {shortId(version.id)} · {version.status}
+                  {version.id === datasetVersionId ? ' · на карте' : ''}</span>
+              </label>
+            )
+          })}
+          <div className="upload-version-nav">
+            <button type="button" className="button" disabled={inputLoading || inputOffset === 0}
+              onClick={() => setInputOffset((value) => Math.max(0, value - 20))}>Назад</button>
+            <span>Страница {Math.floor(inputOffset / 20) + 1}</span>
+            <button type="button" className="button" disabled={inputLoading || !inputPage?.truncated}
+              onClick={() => setInputOffset((value) => value + 20)}>Далее</button>
+          </div>
+          {chosenInputs.length > 0 && <ul className="run-input-selected">
+            {chosenInputs.map((version) => <li key={version.id}>
+              <span>{version.dataset_kind} · v{version.version} · {shortId(version.id)}</span>
+              <button type="button" className="button" aria-label={`Удалить ${version.id}`}
+                onClick={() => toggleInput(version)}>Убрать</button>
+            </li>)}
+          </ul>}
+        </fieldset>
+        <p className="helper-text">Указывайте реальный исполняемый commit и поддерживаемую worker конфигурацию.</p>
+        <button className="button button-primary" disabled={!projectId || chosenInputs.length === 0 || busy}
           type="submit">Создать запуск</button>
       </form>
 
