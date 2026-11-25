@@ -32,3 +32,10 @@
 .run-form .run-input-option input { width: auto; flex: none; accent-color: #2563eb; }
 .run-input-selected { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .run-input-selected li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; overflow-wrap: anywhere; }
+
+.planning-config { display: grid; gap: 9px; }
+.planning-config label { display: grid; gap: 5px; color: #475569; font-size: 11px; font-weight: 700; }
+.planning-config input, .planning-config select {
+  width: 100%; padding: 8px 9px; border: 1px solid #cbd5e1; border-radius: 8px;
+  background: #fff; color: #0f172a; font: inherit;
+}
