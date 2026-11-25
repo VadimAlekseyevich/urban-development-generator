@@ -38,6 +38,8 @@ from core.urban_generator.stages import (
     ZoningStageConfig,
 )
 
+from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
+
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
 PREPARED_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v2"
 MAX_CONFIG_BYTES = 1_048_576
@@ -64,6 +66,7 @@ SUPPORTED_CONFIG_STAGE_NAMES = tuple(
 
 _PREPARED_CONFIG_TYPES = {
     **_CONFIG_TYPES,
+    SuitabilityStage.name: (SuitabilityStage.version, PreparedSuitabilityStageConfig),
     PrepareSnapshotStage.name: (PrepareSnapshotStage.version, PrepareSnapshotStageConfig),
 }
 

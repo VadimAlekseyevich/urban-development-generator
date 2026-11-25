@@ -115,3 +115,10 @@ Use `--schema-version canonical-stage-configs-v2` with the offline CLI.
 This is still not a complete 12-stage production configuration.
 The early-stage input resolver and slope factor use actual PostGIS and
 GeoTIFF sources but are not installed as a partial deployed worker.
+
+
+The v2 suitability stage additionally accepts optional `landuse_weights`
+(the existing LanduseClassWeights contract: version, classes, unknown_policy,
+default_score). Positive landuse weight requires the explicit mapping;
+v1 remains unchanged. The spatial registry resolves landuse, DEM slope
+and road proximity against the run's actual selected sources.

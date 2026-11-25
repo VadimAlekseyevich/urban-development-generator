@@ -802,3 +802,172 @@ def test_s11_reference_fixture_preserves_metrics_validation_and_score_envelope()
     assert sum(item.contribution for item in score.metrics) == pytest.approx(
         score.score
     )
+
+
+def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> None:
+    from alembic import command
+    from alembic.config import Config
+    from geoalchemy2.elements import WKTElement
+    from sqlalchemy import text
+    from sqlalchemy.orm import Session
+
+    from backend.app.adapters.local_artifact_store import LocalArtifactStore
+    from backend.app.adapters.pipeline_context import SqlAlchemyPipelineContextAdapter
+    from backend.app.adapters.spatial_generation_chain import (
+        SpatialGenerationInputResolver,
+        build_spatial_registry,
+    )
+    from backend.app.adapters.spatial_output_publisher import SpatialOutputPublisher
+    from backend.app.db.session import engine
+    from backend.app.models.dataset import Dataset, DatasetVersion
+    from backend.app.models.generation_run import GenerationRun
+    from backend.app.models.project import Project
+    from backend.app.models.source_layer import SourceLanduse, SourceRoad
+    from core.urban_generator.domain import (
+        PipelineContext,
+        PipelinePorts,
+        ResolvedConfigBinding,
+    )
+    from core.urban_generator.stages import PrepareSnapshotStageConfig
+    from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
+    from core.urban_generator.suitability import LanduseClassWeight, LanduseClassWeights
+
+    command.upgrade(Config("alembic.ini"), "head")
+
+    def session_factory():
+        return Session(engine, expire_on_commit=False)
+
+    with engine.begin() as connection:
+        connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
+    try:
+        with session_factory() as session:
+            boundary = "MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))"
+            project = Project(
+                name="Actual spatial chain", working_srid=WORKING_SRID,
+                boundary_metadata={}, boundary=WKTElement(boundary, srid=WORKING_SRID),
+            )
+            session.add(project)
+            session.flush()
+            versions = []
+            for kind in ("roads", "landuse"):
+                dataset = Dataset(project_id=project.id, kind=kind)
+                session.add(dataset)
+                session.flush()
+                version = DatasetVersion(
+                    dataset_id=dataset.id, version=1, status="processing",
+                    checksum_sha256="a" * 64, source_metadata={},
+                )
+                session.add(version)
+                session.flush()
+                versions.append(version)
+            road_version, land_version = versions
+            session.add(SourceRoad(
+                dataset_version_id=road_version.id, source_feature_id="square",
+                road_class="local", attributes_json={},
+                geometry=WKTElement(
+                    "MULTILINESTRING((0 0,10 0),(10 0,10 10),(10 10,0 10),(0 10,0 0))",
+                    srid=WORKING_SRID,
+                ),
+            ))
+            session.add(SourceLanduse(
+                dataset_version_id=land_version.id, source_feature_id="residential",
+                landuse_class="residential", attributes_json={},
+                geometry=WKTElement(boundary, srid=WORKING_SRID),
+            ))
+            session.flush()
+            for version in versions:
+                version.status = "ready"
+            session.flush()
+            run = GenerationRun(
+                project_id=project.id, mode="EXPANSION", status="queued",
+                seed=20260919, working_srid=WORKING_SRID,
+                config_json={}, config_schema_version="fixture",
+            )
+            run.dataset_versions.extend(versions)
+            session.add(run)
+            session.commit()
+            snapshot = TerritorySnapshot(
+                snapshot_id=run.id, project=ProjectRef(project_id=project.id),
+                settings=ProjectSettings(working_srid=WORKING_SRID),
+                boundary=SnapshotLayerRef(
+                    kind=SnapshotLayerKind.BOUNDARY,
+                    source_ref=SqlAlchemyPipelineContextAdapter._boundary_source_ref(project),
+                ),
+                roads=(SnapshotLayerRef(
+                    kind=SnapshotLayerKind.ROADS,
+                    source_ref=f"dataset-version:{road_version.id}:v1",
+                ),),
+                landuse=(SnapshotLayerRef(
+                    kind=SnapshotLayerKind.LANDUSE,
+                    source_ref=f"dataset-version:{land_version.id}:v1",
+                ),),
+            )
+            run_id = run.id
+        source = ConfigRef(name="generation", ref="actual-spatial-test")
+        run_context = RunContext(
+            run_id=run_id, mode=RunMode.EXPANSION, seed=20260919,
+            working_srid=WORKING_SRID, config_refs=(source,),
+            correlation=CorrelationMetadata(correlation_id="actual-spatial-chain"),
+        )
+        configs = (
+            ("prepare_snapshot", PrepareSnapshotStageConfig(cell_size_m=1)),
+            ("evaluate_constraints", ConstraintMaskStageConfig()),
+            ("suitability", PreparedSuitabilityStageConfig(
+                suitability=SuitabilityConfig(
+                    version="v1",
+                    factors=(SuitabilityFactorConfig(
+                        code="landuse", weight=1, normalization=SuitabilityNormalization.IDENTITY,
+                    ),),
+                    thresholds=SuitabilityThresholds(minimum_score=0),
+                ),
+                landuse_weights=LanduseClassWeights(
+                    version="v1", classes=(LanduseClassWeight("residential", 1),),
+                ),
+            )),
+            ("zoning", ZoningStageConfig(zoning=_zoning_config(), seed_count=1)),
+            ("roads", _road_config()),
+            ("blocks_and_parcels", _blocks_config()),
+            ("buildings", _building_config()),
+            ("demography", _demography_config()),
+        )
+        context = PipelineContext(
+            run=run_context, snapshot=snapshot,
+            configs=tuple(ResolvedConfigBinding(name, source, cfg) for name, cfg in configs),
+            ports=PipelinePorts(artifact_store=LocalArtifactStore(tmp_path / "artifacts")),
+        )
+        registry = build_spatial_registry(
+            context=context, constraint_engine=RegisteredConstraintEngine(ConstraintRegistry()),
+            session_factory=session_factory,
+        )
+        resolver = SpatialGenerationInputResolver(session_factory=session_factory)
+        publisher = SpatialOutputPublisher(session_factory=session_factory)
+        outputs = {}
+        for stage in registry.topological_stages:
+            cfg = dict(configs)[stage.name]
+            invocation = resolver.resolve(stage=stage, context=context, config=cfg, outputs=outputs)
+            result = stage.execute(
+                snapshot=snapshot, context=run_context,
+                stage_input=stage.validate_input(invocation.stage_input), config=cfg,
+            )
+            outputs[stage.name] = result.output
+            if stage.name in {"zoning", "roads", "blocks_and_parcels", "buildings", "demography"}:
+                publisher.publish(run_id=run_id, stage_name=stage.name, output=result.output)
+
+        assert outputs["suitability"].valid_count == 100
+        assert outputs["buildings"].area_subjects
+        assert outputs["demography"].population.diagnostics.allocated_generated_population == 8
+        with session_factory() as session:
+            for table in ("generated_zones", "generated_roads", "generated_blocks",
+                          "generated_parcels", "generated_buildings"):
+                count = session.execute(
+                    text(f"SELECT count(*) FROM {table} WHERE run_id=:run_id"),
+                    {"run_id": run_id},
+                ).scalar_one()
+                assert count > 0, table
+            run = session.get(GenerationRun, run_id)
+            assert run.status == "queued"
+            assert "demography" in run.metrics_json
+            assert session.query(SourceRoad).count() == 1
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))

@@ -15,8 +15,8 @@
 | Векторные данные | GeoJSON, GeoPackage, ZIP/Shapefile; OSM PBF отдельным импортом |
 | Рельеф | GeoTIFF с CRS; нормализация, чтение готового DEM и расчёт уклонов (#208) |
 | Ограничения, дороги | Run-scoped source adapters, алгоритмы и тесты |
-| Землепользование/существующие здания | #209 на проверке; не считать интегрированным до merge |
-| Конфигурация | Строгий typed schema v1 для семи этапов (#204); UI ещё требует JSON |
+| Землепользование/существующие здания | #209 merged; exact PR CI green |
+| Конфигурация | Typed schema v1 (7 этапов), v2 (8 этапов, #211); UI ещё требует JSON |
 | Worker orchestration | Lifecycle/Stage контракты существуют, production composition отсутствует |
 | Карта, сравнение и экспорт | API/UI работают над готовыми persisted outputs; comparison fixture синтетическая |
 

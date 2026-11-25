@@ -17,6 +17,7 @@ from core.urban_generator.stages.catalog import (
 )
 from core.urban_generator.suitability import (
     HardExclusionMask,
+    LanduseClassWeights,
     SuitabilityConfig,
     SuitabilityFactor,
     SuitabilityGridSpec,
@@ -56,6 +57,21 @@ class SuitabilityStageInput:
 class SuitabilityStageConfig:
     suitability: SuitabilityConfig
     max_cells: int = 25_000_000
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedSuitabilityStageConfig(SuitabilityStageConfig):
+    """V2 persisted categorical factor settings; v1 config stays unchanged."""
+
+    landuse_weights: LanduseClassWeights | None = None
+
+    def __post_init__(self) -> None:
+        uses_landuse = any(
+            factor.code == "landuse" and factor.weight > 0
+            for factor in self.suitability.factors
+        )
+        if uses_landuse and self.landuse_weights is None:
+            raise ValueError("positive landuse factor requires explicit landuse_weights")
 
 
 class SuitabilityStage:
