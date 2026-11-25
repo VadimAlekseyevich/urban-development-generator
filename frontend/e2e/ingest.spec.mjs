@@ -30,6 +30,27 @@ test('real upload → persisted Job/Outbox → worker → ready DatasetVersion',
   const projectId = new URL(page.url()).searchParams.get('project_id')
   expect(projectId).toMatch(/^[0-9a-f-]{36}$/)
 
+  const boundaryPanel = page.getByRole('region', { name: 'Граница территории' })
+  const boundaryGeometry = { type: 'Polygon', coordinates: [[
+    [37.60, 55.74], [37.64, 55.74], [37.64, 55.77], [37.60, 55.77], [37.60, 55.74],
+  ]] }
+  await boundaryPanel.locator('input[type="file"]').setInputFiles({
+    name: 'boundary.geojson',
+    mimeType: 'application/geo+json',
+    buffer: Buffer.from(JSON.stringify(boundaryGeometry)),
+  })
+  const refreshedBoundary = page.waitForResponse(async response => {
+    if (response.request().method() !== 'GET' ||
+        !response.url().includes('/projects/' + projectId + '/boundary/geojson') ||
+        !response.ok()) return false
+    return (await response.json()).geometry?.type === 'MultiPolygon'
+  })
+  await boundaryPanel.getByRole('button', { name: 'Сохранить границу' }).click()
+  await expect(boundaryPanel.getByRole('status')).toHaveText('Граница сохранена.')
+  const boundaryResponse = await refreshedBoundary
+  expect((await boundaryResponse.json()).geometry.type).toBe('MultiPolygon')
+  await expect(boundaryPanel).toContainText('Граница задана.')
+
   const upload = page.locator('section[aria-label="Загрузка данных"]')
   const realFeatures = {
     type: 'FeatureCollection',

@@ -22,6 +22,7 @@ import { LayerTree } from './LayerTree'
 import { MetricsDashboard } from './MetricsDashboard'
 import { RoadsPanel } from './RoadsPanel'
 import { ProjectPanel } from './ProjectPanel'
+import { ProjectBoundaryPanel } from './ProjectBoundaryPanel'
 import { RunsPanel } from './RunsPanel'
 import { SuitabilityPanel } from './SuitabilityPanel'
 import { UploadPanel } from './UploadPanel'
@@ -186,6 +187,7 @@ function App() {
   const visibility = useLayerVisibilitySnapshot()
   const [layerStats, setLayerStats] = useState<LayerStats>(EMPTY_STATS)
   const [boundaryAvailable, setBoundaryAvailable] = useState(false)
+  const [boundaryRevision, setBoundaryRevision] = useState(0)
   const [selected, setSelected] = useState<SelectedFeature | null>(null)
   const [suitabilityArtifactId, setSuitabilityArtifactId] = useState<string | null>(
     isUuid(initialSuitabilityArtifactId) ? initialSuitabilityArtifactId : null,
@@ -415,7 +417,7 @@ function App() {
     return () => {
       controller.abort()
     }
-  }, [selection.projectId, mapReady])
+  }, [selection.projectId, mapReady, boundaryRevision])
 
   function commitWorkspace(next: WorkspaceSelection, nextView: WorkspaceView = view): void {
     const projectChanged = selection.projectId !== next.projectId
@@ -531,6 +533,13 @@ function App() {
           apiBase={API_BASE}
           selectedProjectId={selection.projectId}
           onProjectSelect={chooseProject}
+        />
+        <ProjectBoundaryPanel
+          key={selection.projectId ?? 'no-project-boundary'}
+          apiBase={API_BASE}
+          projectId={selection.projectId}
+          boundaryAvailable={boundaryAvailable}
+          onSaved={() => setBoundaryRevision((value) => value + 1)}
         />
 
         <section className="panel">

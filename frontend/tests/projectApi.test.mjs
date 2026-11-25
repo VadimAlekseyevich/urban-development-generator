@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createProject, listProjects } from '../src/projectApi.ts'
+import { createProject, listProjects, parseBoundaryGeoJSON, saveProjectBoundary } from '../src/projectApi.ts'
 
 test('project discovery uses bounded paginated existing API', async () => {
   const prev = globalThis.fetch
@@ -58,4 +58,34 @@ test('project errors are surfaced rather than selecting a phantom project', asyn
       /HTTP 422/,
     )
   } finally { globalThis.fetch = prev }
+})
+
+const polygon = { type: 'Polygon', coordinates: [[[37.6, 55.7], [37.61, 55.7], [37.61, 55.71], [37.6, 55.7]]] }
+
+test('boundary accepts a geometry, Feature or single-feature collection without CRS ambiguity', () => {
+  const feature = { type: 'Feature', properties: {}, geometry: polygon }
+  for (const value of [polygon, feature, { type: 'FeatureCollection', features: [feature] }]) {
+    assert.deepEqual(parseBoundaryGeoJSON(JSON.stringify(value)), polygon)
+  }
+  assert.throws(() => parseBoundaryGeoJSON(JSON.stringify({ ...polygon, crs: {} })), /crs/)
+  assert.throws(() => parseBoundaryGeoJSON(JSON.stringify({ type: 'FeatureCollection', features: [feature, feature] })), /ровно один/)
+  assert.throws(() => parseBoundaryGeoJSON('{"type":"Point","coordinates":[37,55]}'), /Polygon/)
+  assert.throws(() => parseBoundaryGeoJSON('invalid JSON'))
+})
+
+test('boundary PUT uses explicit WGS84 and surfaces server-side lock errors', async () => {
+  const previous = globalThis.fetch
+  const signal = new AbortController().signal
+  try {
+    globalThis.fetch = async (url, init) => {
+      assert.equal(url, 'http://localhost/api/v1/projects/p/boundary')
+      assert.equal(init.method, 'PUT')
+      assert.equal(init.signal, signal)
+      assert.deepEqual(JSON.parse(init.body), { source_srid: 4326, geometry: polygon })
+      return { ok: true, json: async () => ({ id: 'p' }) }
+    }
+    assert.equal((await saveProjectBoundary('http://localhost/api/v1/', 'p', polygon, signal)).id, 'p')
+    globalThis.fetch = async () => ({ ok: false, status: 409, text: async () => 'locked' })
+    await assert.rejects(saveProjectBoundary('http://localhost/api/v1', 'p', polygon, signal), /HTTP 409/)
+  } finally { globalThis.fetch = previous }
 })
