@@ -83,6 +83,14 @@ test('create → upload → ready fixture → run → inspect → compare → CS
   // Submit a genuine queued generation job; test does not fabricate worker success.
   await page.getByRole('button', { name: 'Генерация' }).click()
   const runForm = page.locator('.run-form')
+  const inputs = runForm.locator('.run-inputs')
+  await expect(inputs.getByRole('checkbox', { name: /constraints.*uploaded/ })).toBeDisabled()
+  const roadsInput = inputs.getByRole('checkbox', { name: /roads.*ready/ })
+  const landuseInput = inputs.getByRole('checkbox', { name: /landuse.*ready/ })
+  await roadsInput.check()
+  await landuseInput.check()
+  await expect(inputs.locator('legend')).toContainText('2/32')
+  await expect(inputs.locator('.run-input-selected li')).toHaveCount(2)
   await runForm.locator('input[pattern="[0-9a-f]{40}"]').fill('a'.repeat(40))
   const configText = execFileSync('docker', [
     'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev',
@@ -96,6 +104,9 @@ test('create → upload → ready fixture → run → inspect → compare → CS
   await runForm.getByRole('button', { name: 'Создать запуск' }).click()
   const runResponse = await createRunResponse
   expect(runResponse.status()).toBe(201)
+  expect(runResponse.request().postDataJSON().dataset_version_ids.sort()).toEqual(
+    [fixture.version_id, fixture.landuse_version_id].sort(),
+  )
   const pendingRun = await runResponse.json()
   expect(pendingRun.project_id).toBe(projectId)
   expect(pendingRun.job?.id).toBeTruthy()
