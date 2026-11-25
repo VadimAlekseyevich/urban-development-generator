@@ -108,6 +108,6 @@ test('real uploads → ingest worker → EXPANSION → all stages → GIS and pr
   expect(manifest.code.commit_sha).toBe(revision)
   expect(manifest.datasets.map((item) => item.dataset_version_id).sort()).toEqual([...ids].sort())
   expect(manifest.datasets.find((item) => item.kind === 'dem').derived_artifacts).toHaveLength(1)
-  expect(manifest.stages.map((item) => item.stage_name).sort()).toEqual([...stages].sort())
+  expect(manifest.stages.map((item) => item.name).sort()).toEqual([...stages].sort())
   expect(provenance.headers()['x-provenance-checksum']).toMatch(/^sha256:[0-9a-f]{64}$/)
 })
