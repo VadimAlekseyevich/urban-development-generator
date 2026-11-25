@@ -49,7 +49,7 @@ def clean_database(migrated_database: None) -> None:
         connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
 
 
-def _fixture(*, boundary: bool = True, ready: bool = True) -> tuple[uuid.UUID, uuid.UUID]:
+def _fixture(*, boundary: bool = True, ready: bool = True, kind: str = "landuse") -> tuple[uuid.UUID, uuid.UUID]:
     with Session(engine, expire_on_commit=False) as session:
         with session.begin():
             project = Project(
@@ -63,7 +63,7 @@ def _fixture(*, boundary: bool = True, ready: bool = True) -> tuple[uuid.UUID, u
             )
             session.add(project)
             session.flush()
-            dataset = Dataset(project_id=project.id, kind="roads")
+            dataset = Dataset(project_id=project.id, kind=kind)
             session.add(dataset)
             session.flush()
             version = DatasetVersion(
@@ -400,3 +400,62 @@ def test_m4_created_runs_compare_only_persisted_inputs_without_mutation() -> Non
         json={"run_ids": [str(run_id) for run_id in ids]},
     ).status_code == 404
     assert _counts() == before
+
+
+@pytest.mark.parametrize(
+    ("kind", "mode", "factor", "expected", "message"),
+    [
+        ("roads", "FROM_SCRATCH", "road_proximity", 409, "FROM_SCRATCH"),
+        ("buildings", "FROM_SCRATCH", "landuse", 409, "FROM_SCRATCH"),
+        ("facilities", "FROM_SCRATCH", "landuse", 409, "FROM_SCRATCH"),
+        ("zones", "EXPANSION", "landuse", 409, "baseline"),
+        ("demography", "EXPANSION", "landuse", 409, "baseline"),
+        ("landuse", "EXPANSION", "slope", 409, "exactly one ready DEM"),
+        ("roads", "EXPANSION", "landuse", 409, "ready landuse"),
+        ("landuse", "EXPANSION", "road_proximity", 409, "ready roads"),
+        ("landuse", "EXPANSION", "unknown_factor", 422, "unsupported suitability"),
+        ("osm", "EXPANSION", "landuse", 409, "no canonical source rows"),
+        ("other", "EXPANSION", "landuse", 409, "unsupported Dataset.kind"),
+    ],
+)
+def test_incompatible_inputs_do_not_enqueue(
+    kind: str, mode: str, factor: str, expected: int, message: str,
+) -> None:
+    project_id, version_id = _fixture(kind=kind)
+    config = smoke_generation_config()
+    config["stages"]["suitability"]["config"]["suitability"]["factors"][0]["code"] = factor
+    payload = {**_payload(version_id), "mode": mode, "config_json": config}
+    response = client.post(f"/api/v1/projects/{project_id}/runs", json=payload)
+    assert response.status_code == expected, response.text
+    assert message in response.json()["detail"]
+    assert _counts() == (0, 0, 0)
+
+
+def test_from_scratch_accepts_nonurban_input() -> None:
+    project_id, version_id = _fixture()
+    response = client.post(
+        f"/api/v1/projects/{project_id}/runs",
+        json={**_payload(version_id), "mode": "FROM_SCRATCH"},
+    )
+    assert response.status_code == 201, response.text
+    assert _counts() == (1, 1, 1)
+
+
+def test_retry_rechecks_input_compatibility() -> None:
+    project_id, version_id = _fixture()
+    run_id = uuid.UUID(_create(project_id, version_id).json()["id"])
+    with Session(engine) as session:
+        with session.begin():
+            run = session.get(GenerationRun, run_id)
+            job = session.scalar(select(Job).where(Job.run_id == run_id))
+            assert run is not None and job is not None
+            config = smoke_generation_config()
+            config["stages"]["suitability"]["config"]["suitability"]["factors"][0][
+                "code"
+            ] = "slope"
+            run.config_json = config
+            run.status = job.status = "failed"
+    response = client.post(f"/api/v1/projects/{project_id}/runs/{run_id}/retry")
+    assert response.status_code == 409, response.text
+    assert "exactly one ready DEM" in response.json()["detail"]
+    assert _counts() == (1, 1, 1)
