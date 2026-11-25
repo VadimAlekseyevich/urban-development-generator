@@ -8,9 +8,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from geoalchemy2.elements import WKTElement
+from shapely.geometry import MultiPolygon, box
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from shapely.geometry import MultiPolygon, box
 
 from backend.app.adapters.pipeline_context import SqlAlchemyPipelineContextAdapter
 from backend.app.adapters.urban_polygon_sources import (
