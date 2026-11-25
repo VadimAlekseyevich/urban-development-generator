@@ -95,3 +95,20 @@ reviewed and corrected. This is a targeted consistency review, not a claim
 that every historical algorithm specification has been revalidated against
 all current source code. Preserve contract evidence; correct subsystem details
 as part of the corresponding functional changes.
+
+
+### User-reported infrastructure routing failure (2026-11-25)
+
+Manual local run at main `4fde175`, seed 42, failed at infrastructure after
+39.38 seconds: 4,775,310 candidate-demand pairs > 1,000,000 result budget.
+Exact user's form values are not confirmed. The candidate fix retains all
+block demand rows and all existing capacity accounting; when the dense matrix
+would exceed configured result/routing bounds it selects a deterministic
+spatially distributed candidate shortlist, targeting at most 250,000 pairs
+when feasible. The existing exact calculation and hard validity checks still
+apply to shortlisted sites; approximate search can miss feasible alternatives.
+Stage diagnostics disclose the shortlist. A new unseeded 400 m, 10 m grid,
+seed 42, 1000 residents regression exercises the default-like configuration.
+Until CI is green, use the previously verified 40 m grid, seed 20260919 and
+300 residents for the synthetic demo, explicitly regenerate JSON and create a
+new run (old runs keep their immutable parameters).

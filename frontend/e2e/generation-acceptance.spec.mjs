@@ -23,12 +23,12 @@ async function checked(response, status) {
   return JSON.parse(body)
 }
 
-for (const scenario of ['EXPANSION', 'FROM_SCRATCH', 'PLANNING_PROFILE']) {
+for (const scenario of ['EXPANSION', 'FROM_SCRATCH', 'PLANNING_PROFILE', 'DENSE_PROFILE']) {
 const mode = scenario === 'EXPANSION' ? 'EXPANSION' : 'FROM_SCRATCH'
 test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS and provenance', async ({ request, page }) => {
   test.setTimeout(300_000)
   // Generate bytes, not DB records. All state changes go through public HTTP routes.
-  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', scenario === 'PLANNING_PROFILE' ? '400' : mode === 'EXPANSION' ? '10' : '100'))
+  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', ['PLANNING_PROFILE', 'DENSE_PROFILE'].includes(scenario) ? '400' : mode === 'EXPANSION' ? '10' : '100'))
   let config = JSON.parse(python('scripts.generation_smoke_config'))
   // Explicitly exercise the normalized DEM in addition to vector suitability.
   config.stages.suitability.config.suitability.factors.push({
@@ -108,11 +108,18 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
     await expect(page.locator('.run-form textarea')).toHaveValue(JSON.stringify(config, null, 2))
   }
 
+  if (scenario === 'DENSE_PROFILE') {
+    // User-reported seed 42 on the same 400 m territory with the default 10 m grid.
+    config = await checked(await request.post(api + '/generation/planning-config', {
+      data: { cell_size_m: 10, target_population: 1000 },
+    }), 200)
+  }
+
   const runtime = await checked(await request.get(api + '/generation/revision'), 200)
   expect(runtime.commit_sha).toBe(revision)
   const mismatch = await request.post(root + '/runs', {
     data: {
-      mode, seed: 20260919, dataset_version_ids: ids,
+      mode, seed: scenario === 'DENSE_PROFILE' ? 42 : 20260919, dataset_version_ids: ids,
       config_schema_version: config.schema_version, config_json: config,
       commit_sha: revision === 'a'.repeat(40) ? 'b'.repeat(40) : 'a'.repeat(40),
     },
@@ -121,7 +128,7 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   const before = await checked(await request.get(root + '/runs'), 200)
   expect(before.runs).toHaveLength(0)
   const payload = {
-    mode, seed: 20260919, dataset_version_ids: ids,
+    mode, seed: scenario === 'DENSE_PROFILE' ? 42 : 20260919, dataset_version_ids: ids,
     config_schema_version: config.schema_version, config_json: config, commit_sha: revision,
   }
   let run
@@ -148,12 +155,16 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   await expect.poll(async () => {
     result = await checked(await request.get(root + '/runs/' + run.id), 200)
     return ['succeeded', 'failed', 'cancelled'].includes(result.status)
-  }, { timeout: 90_000, intervals: [500, 1000, 2000], message: 'real generation worker' }).toBe(true)
+  }, { timeout: scenario === 'DENSE_PROFILE' ? 180_000 : 90_000, intervals: [500, 1000, 2000], message: 'real generation worker' }).toBe(true)
   expect(result.status, JSON.stringify(result)).toBe('succeeded')
   expect(result.job.status).toBe('succeeded')
   expect(result.stages.map((stage) => stage.stage_name).sort()).toEqual([...stages].sort())
   expect(result.stages.every((stage) => stage.status === 'succeeded')).toBe(true)
 
+  if (scenario === 'DENSE_PROFILE') {
+    console.log('DENSE_PROFILE infrastructure diagnostics: ' + JSON.stringify(
+      result.stages.find(stage => stage.stage_name === 'infrastructure').diagnostics))
+  }
   // Use a generous geographic viewport enclosing the tiny UTM fixture.
   const bounds = input.boundary.coordinates[0]
   const xs = bounds.map((point) => point[0]), ys = bounds.map((point) => point[1])
@@ -167,7 +178,7 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   const geometries = new Map()
   for (const [path, layer] of layers) {
     const collection = await checked(await request.get(
-      root + '/' + path + '/' + run.id + '/' + layer + '/geojson?bbox=' + bbox,
+      root + '/' + path + '/' + run.id + '/' + layer + '/geojson?limit=5000&bbox=' + bbox,
     ), 200)
     console.log(scenario + ' ' + layer + ': ' + collection.features.length + ' features')
     expect(collection.truncated, 'complete ' + layer + ' viewport').toBe(false)

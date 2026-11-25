@@ -305,7 +305,9 @@ class GenerationJobService:
             error = (
                 exc
                 if isinstance(exc, UrbanGeneratorError)
-                else PermanentError("generation execution failed")
+                else PermanentError(
+                    f"generation execution failed at stage: {active_stage or 'assembly'}"
+                )
             )
             try:
                 self._store.check_cancelled(run_id=run_id)
