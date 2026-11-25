@@ -27,6 +27,14 @@ Stable strings live in `core.urban_generator.stages.catalog`. They are constants
 
 ## Adapter ownership
 
+### prepare_snapshot
+
+Consumes the persisted metric boundary and resolved hard geometry layers.
+Explicit cell size in metres and a maximum cell budget form a shared
+north-up grid covering the boundary envelope, with at least 2 cells per axis.
+The output is the existing typed ConstraintMaskStageInput. No raster is
+allocated in this stage. The boundary and hard inputs are not mutated.
+
 ### evaluate_constraints
 
 Input owns:

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
+    PREPARED_CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
 )
 from core.urban_generator.domain import ConfigRef
@@ -34,8 +35,12 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema", action="store_true")
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument(
+        "--schema-version", choices=(CONFIG_SCHEMA_VERSION, PREPARED_CONFIG_SCHEMA_VERSION),
+        default=CONFIG_SCHEMA_VERSION,
+    )
     args = parser.parse_args(argv)
-    resolver = CanonicalStageConfigResolver()
+    resolver = CanonicalStageConfigResolver(schema_version=args.schema_version)
     if args.schema:
         if args.manifest is not None:
             parser.error("--schema and --manifest cannot be combined")
@@ -50,14 +55,14 @@ def main(argv: list[str] | None = None) -> None:
         )
         bindings = resolver.resolve(
             config_json=data,
-            schema_version=CONFIG_SCHEMA_VERSION,
+            schema_version=args.schema_version,
             source=ConfigRef(name="generation", ref="local-config-validation"),
         )
     except (OSError, UnicodeError, ValueError, TypeError) as exc:
         parser.error(f"invalid canonical config: {exc}")
     print(json.dumps({
         "valid": True,
-        "schema_version": CONFIG_SCHEMA_VERSION,
+        "schema_version": args.schema_version,
         "typed_stage_names": [item.stage_name for item in bindings],
     }, sort_keys=True))
 

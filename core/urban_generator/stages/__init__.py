@@ -43,6 +43,11 @@ from core.urban_generator.stages.demography import (
     DemographyStageInput,
     DemographyStageOutput,
 )
+from core.urban_generator.stages.prepare_snapshot import (
+    PrepareSnapshotStage,
+    PrepareSnapshotStageConfig,
+    PrepareSnapshotStageInput,
+)
 from core.urban_generator.stages.registry import (
     StagePlanEntry,
     StageRegistry,
@@ -107,6 +112,9 @@ __all__ = [
     "StageRegistryError",
     "StageSkipReason",
     "PREPARE_SNAPSHOT_STAGE",
+    "PrepareSnapshotStage",
+    "PrepareSnapshotStageConfig",
+    "PrepareSnapshotStageInput",
     "ROADS_STAGE",
     "SUITABILITY_STAGE",
     "ZONING_STAGE",
