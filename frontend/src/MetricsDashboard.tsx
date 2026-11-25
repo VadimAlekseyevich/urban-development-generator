@@ -174,7 +174,7 @@ export function MetricsDashboard({
       })
 
     return () => controller.abort()
-  }, [apiBase, projectId])
+  }, [apiBase, projectId, pinnedRunId])
 
   useEffect(() => {
     dashboardAbortRef.current?.abort()

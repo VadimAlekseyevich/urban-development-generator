@@ -318,7 +318,7 @@ export function ViolationsPanel({
       })
 
     return () => controller.abort()
-  }, [apiBase, projectId])
+  }, [apiBase, projectId, pinnedRunId])
 
   useEffect(() => {
     detailsAbortRef.current?.abort()

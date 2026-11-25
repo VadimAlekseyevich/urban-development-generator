@@ -314,7 +314,7 @@ export function DemographyPanel({
         setMessage(error instanceof Error ? error.message : String(error))
       })
     return () => controller.abort()
-  }, [apiBase, map, projectId])
+  }, [apiBase, map, projectId, pinnedRunId])
 
   useEffect(() => {
     if (!projectId || !runId) return

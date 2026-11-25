@@ -205,7 +205,7 @@ export function RoadsPanel({
       })
 
     return () => controller.abort()
-  }, [apiBase, projectId])
+  }, [apiBase, projectId, pinnedRunId])
 
   useEffect(() => {
     diagnosticsAbortRef.current?.abort()

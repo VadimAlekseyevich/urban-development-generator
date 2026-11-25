@@ -763,7 +763,7 @@ export function InfrastructurePanel({
       })
 
     return () => controller.abort()
-  }, [apiBase, map, projectId, runsRefreshNonce])
+  }, [apiBase, map, projectId, runsRefreshNonce, pinnedRunId])
 
   useEffect(() => {
     metricsAbortRef.current?.abort()

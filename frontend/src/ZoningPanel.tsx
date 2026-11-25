@@ -181,7 +181,7 @@ export function ZoningPanel({
       })
 
     return () => controller.abort()
-  }, [apiBase, projectId])
+  }, [apiBase, projectId, pinnedRunId])
 
   const loadViewport = useCallback(async () => {
     if (!map || !projectId) {
