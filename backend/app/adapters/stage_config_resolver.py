@@ -3,7 +3,7 @@
 First P0/#202 slice: this builds typed *existing* StageConfig dataclasses
 from JSONB, not execution bindings, live GIS input adapters or a production
 worker runtime. The canonical catalog has twelve identities but presently
-only seven concrete Stage implementations with typed configs; unimplemented
+versioned subsets of concrete Stage implementations with typed configs; unimplemented
 stage identities are intentionally rejected rather than assigned fake stages.
 """
 
@@ -28,6 +28,8 @@ from core.urban_generator.stages import (
     ConstraintMaskStageConfig,
     DemographyStage,
     DemographyStageConfig,
+    PrepareSnapshotStage,
+    PrepareSnapshotStageConfig,
     RoadStage,
     RoadStageConfig,
     SuitabilityStage,
@@ -37,6 +39,7 @@ from core.urban_generator.stages import (
 )
 
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
+PREPARED_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v2"
 MAX_CONFIG_BYTES = 1_048_576
 MAX_COLLECTION_ITEMS = 2048
 MAX_NESTED_DEPTH = 24
@@ -57,6 +60,12 @@ _CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
 SUPPORTED_CONFIG_STAGE_NAMES = tuple(
     name for name in CANONICAL_STAGE_ORDER if name in _CONFIG_TYPES
 )
+
+
+_PREPARED_CONFIG_TYPES = {
+    **_CONFIG_TYPES,
+    PrepareSnapshotStage.name: (PrepareSnapshotStage.version, PrepareSnapshotStageConfig),
+}
 
 
 class PersistedStageConfigError(ValueError):
@@ -305,12 +314,21 @@ def _annotation_schema(annotation: Any, *, depth: int = 0) -> dict[str, object]:
 class CanonicalStageConfigResolver:
     """Decode a sealed JSONB config into the existing, typed StageConfig objects."""
 
-    def __init__(self, *, stage_names: tuple[str, ...] | None = None) -> None:
-        names = SUPPORTED_CONFIG_STAGE_NAMES if stage_names is None else stage_names
+    def __init__(
+        self, *, stage_names: tuple[str, ...] | None = None,
+        schema_version: str = CONFIG_SCHEMA_VERSION,
+    ) -> None:
+        if schema_version not in (CONFIG_SCHEMA_VERSION, PREPARED_CONFIG_SCHEMA_VERSION):
+            raise PersistedStageConfigError("unsupported persisted config_schema_version")
+        self._schema_version = schema_version
+        self._types = (
+            _CONFIG_TYPES if schema_version == CONFIG_SCHEMA_VERSION else _PREPARED_CONFIG_TYPES
+        )
+        names = tuple(self._types) if stage_names is None else stage_names
         if (
             not isinstance(names, tuple)
             or not names
-            or any(type(name) is not str or name not in _CONFIG_TYPES for name in names)
+            or any(type(name) is not str or name not in self._types for name in names)
             or len(set(names)) != len(names)
         ):
             raise PersistedStageConfigError(
@@ -327,7 +345,7 @@ class CanonicalStageConfigResolver:
         schema_version: str,
         source: ConfigRef,
     ) -> tuple[ResolvedConfigBinding, ...]:
-        if schema_version != CONFIG_SCHEMA_VERSION:
+        if schema_version != self._schema_version:
             raise PersistedStageConfigError(
                 f"unsupported persisted config_schema_version: {schema_version}"
             )
@@ -369,7 +387,7 @@ class CanonicalStageConfigResolver:
                 path=f"config_json.stages.{name}",
                 required=frozenset({"stage_version", "config"}),
             )
-            expected_version, config_type = _CONFIG_TYPES[name]
+            expected_version, config_type = self._types[name]
             if stage_value["stage_version"] != expected_version:
                 raise PersistedStageConfigError(
                     f"{name}: unsupported Stage version "
@@ -394,12 +412,12 @@ class CanonicalStageConfigResolver:
         """Versioned, closed JSON Schema suitable for offline manifest checks."""
         return {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": f"urn:udg:generation:{CONFIG_SCHEMA_VERSION}",
+            "$id": f"urn:udg:generation:{self._schema_version}",
             "title": "Canonical generation Stage configuration",
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "schema_version": {"const": CONFIG_SCHEMA_VERSION},
+                "schema_version": {"const": self._schema_version},
                 "stages": {
                     "type": "object",
                     "additionalProperties": False,
@@ -408,8 +426,8 @@ class CanonicalStageConfigResolver:
                             "type": "object",
                             "additionalProperties": False,
                             "properties": {
-                                "stage_version": {"const": _CONFIG_TYPES[name][0]},
-                                "config": _annotation_schema(_CONFIG_TYPES[name][1]),
+                                "stage_version": {"const": self._types[name][0]},
+                                "config": _annotation_schema(self._types[name][1]),
                             },
                             "required": ["stage_version", "config"],
                         }

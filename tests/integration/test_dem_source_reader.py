@@ -15,6 +15,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.app.adapters.dem_source_reader import DEMSourceReadError, SqlAlchemyDEMSourceReader
+from backend.app.adapters.early_generation_inputs import (
+    EarlyGenerationInputResolver,
+    RunScopedDEMSlopeFactor,
+)
+from backend.app.adapters.hard_exclusion_source_reader import SqlAlchemyHardExclusionSourceReader
 from backend.app.adapters.local_artifact_store import LocalArtifactStore
 from backend.app.adapters.pipeline_context import SqlAlchemyPipelineContextAdapter
 from backend.app.db.session import engine
@@ -26,15 +31,35 @@ from core.urban_generator.domain import (
     ArtifactRef,
     ConfigRef,
     CorrelationMetadata,
+    PipelineContext,
+    PipelinePorts,
     ProjectRef,
     ProjectSettings,
+    ResolvedConfigBinding,
     RunContext,
     RunMode,
     SnapshotLayerKind,
     SnapshotLayerRef,
     TerritorySnapshot,
 )
-from core.urban_generator.suitability import DEMSlopeFactor, DEMSlopeWindow, SuitabilityGridSpec
+from core.urban_generator.stages import (
+    ConstraintMaskStage,
+    ConstraintMaskStageConfig,
+    PrepareSnapshotStage,
+    PrepareSnapshotStageConfig,
+    StageRegistry,
+    SuitabilityStage,
+    SuitabilityStageConfig,
+)
+from core.urban_generator.suitability import (
+    DEMSlopeFactor,
+    DEMSlopeWindow,
+    SuitabilityConfig,
+    SuitabilityFactorConfig,
+    SuitabilityGridSpec,
+    SuitabilityNormalization,
+    SuitabilityThresholds,
+)
 
 SRID = 32637
 
@@ -186,3 +211,53 @@ def test_dem_rejects_same_size_corrupted_payload(dem, tmp_path: Path) -> None:
     with pytest.raises(DEMSourceReadError, match="checksum"):
         with reader.open(snapshot=snapshot, grid=grid):
             pytest.fail("corrupted artifact")
+
+
+def test_real_early_stage_chain_uses_persisted_boundary_and_dem(dem) -> None:
+    store, snapshot, grid, _ = dem
+    source = ConfigRef(name="generation", ref="fixture")
+    run = RunContext(
+        run_id=snapshot.snapshot_id, mode=RunMode.FROM_SCRATCH, seed=2026, working_srid=SRID,
+        config_refs=(source,), correlation=CorrelationMetadata(correlation_id="early-chain"),
+    )
+    config = (
+        PrepareSnapshotStageConfig(cell_size_m=10),
+        ConstraintMaskStageConfig(),
+        SuitabilityStageConfig(suitability=SuitabilityConfig(
+            version="v1",
+            factors=(SuitabilityFactorConfig(
+                code="slope", weight=1,
+                normalization=SuitabilityNormalization.INVERTED_MIN_MAX,
+                raw_min=0, raw_max=30,
+            ),),
+            thresholds=SuitabilityThresholds(minimum_score=0.3),
+        )),
+    )
+    registry = StageRegistry(stages=(
+        PrepareSnapshotStage(),
+        ConstraintMaskStage(),
+        SuitabilityStage(factors=(RunScopedDEMSlopeFactor(
+            SqlAlchemyDEMSourceReader(artifact_store=store, session_factory=_session),
+        ),)),
+    ))
+    context = PipelineContext(
+        run=run, snapshot=snapshot,
+        configs=tuple(ResolvedConfigBinding(stage.name, source, cfg)
+                      for stage, cfg in zip(registry.stages, config, strict=True)),
+        ports=PipelinePorts(artifact_store=store),
+    )
+    resolver = EarlyGenerationInputResolver(
+        SqlAlchemyHardExclusionSourceReader(session_factory=_session),
+    )
+    outputs = {}
+    for stage, cfg in zip(registry.topological_stages, config, strict=True):
+        invocation = resolver.resolve(stage=stage, context=context, config=cfg, outputs=outputs)
+        result = stage.execute(
+            snapshot=snapshot, context=run,
+            stage_input=stage.validate_input(invocation.stage_input), config=cfg,
+        )
+        outputs[stage.name] = result.output
+    result = outputs["suitability"]
+    assert result.grid == grid
+    assert result.valid_count == 16
+    assert np.allclose(result.scores, 1 - np.degrees(np.arctan(0.1)) / 30)

@@ -96,3 +96,22 @@ config representation only, not GIS input validity or execution.
 
 Until these are complete, a green unit test and JSON schema must not be
 reported as a successful live production generation.
+
+
+## Schema v2: prepared territory
+
+`canonical-stage-configs-v1` remains unchanged. The explicitly selected
+`canonical-stage-configs-v2` adds the eighth concrete stage:
+
+```json
+"prepare_snapshot": {
+  "stage_version": "1.0.0",
+  "config": {"cell_size_m": 10.0, "max_cells": 25000000}
+}
+```
+
+The complete v2 envelope requires this stage and the original seven.
+Use `--schema-version canonical-stage-configs-v2` with the offline CLI.
+This is still not a complete 12-stage production configuration.
+The early-stage input resolver and slope factor use actual PostGIS and
+GeoTIFF sources but are not installed as a partial deployed worker.

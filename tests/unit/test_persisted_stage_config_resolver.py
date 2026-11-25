@@ -11,6 +11,7 @@ import pytest
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
     MAX_CONFIG_BYTES,
+    PREPARED_CONFIG_SCHEMA_VERSION,
     SUPPORTED_CONFIG_STAGE_NAMES,
     CanonicalStageConfigResolver,
     PersistedStageConfigError,
@@ -19,6 +20,7 @@ from core.urban_generator.domain import ConfigRef
 from core.urban_generator.stages import (
     CANONICAL_STAGE_ORDER,
     ConstraintMaskStageConfig,
+    PrepareSnapshotStageConfig,
     RoadStageConfig,
     SuitabilityStageConfig,
     ZoningStageConfig,
@@ -239,3 +241,25 @@ def test_cli_schema_and_invalid_manifest_do_not_access_database_or_worker(
     invalid.write_text(json.dumps(_manifest(evaluate_constraints=_stage({}))))
     with pytest.raises(SystemExit):
         main(["--manifest", str(invalid)])
+
+
+def test_v2_prepared_grid_config_is_explicit_and_v1_is_unchanged() -> None:
+    resolver = CanonicalStageConfigResolver(
+        stage_names=("prepare_snapshot",), schema_version=PREPARED_CONFIG_SCHEMA_VERSION,
+    )
+    payload = {
+        "schema_version": PREPARED_CONFIG_SCHEMA_VERSION,
+        "stages": {"prepare_snapshot": _stage({"cell_size_m": 10.0, "max_cells": 100})},
+    }
+    result = resolver.resolve(
+        config_json=payload, schema_version=PREPARED_CONFIG_SCHEMA_VERSION, source=SOURCE,
+    )
+    assert result[0].value == PrepareSnapshotStageConfig(cell_size_m=10, max_cells=100)
+    schema = CanonicalStageConfigResolver(schema_version=PREPARED_CONFIG_SCHEMA_VERSION)
+    assert len(schema.json_schema()["properties"]["stages"]["required"]) == 8
+    with pytest.raises(PersistedStageConfigError, match="unsupported persisted"):
+        resolver.resolve(config_json=payload, schema_version=CONFIG_SCHEMA_VERSION, source=SOURCE)
+    with pytest.raises(PersistedStageConfigError, match="unsupported persisted"):
+        CanonicalStageConfigResolver().resolve(
+            config_json=payload, schema_version=PREPARED_CONFIG_SCHEMA_VERSION, source=SOURCE,
+        )

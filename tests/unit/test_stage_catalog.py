@@ -7,6 +7,7 @@ from core.urban_generator.stages import (
     BuildingStage,
     ConstraintMaskStage,
     DemographyStage,
+    PrepareSnapshotStage,
     RoadStage,
     SuitabilityStage,
     ZoningStage,
@@ -28,6 +29,7 @@ def test_canonical_stage_catalog_is_unique_and_dependency_ordered() -> None:
 
 def test_all_implemented_stage_adapters_satisfy_canonical_protocol() -> None:
     stages = (
+        PrepareSnapshotStage(),
         ConstraintMaskStage(),
         SuitabilityStage(factors=()),
         ZoningStage(
