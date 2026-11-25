@@ -28,7 +28,7 @@ COPY worker/ ./worker/
 COPY database/ ./database/
 COPY alembic.ini ./
 ARG GENERATION_BUILD_REVISION=""
-RUN printf '%s\\n' "$GENERATION_BUILD_REVISION" > /app/.generation-revision
+RUN printf '%s' "$GENERATION_BUILD_REVISION" > /app/.generation-revision
 USER 10001:10001
 EXPOSE 8000
 CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
