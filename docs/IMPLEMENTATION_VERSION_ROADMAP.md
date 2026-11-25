@@ -1,5 +1,7 @@
 # Urban Development Generator — атомарный implementation roadmap
 
+> Исторический каталог возможностей и исходных release gates. Активный порядок работ: [WORKING_APPLICATION.md](WORKING_APPLICATION.md). Исторические указания «следующая задача» не отменяют P0 #202.
+
 > Этот документ определяет capability work items, sprint/release gates и критический путь.
 >
 > One-request-sized execution tasks вынесены в `docs/07-planning/AI_EXECUTION_TASKS.md`. Один capability work item может требовать нескольких UG-AI tasks; нейросети/разработчику передаётся именно UG-AI task, а не расплывчатый parent item.

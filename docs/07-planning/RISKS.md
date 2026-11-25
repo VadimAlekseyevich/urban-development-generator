@@ -4,7 +4,7 @@
 
 | ID | Risk | Trigger / evidence | Mitigation | Gate |
 |---|---|---|---|---|
-| RSK-001 | Component-complete but pipeline-incomplete product | Stage contract existed without S04-S09 adapters | STAB adapters + typed spine fixture | M0 |
+| RSK-001 | Component-complete but pipeline-incomplete product (OPEN P0) | No production generation runtime factory; fixture-only successful generation | Compose canonical stages and publish real outputs; unseeded worker/browser E2E (#202) | Product acceptance |
 | RSK-002 | Duplicate architecture from vague AI tasks | legacy PipelineStage vs domain Stage; T06 wording vs existing snap | canonical docs + AI task non-goals | M0 |
 | RSK-003 | Road/infrastructure performance degrades to N×M | many demand/site pairs | NetworkBackend, bounded candidates, batched Dijkstra/caches | M1/M6 |
 | RSK-004 | CRS/units drift between stages | source API uses EPSG:4326 while core uses metric CRS | explicit boundaries and typed working SRID | all |

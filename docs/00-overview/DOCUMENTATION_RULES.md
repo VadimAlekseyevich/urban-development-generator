@@ -15,10 +15,10 @@ Canonical ownership:
 - API transport contract -> `docs/API.md`;
 - stable system boundaries -> `docs/ARCHITECTURE.md`;
 - pipeline/stage execution semantics -> `docs/02-architecture/PIPELINE_MODEL.md`;
-- implementation ordering -> `docs/IMPLEMENTATION_VERSION_ROADMAP.md`;
-- one-request-sized implementation work -> `docs/07-planning/AI_EXECUTION_TASKS.md`;
+- current functional priorities and product acceptance -> `docs/WORKING_APPLICATION.md` and issue #202;
+- historical capability and task catalogues -> `docs/IMPLEMENTATION_VERSION_ROADMAP.md`, `docs/07-planning/AI_EXECUTION_TASKS.md`;
 - meaningful trade-offs -> ADRs under `docs/adr/`;
-- current blockers/readiness -> `docs/07-planning/IMPLEMENTATION_READINESS.md`;
+- current blockers/readiness -> `docs/WORKING_APPLICATION.md`; historical M0 acceptance -> `docs/07-planning/IMPLEMENTATION_READINESS.md`;
 - discovered architecture debt -> `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md`.
 
 ## 2. Document status
@@ -69,7 +69,7 @@ A canonical subsystem spec should state, where applicable:
 
 ## 5. AI task rule
 
-A task may be sent to an AI/developer only when its entry in `AI_EXECUTION_TASKS.md` identifies:
+Current functional work must identify the following (the historical task catalogue is reference material, not a required task ID):
 
 - parent roadmap work item;
 - prerequisites;
@@ -90,7 +90,7 @@ For every meaningful change:
 - behavior/schema/architecture change -> update canonical spec;
 - trade-off change -> ADR;
 - new architecture risk/debt -> debt audit/risk register;
-- implementation completion -> execution task and readiness state;
+- implementation completion -> current issue/readiness evidence; update the historical catalogue only to correct factual contradictions;
 - no copy-pasted competing definitions.
 
 ## 7. Roadmap rule

@@ -1,5 +1,7 @@
 # Milestones
 
+> M0–M4 evidence below concerns contracts and fixtures. Real user generation is still blocked by #202; [WORKING_APPLICATION.md](../WORKING_APPLICATION.md) defines the active acceptance order.
+
 > **Status: Accepted**
 >
 > Milestones are integrated capability gates, not module-completion labels.

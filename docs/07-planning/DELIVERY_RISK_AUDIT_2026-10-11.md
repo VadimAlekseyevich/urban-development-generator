@@ -1,5 +1,7 @@
 # Delivery risk review — engineering audit, 2026-10-11
 
+> Historical audit as of 2026-10-11. The ingest and boundary blockers have since been addressed; the production generation P0 remains open as #202. Current evidence: [WORKING_APPLICATION.md](../WORKING_APPLICATION.md).
+
 **Scope:** source, architecture documents, CI configuration and recent
 exact-head successful workflows through UG-AI-094, plus S14 queue changes.
 This is a **static review plus evidence from CI**, not a production load test,

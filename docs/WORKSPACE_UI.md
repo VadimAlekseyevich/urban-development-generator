@@ -1,5 +1,7 @@
 # S13-T13 · Complete project workspace UI
 
+> Workspace shell and implemented controls; successful real generation is still blocked by #202. See [WORKING_APPLICATION.md](WORKING_APPLICATION.md).
+
 **Scope:** UG-AI-093. The React/MapLibre shell now exposes four navigable
 sections: **Данные**, **Карта**, **Генерация**, **Анализ**. The map stays mounted
 while sidebar sections are hidden; existing specialist map panels keep their
@@ -11,7 +13,9 @@ a second layer registry, Stage model, metrics vocabulary or job lifecycle.
 1. In **Данные**, list canonical projects via bounded
    `GET /projects?limit=50&offset=N`, select an existing project or create
    one via `POST /projects` with explicit metric `working_srid`.
-2. Select a ready, project-owned DatasetVersion from the bounded version
+2. Set the project boundary with the GeoJSON upload panel, then upload
+   source data and submit an ingest job as described in [INGEST_SUBMISSION.md](INGEST_SUBMISSION.md).
+   Select a ready, project-owned DatasetVersion from the bounded version
    catalog added in S13-T12; that action updates the shared workspace and
    opens **Карта**. Unready versions cannot be opened. The original raw
    multipart upload feature remains available, but `POST /uploads`

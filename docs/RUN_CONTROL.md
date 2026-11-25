@@ -75,7 +75,7 @@ duplicate delivery for an existing `succeeded`, `in_progress`, or
 `cancelled` run preserves its persisted state.
 
 This **does not implement production stage/config/input composition**.
-Issue #178 remains a release blocker: an actual StageRegistry and typed
+Issue #202 remains a release blocker: an actual StageRegistry and typed
 input/config adapters must be wired into `GenerationWorkerSettings` and
 proven via real persisted, non-synthetic data. The safety guard ensures
 failed jobs release their active-project admission slots (S14-T02) and

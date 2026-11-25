@@ -67,7 +67,8 @@ DatasetVersion and verifies a named road through the production source API.
 Unlike the original comparison/metrics browser fixture, this test does not
 seed a version or mock application endpoints.
 
-**Out of scope:** setting a project boundary and constructing the complete
-production generation Stage DAG. Run generation currently requires additional
-runtime composition (release issue #178); completing ingest does not imply a
-successful generation worker run.
+Project boundary creation is now available via PUT /projects/{id}/boundary
+and the browser boundary panel (#201/#207). The real ingest browser test
+also verifies the saved boundary. **Out of scope:** complete production
+generation Stage DAG, runtime composition (release issue #202) and a real
+successful generation worker run. See [WORKING_APPLICATION.md](WORKING_APPLICATION.md).

@@ -1,6 +1,8 @@
 # S13-T14 — Browser acceptance with Playwright (UG-AI-094)
 
-The **Browser E2E (Playwright)** GitHub Actions job runs two independent Chromium journeys. `frontend/e2e/ingest.spec.mjs` uploads a real GeoJSON file through the browser, submits the project-scoped ingest Job/Outbox, waits for the deployed ingest worker to publish a ready DatasetVersion, and reads normalized source roads from PostGIS **without any DB fixture**. `frontend/e2e/workspace.spec.mjs` retains the earlier synthetic evaluated-run comparison fixture.\n\nThe existing comparison journey still runs Chromium against the
+The **Browser E2E (Playwright)** GitHub Actions job runs two independent Chromium journeys. `frontend/e2e/ingest.spec.mjs` creates a project and saves its GeoJSON boundary, uploads a real GeoJSON file through the browser, submits the project-scoped ingest Job/Outbox, waits for the deployed ingest worker to publish a ready DatasetVersion, and reads normalized source roads from PostGIS **without any DB fixture**. `frontend/e2e/workspace.spec.mjs` retains the earlier synthetic evaluated-run comparison fixture.
+
+The existing comparison journey still runs Chromium against the
 real Docker Compose frontend, API, PostgreSQL/PostGIS, artifact storage,
 dispatcher and worker services. The scenario follows:
 
@@ -25,8 +27,8 @@ not claimed to have been produced by the uploaded file. Similarly, the two
 successful evaluations are fixture snapshots, **not** the result of the job
 started in step 5. The comparison acceptance gate verifies composition and persistence
 at each implemented boundary; it does **not** establish a real raw-file-to-
-successful-generative-run workflow. The real ingestion and calculation path
-still requires separate production-level acceptance.
+successful-generative-run workflow. The unseeded ingestion path is covered by the separate ingest journey;
+a real successful calculation path still requires production-level acceptance (#202).
 
 ## Isolation and determinism
 
@@ -34,7 +36,7 @@ still requires separate production-level acceptance.
   on the expected metric SRID, and with no existing datasets. It refuses to
   execute unless `UDG_E2E_FIXTURE=1` is explicitly set for that one command.
 - CI starts a **disposable** Docker Compose instance, waits for API readiness,
-  then runs one serial browser test and always tears the stack down with
+  then runs serial browser tests and always tears the stack down with
   `docker compose down -v`. Never run this against a shared database.
 - Browser tests replace **only** the public demotiles basemap style with
   a local minimalist MapLibre style to eliminate third-party outages.
