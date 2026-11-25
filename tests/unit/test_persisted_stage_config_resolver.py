@@ -10,6 +10,7 @@ import pytest
 
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
+    INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
     MAX_CONFIG_BYTES,
     PREPARED_CONFIG_SCHEMA_VERSION,
     SUPPORTED_CONFIG_STAGE_NAMES,
@@ -289,3 +290,33 @@ def test_v2_positive_landuse_requires_explicit_mapping() -> None:
     )[0].value
     assert isinstance(parsed, PreparedSuitabilityStageConfig)
     assert parsed.landuse_weights.score_for("residential") == 0.8
+
+
+def test_v3_infrastructure_config_requires_explicit_types_and_preserves_v2() -> None:
+    resolver = CanonicalStageConfigResolver(
+        stage_names=("infrastructure",), schema_version=INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
+    )
+    config = {
+        "infrastructure_types": [{
+            "version": "v1", "code": "clinic.primary", "category": "healthcare",
+            "demand_model": {"signal": "population", "demand_rate": 0.01},
+            "capacity": 100, "max_network_distance_m": 2000,
+            "allowed_zones": ["public"], "minimum_site_area_m2": 500,
+            "target_site_area_m2": 1000, "candidate_policy": {"sources": ["parcel"]},
+        }],
+        "snap_policy": {"max_snap_distance_m": 100},
+    }
+    payload = {
+        "schema_version": INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
+        "stages": {"infrastructure": _stage(config)},
+    }
+    result = resolver.resolve(
+        config_json=payload, schema_version=INFRASTRUCTURE_CONFIG_SCHEMA_VERSION, source=SOURCE,
+    )
+    assert result[0].value.infrastructure_types[0].code == "clinic.primary"
+    schema = CanonicalStageConfigResolver(schema_version=INFRASTRUCTURE_CONFIG_SCHEMA_VERSION)
+    assert len(schema.json_schema()["properties"]["stages"]["required"]) == 9
+    with pytest.raises(PersistedStageConfigError, match="unsupported persisted"):
+        CanonicalStageConfigResolver(schema_version=PREPARED_CONFIG_SCHEMA_VERSION).resolve(
+            config_json=payload, schema_version=INFRASTRUCTURE_CONFIG_SCHEMA_VERSION, source=SOURCE,
+        )

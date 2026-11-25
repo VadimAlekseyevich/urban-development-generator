@@ -122,3 +122,11 @@ The v2 suitability stage additionally accepts optional `landuse_weights`
 default_score). Positive landuse weight requires the explicit mapping;
 v1 remains unchanged. The spatial registry resolves landuse, DEM slope
 and road proximity against the run's actual selected sources.
+
+## Schema v3: infrastructure
+
+`canonical-stage-configs-v3` adds the ninth typed stage, infrastructure.
+It requires explicit facility types and network snap policy. Existing
+facility mappings, candidate accessibility and greedy placement limits are
+configurable; the earlier v1/v2 contracts are unchanged. This is not yet a
+complete twelve-stage runtime. Offline CLI supports v3.

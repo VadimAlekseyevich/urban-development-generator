@@ -188,10 +188,9 @@ class InfrastructureStage:
             snapshot.facilities or value.fixed_facilities or value.fixed_building_footprints
         ):
             raise ValueError("FROM_SCRATCH cannot consume fixed urban facilities or buildings")
-        if snapshot.facilities and not value.fixed_facilities:
-            raise ValueError("fixed facility refs require hydrated source records")
-        if snapshot.buildings and not value.fixed_building_footprints:
-            raise ValueError("fixed building refs require hydrated source footprints")
+        # A verified source version may legitimately contain no features
+        # intersecting the project boundary. The persisted reader verifies
+        # the exact selected version set before returning even an empty tuple.
         if value.fixed_building_footprints and not snapshot.buildings:
             raise ValueError("resolved fixed building footprints require snapshot refs")
         count = sum(map(len, (

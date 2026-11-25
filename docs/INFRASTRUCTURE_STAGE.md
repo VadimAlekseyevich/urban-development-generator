@@ -20,3 +20,15 @@ composition, persisted full generation config, transactional generated
 infrastructure writer and final validation/metrics/manifest/worker.
 The tests exercise actual candidate generation and routing against explicit
 fixture geometry; they do not prove deployed full generation.
+
+## Runtime binding
+
+The selected run-linked PostGIS facility reader verifies exact version set,
+project/boundary/CRS, and bounded intersection with the project boundary.
+It preserves missing capacity as None; a mapping rule or configured type
+capacity is then used by the existing adapter. Explicit zero capacity is
+rejected rather than silently treated as active service. A selected layer
+with no intersecting features is valid. The final generated/fixed road graph
+is converted by NetworkXBackend.from_road_graph. Stage output is written
+through generated infrastructure writer savepoints in the authoritative
+stage completion transaction. No deployed worker is yet installed.

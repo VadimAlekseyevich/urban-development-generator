@@ -20,6 +20,7 @@ from backend.app.adapters.early_generation_inputs import (
     EarlyGenerationInputResolver,
     RunScopedDEMSlopeFactor,
 )
+from backend.app.adapters.facility_source_reader import SqlAlchemyFacilitySourceReader
 from backend.app.adapters.fixed_road_source_reader import SqlAlchemyFixedRoadSourceReader
 from backend.app.adapters.hard_exclusion_source_reader import SqlAlchemyHardExclusionSourceReader
 from backend.app.adapters.urban_polygon_sources import SqlAlchemyUrbanPolygonSourceReader
@@ -32,6 +33,7 @@ from core.urban_generator.domain import (
     RunContext,
     TerritorySnapshot,
 )
+from core.urban_generator.roads import NetworkXBackend
 from core.urban_generator.stages import (
     BlocksAndParcelsStage,
     BlocksAndParcelsStageConfig,
@@ -46,6 +48,10 @@ from core.urban_generator.stages import (
     DemographyStage,
     DemographyStageConfig,
     DemographyStageInput,
+    DemographyStageOutput,
+    InfrastructureStage,
+    InfrastructureStageConfig,
+    InfrastructureStageInput,
     PrepareSnapshotStage,
     RoadStage,
     RoadStageConfig,
@@ -190,6 +196,7 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
         self, *, session_factory: Callable[[], Session] = SessionLocal,
     ) -> None:
         super().__init__(SqlAlchemyHardExclusionSourceReader(session_factory=session_factory))
+        self._facilities = SqlAlchemyFacilitySourceReader(session_factory=session_factory)
         self._roads = SqlAlchemyFixedRoadSourceReader(session_factory=session_factory)
         self._polygons = SqlAlchemyUrbanPolygonSourceReader(session_factory=session_factory)
 
@@ -266,6 +273,34 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                 )
             buildings = _require(outputs, BuildingStage.name, BuildingStageOutput)
             value = DemographyStageInput(buildings=buildings)
+        elif stage.name == InfrastructureStage.name and isinstance(
+            config, InfrastructureStageConfig,
+        ):
+            demography = _require(outputs, DemographyStage.name, DemographyStageOutput)
+            roads_output = _require(outputs, RoadStage.name, RoadStageOutput)
+            blocks = _require(outputs, BlocksAndParcelsStage.name, BlocksAndParcelsStageOutput)
+            buildings = _require(outputs, BuildingStage.name, BuildingStageOutput)
+            facilities = self._facilities.read(snapshot=context.snapshot)
+            footprints = self._polygons.read_buildings(snapshot=context.snapshot)
+            network = NetworkXBackend.from_road_graph(
+                roads_output.graph, snapshot_id=f"roads:{context.run.run_id}",
+            )
+            value = InfrastructureStageInput(
+                demand_profile=demography.demand_profile, network=network,
+                blocks=blocks.association, parcels=blocks.subdivision.parcels,
+                buildings=buildings.area_subjects, fixed_facilities=facilities,
+                fixed_building_footprints=tuple(item.geometry for item in footprints),
+            )
+            parts = (
+                *(ref.source_ref for ref in (
+                    *context.snapshot.facilities, *context.snapshot.buildings,
+                )),
+                *(item.geometry.wkb for item in footprints),
+                *(part for facility in facilities for part in (
+                    facility.source_ref, facility.source_feature_id, facility.facility_use,
+                    repr(facility.capacity), facility.name or "", facility.geometry.wkb,
+                )),
+            )
         else:
             raise GenerationExecutionError(f"unsupported spatial stage or config: {stage.name}")
         if not is_dataclass(config) or isinstance(config, type):
@@ -281,7 +316,7 @@ def build_spatial_registry(
     *, context: PipelineContext, constraint_engine: ConstraintEngine,
     session_factory: Callable[[], Session] = SessionLocal,
 ) -> StageRegistry:
-    """First eight real stages. Never install this partial registry in deployed worker."""
+    """First eight or nine real stages; not yet a complete deployed worker registry."""
     config = context.require_config(SuitabilityStage.name, SuitabilityStageConfig)
     factors: list[SuitabilityFactor] = [
         RunScopedDEMSlopeFactor(SqlAlchemyDEMSourceReader(
@@ -306,4 +341,8 @@ def build_spatial_registry(
         ZoningStage(constraint_engine=constraint_engine), RoadStage(),
         BlocksAndParcelsStage(), BuildingStage(), DemographyStage(),
     )
-    return StageRegistry(stages=cast(tuple[StageAny, ...], stages))
+    registered = cast(tuple[StageAny, ...], stages)
+    if any(item.stage_name == InfrastructureStage.name for item in context.configs):
+        context.require_config(InfrastructureStage.name, InfrastructureStageConfig)
+        registered = (*registered, cast(StageAny, InfrastructureStage()))
+    return StageRegistry(stages=registered)
