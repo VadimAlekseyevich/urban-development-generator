@@ -26,6 +26,10 @@ from backend.app.adapters.stage_config_resolver import (
 )
 from backend.app.application.generation import GenerationExecutionError
 from backend.app.application.scenario_matrix import ScenarioConfigVariant, ScenarioMatrixError
+from backend.app.core.generation_revision import (
+    GenerationRevisionError,
+    require_generation_revision,
+)
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.job_admission import enforce_project_job_capacity
 from backend.app.db.session import SessionLocal
@@ -233,6 +237,10 @@ class SqlAlchemyRunControlService:
             raise RunControlConflict("invalid config schema version")
         if _COMMIT_RE.fullmatch(commit_sha) is None:
             raise RunControlConflict("commit_sha must be a real lowercase 40-hex revision")
+        try:
+            require_generation_revision(commit_sha)
+        except GenerationRevisionError as exc:
+            raise RunControlConflict(str(exc)) from exc
         bindings = _validate_config(config_json, config_schema_version)
         try:
             config = ScenarioConfigVariant.from_config(
@@ -307,6 +315,10 @@ class SqlAlchemyRunControlService:
                         raise RunControlConflict("source working SRID has changed")
                     if source.commit_sha is None or _COMMIT_RE.fullmatch(source.commit_sha) is None:
                         raise RunControlConflict("source code revision is missing")
+                    try:
+                        require_generation_revision(source.commit_sha)
+                    except GenerationRevisionError as exc:
+                        raise RunControlConflict(str(exc)) from exc
                     bindings = _validate_config(source.config_json, source.config_schema_version)
                     try:
                         config = ScenarioConfigVariant.from_config(

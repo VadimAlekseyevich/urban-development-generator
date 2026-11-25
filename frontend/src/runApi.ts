@@ -111,3 +111,10 @@ export function retryRun(
     { method: 'POST' },
   )
 }
+
+export function fetchGenerationRevision(apiBase: string, signal: AbortSignal): Promise<{
+  commit_sha: string | null
+  required: boolean
+}> {
+  return jsonRequest(apiBase + '/generation/revision', { signal })
+}

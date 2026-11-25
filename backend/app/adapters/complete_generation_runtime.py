@@ -19,8 +19,13 @@ from backend.app.adapters.stage_config_resolver import (
     PersistedStageConfigError,
 )
 from backend.app.application.generation import GenerationJobService, GenerationRuntime
+from backend.app.core.generation_revision import (
+    GenerationRevisionError,
+    require_generation_revision,
+)
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
 from backend.app.db.session import SessionLocal
+from backend.app.models.generation_run import GenerationRun
 from core.urban_generator.constraints import ConstraintRegistry, RegisteredConstraintEngine
 from core.urban_generator.domain import ArtifactStore
 from core.urban_generator.domain.errors import ConfigError
@@ -40,13 +45,16 @@ class CompleteGenerationRuntimeFactory:
     def create(self, *, run_id: uuid.UUID) -> GenerationRuntime:
         try:
             with self._session_factory() as session:
+                run = session.get(GenerationRun, run_id)
+                if run is not None:
+                    require_generation_revision(run.commit_sha)
                 context = SqlAlchemyPipelineContextAdapter(
                     session=session, artifact_store=self._store,
                     config_resolver=CanonicalStageConfigResolver(
                         schema_version=COMPLETE_CONFIG_SCHEMA_VERSION,
                     ),
                 ).assemble(run_id)
-        except PersistedStageConfigError as exc:
+        except (PersistedStageConfigError, GenerationRevisionError) as exc:
             raise ConfigError(str(exc)) from exc
         registry = build_spatial_registry(
             context=context,

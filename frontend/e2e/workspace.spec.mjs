@@ -106,7 +106,10 @@ test('create → upload → ready fixture → run → inspect → compare → CS
   await landuseInput.check()
   await expect(inputs.locator('legend')).toContainText('2/32')
   await expect(inputs.locator('.run-input-selected li')).toHaveCount(2)
-  await runForm.locator('input[pattern="[0-9a-f]{40}"]').fill('a'.repeat(40))
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
+  const revisionInput = runForm.locator('input[pattern="[0-9a-f]{40}"]')
+  await expect(revisionInput).toHaveValue(revision)
+  await expect(revisionInput).not.toBeEditable()
   const configText = execFileSync('docker', [
     'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev',
     'python', '-m', 'scripts.generation_smoke_config',

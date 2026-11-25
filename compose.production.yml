@@ -5,6 +5,8 @@ x-backend: &backend
   build:
     context: .
     dockerfile: docker/backend.production.Dockerfile
+    args:
+      GENERATION_BUILD_REVISION: ${GENERATION_BUILD_REVISION:-}
   env_file:
     - .env.production
   environment:

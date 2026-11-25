@@ -427,7 +427,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Prepare isolated Compose stack
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          echo "GENERATION_BUILD_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Start API and frontend
         run: docker compose up -d --build
       - name: Wait for API and frontend readiness

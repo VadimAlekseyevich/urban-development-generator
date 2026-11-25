@@ -10,3 +10,5 @@ frontend/node_modules
 .ruff_cache
 **/__pycache__
 *.pyc
+
+.generation-revision

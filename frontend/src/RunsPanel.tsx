@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   cancelRun,
   createRun,
+  fetchGenerationRevision,
   retryRun,
   type RunLifecycleStatus,
   type RunState,
@@ -54,6 +55,9 @@ export function RunsPanel({
   const [configLoading, setConfigLoading] = useState(false)
   const [configFileError, setConfigFileError] = useState<string | null>(null)
   const [commitSha, setCommitSha] = useState(import.meta.env.VITE_GENERATION_COMMIT_SHA ?? '')
+  const [revision, setRevision] = useState<string | null>(null)
+  const [revisionReady, setRevisionReady] = useState(false)
+  const [revisionError, setRevisionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -84,6 +88,28 @@ export function RunsPanel({
       })
     return () => controller.abort()
   }, [apiBase, projectId, active, inputOffset, inputRefresh])
+
+  useEffect(() => {
+    if (!active) return
+    const controller = new AbortController()
+    setRevisionReady(false)
+    setRevisionError(null)
+    void fetchGenerationRevision(apiBase, controller.signal).then((result) => {
+      if (controller.signal.aborted) return
+      setRevision(result.commit_sha)
+      if (result.commit_sha) setCommitSha(result.commit_sha)
+      if (!result.commit_sha && result.required) {
+        setRevisionError('Сборка сервера не содержит ревизию. Генерация недоступна.')
+      } else {
+        setRevisionReady(true)
+      }
+    }).catch((caught: unknown) => {
+      if (!controller.signal.aborted) {
+        setRevisionError(caught instanceof Error ? caught.message : String(caught))
+      }
+    })
+    return () => controller.abort()
+  }, [apiBase, active])
 
   function toggleInput(version: DatasetVersionInfo): void {
     if (version.status !== 'ready') return
@@ -127,7 +153,7 @@ export function RunsPanel({
 
   async function submitCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
-    if (!projectId || chosenInputs.length === 0 || busy || configLoading) return
+    if (!projectId || chosenInputs.length === 0 || busy || configLoading || !revisionReady) return
     setActionError(null)
     setActionMessage(null)
     if (!/^\d+$/.test(seed) || !Number.isSafeInteger(Number(seed))) {
@@ -219,7 +245,10 @@ export function RunsPanel({
         <label>
           Исполняемый commit SHA (40 hex)
           <input value={commitSha} pattern="[0-9a-f]{40}" maxLength={40}
-            onChange={(event) => setCommitSha(event.target.value)} placeholder="Commit worker-сборки" required />
+            onChange={(event) => setCommitSha(event.target.value)} readOnly={revision !== null}
+            placeholder="Commit worker-сборки" required />
+          {revisionReady && !revision && <span className="helper-text">Локальная сборка: ревизия не подтверждена сервером.</span>}
+          {revisionError && <span role="alert" className="form-error">{revisionError}</span>}
         </label>
         <label>
           Импорт конфигурации (.json)
@@ -274,7 +303,7 @@ export function RunsPanel({
           </ul>}
         </fieldset>
         <p className="helper-text">Указывайте реальный исполняемый commit и поддерживаемую worker конфигурацию.</p>
-        <button className="button button-primary" disabled={!projectId || chosenInputs.length === 0 || busy || configLoading}
+        <button className="button button-primary" disabled={!projectId || chosenInputs.length === 0 || busy || configLoading || !revisionReady}
           type="submit">Создать запуск</button>
       </form>
 

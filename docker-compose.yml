@@ -2,6 +2,8 @@ x-worker-defaults: &worker-defaults
   build:
     context: .
     dockerfile: docker/backend.Dockerfile
+    args:
+      GENERATION_BUILD_REVISION: ${GENERATION_BUILD_REVISION:-}
   env_file: .env
   volumes:
     - ./storage:/app/storage
@@ -63,6 +65,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
+      args:
+        GENERATION_BUILD_REVISION: ${GENERATION_BUILD_REVISION:-}
     env_file: .env
     command: ["uv", "run", "--no-dev", "alembic", "upgrade", "head"]
     networks:
@@ -75,6 +79,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
+      args:
+        GENERATION_BUILD_REVISION: ${GENERATION_BUILD_REVISION:-}
     env_file: .env
     ports:
       - "8000:8000"
@@ -125,6 +131,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
+      args:
+        GENERATION_BUILD_REVISION: ${GENERATION_BUILD_REVISION:-}
     env_file: .env
     command: ["uv", "run", "--no-dev", "python", "-m", "worker.outbox_dispatcher"]
     networks:
