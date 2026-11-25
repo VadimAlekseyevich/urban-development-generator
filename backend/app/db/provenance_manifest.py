@@ -214,10 +214,6 @@ class SqlAlchemyProvenanceManifestService:
                 raise ProvenanceManifestError(
                     f"unexpected derived dataset artifacts: {version.id}"
                 )
-            if not isinstance(key, str) or artifact.uri != f"artifact://{key}":
-                raise ProvenanceManifestError(
-                    f"dataset version source artifact key disagrees with ownership: {version.id}"
-                )
             if artifact.checksum != f"sha256:{version.checksum_sha256}":
                 raise ProvenanceManifestError(
                     f"dataset version source artifact checksum disagrees: {version.id}"

@@ -447,7 +447,9 @@ class SqlAlchemyGenerationStateStore:
                         expected_stage_names != CANONICAL_STAGE_ORDER
                         or any(row.status != "succeeded" for row in rows)
                     ):
-                        raise GenerationExecutionError("production run requires all canonical stages")
+                        raise GenerationExecutionError(
+                            "production run requires all canonical stages"
+                        )
                     manifest = next(row for row in rows if row.stage_name == PERSIST_MANIFEST_STAGE)
                     if (
                         len(manifest.artifacts) != 1
@@ -456,7 +458,9 @@ class SqlAlchemyGenerationStateStore:
                         or manifest.artifacts[0].owner_id != manifest.id
                         or manifest.artifacts[0].content_type != "application/json"
                     ):
-                        raise GenerationExecutionError("production run requires a referenced manifest")
+                        raise GenerationExecutionError(
+                            "production run requires a referenced manifest"
+                        )
                     report = deserialize_validation_report(
                         json.dumps(run.validation_json, allow_nan=False).encode("utf-8")
                     )

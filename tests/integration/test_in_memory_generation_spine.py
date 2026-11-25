@@ -804,25 +804,26 @@ def test_s11_reference_fixture_preserves_metrics_validation_and_score_envelope()
     )
 
 
-def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> None:
+@pytest.mark.parametrize("reject_hard", [False, True])
+def test_actual_postgis_inputs_execute_and_publish_spatial_chain(
+    tmp_path, monkeypatch, reject_hard,
+) -> None:
+    import asyncio
+    import json
+    from dataclasses import fields, is_dataclass
+    from io import BytesIO
     from alembic import command
     from alembic.config import Config
     from geoalchemy2.elements import WKTElement
+    from shapely.geometry import Point, mapping
     from sqlalchemy import text
     from sqlalchemy.orm import Session
 
-    from backend.app.adapters.fixed_road_source_reader import SqlAlchemyFixedRoadSourceReader
     from backend.app.adapters.local_artifact_store import LocalArtifactStore
-    from backend.app.adapters.pipeline_context import SqlAlchemyPipelineContextAdapter
-    from backend.app.adapters.spatial_generation_chain import (
-        RunScopedRoadProximityFactor,
-        SpatialGenerationInputResolver,
-        build_spatial_registry,
-    )
-    from backend.app.adapters.spatial_output_publisher import TransactionalSpatialMaterializer
-    from backend.app.application.generation import GenerationClaimDisposition, StageCompletionInput
-    from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
+    from backend.app.adapters.stage_config_resolver import COMPLETE_CONFIG_SCHEMA_VERSION
+    from backend.app.db.provenance_manifest import SqlAlchemyProvenanceManifestService
     from backend.app.db.session import engine
+    from backend.app.models.artifact import Artifact
     from backend.app.models.dataset import Dataset, DatasetVersion
     from backend.app.models.generation_run import GenerationRun
     from backend.app.models.job import Job
@@ -830,11 +831,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
     from backend.app.models.run_stage_result import RunStageResult
     from backend.app.models.source_layer import SourceFacility, SourceLanduse, SourceRoad
     from core.urban_generator.demography import DemographicDemandCategory
-    from core.urban_generator.domain import (
-        PipelineContext,
-        PipelinePorts,
-        ResolvedConfigBinding,
-    )
+    from core.urban_generator.domain import ArtifactRef, deserialize_validation_report
     from core.urban_generator.infrastructure import (
         ExistingFacilityMappingRule,
         InfrastructureCandidatePolicy,
@@ -844,15 +841,24 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
         InfrastructureNetworkSnapPolicy,
         InfrastructureType,
     )
-    from core.urban_generator.stages import InfrastructureStageConfig, PrepareSnapshotStageConfig
+    from core.urban_generator.stages import (
+        CANONICAL_STAGE_ORDER,
+        InfrastructureStageConfig,
+        PrepareSnapshotStageConfig,
+    )
     from core.urban_generator.stages.final_evaluation import (
         FinalValidationStageConfig,
         MetricsStageConfig,
     )
+    from core.urban_generator.stages.persist_manifest import PersistManifestStageConfig
     from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
     from core.urban_generator.suitability import LanduseClassWeight, LanduseClassWeights
+    from worker import settings as worker_settings
+    from worker.tasks import GenerationTaskFailed, run_generation
 
     command.upgrade(Config("alembic.ini"), "head")
+    store = LocalArtifactStore(tmp_path / "artifacts")
+    monkeypatch.setattr(worker_settings, "get_runtime_artifact_store", lambda: store)
 
     def session_factory():
         return Session(engine, expire_on_commit=False)
@@ -900,7 +906,27 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 geometry=WKTElement("POINT(0 0)", srid=WORKING_SRID),
             ))
             session.flush()
-            for version in versions:
+            # This is a worker integration fixture, not an ingest API test.
+            source_geometries = (
+                MultiLineString([[(0, 0), (10, 0)], [(10, 0), (10, 10)],
+                                 [(10, 10), (0, 10)], [(0, 10), (0, 0)]]),
+                box(0, 0, 10, 10),
+                Point(0, 0),
+            )
+            for version, geometry in zip(versions, source_geometries, strict=True):
+                ref = ArtifactRef(f"uploads/{version.id}/source.geojson")
+                body = json.dumps({
+                    "type": "Feature", "geometry": mapping(geometry), "properties": {},
+                }).encode()
+                store.put(ref, BytesIO(body), content_type="application/geo+json")
+                stat = store.promote(ref)
+                version.checksum_sha256 = stat.checksum.removeprefix("sha256:")
+                version.source_metadata = {"artifact_key": ref.key}
+                session.add(Artifact(
+                    uri=f"artifact://{ref.key}", checksum=stat.checksum,
+                    size_bytes=stat.size_bytes, content_type=stat.content_type,
+                    state="referenced", owner_type="dataset_version", owner_id=version.id,
+                ))
                 version.status = "ready"
             session.flush()
             run = GenerationRun(
@@ -916,33 +942,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 idempotency_key=f"run:{run.id}", status="queued",
             ))
             session.commit()
-            snapshot = TerritorySnapshot(
-                snapshot_id=run.id, project=ProjectRef(project_id=project.id),
-                settings=ProjectSettings(working_srid=WORKING_SRID),
-                boundary=SnapshotLayerRef(
-                    kind=SnapshotLayerKind.BOUNDARY,
-                    source_ref=SqlAlchemyPipelineContextAdapter._boundary_source_ref(project),
-                ),
-                roads=(SnapshotLayerRef(
-                    kind=SnapshotLayerKind.ROADS,
-                    source_ref=f"dataset-version:{road_version.id}:v1",
-                ),),
-                landuse=(SnapshotLayerRef(
-                    kind=SnapshotLayerKind.LANDUSE,
-                    source_ref=f"dataset-version:{land_version.id}:v1",
-                ),),
-                facilities=(SnapshotLayerRef(
-                    kind=SnapshotLayerKind.FACILITIES,
-                    source_ref=f"dataset-version:{facility_version.id}:v1",
-                ),),
-            )
             run_id = run.id
-        source = ConfigRef(name="generation", ref="actual-spatial-test")
-        run_context = RunContext(
-            run_id=run_id, mode=RunMode.EXPANSION, seed=20260919,
-            working_srid=WORKING_SRID, config_refs=(source,),
-            correlation=CorrelationMetadata(correlation_id="actual-spatial-chain"),
-        )
         configs = (
             ("prepare_snapshot", PrepareSnapshotStageConfig(cell_size_m=1)),
             ("evaluate_constraints", ConstraintMaskStageConfig()),
@@ -981,7 +981,11 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             )),
             ("final_validation", FinalValidationStageConfig(hard_bounds=(
                 AggregateMetricBound(RawMetricId.BUILDINGS_COVERAGE_RATIO, minimum=0, maximum=1),
-                AggregateMetricBound(RawMetricId.BUILDINGS_FAR, minimum=0, maximum=10),
+                AggregateMetricBound(
+                    RawMetricId.BUILDINGS_FAR,
+                    minimum=1000 if reject_hard else 0,
+                    maximum=2000 if reject_hard else 10,
+                ),
                 AggregateMetricBound(RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2, minimum=0),
                 AggregateMetricBound(RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
                                      minimum=0, maximum=1),
@@ -1005,56 +1009,45 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 ),
             )),
         )
-        context = PipelineContext(
-            run=run_context, snapshot=snapshot,
-            configs=tuple(ResolvedConfigBinding(name, source, cfg) for name, cfg in configs),
-            ports=PipelinePorts(artifact_store=LocalArtifactStore(tmp_path / "artifacts")),
-        )
-        registry = build_spatial_registry(
-            context=context, constraint_engine=RegisteredConstraintEngine(ConstraintRegistry()),
-            session_factory=session_factory,
-        )
-        resolver = SpatialGenerationInputResolver(session_factory=session_factory)
-        state = SqlAlchemyGenerationStateStore(
-            session_factory=session_factory,
-            materializer=TransactionalSpatialMaterializer(
-                artifact_store=context.ports.artifact_store,
-            ),
-        )
-        assert state.claim(run_id=run_id) is GenerationClaimDisposition.STARTED
-        outputs = {}
-        for stage in registry.topological_stages:
-            cfg = dict(configs)[stage.name]
-            invocation = resolver.resolve(stage=stage, context=context, config=cfg, outputs=outputs)
-            identity = state.resolve_identity(run_id=run_id, stage=stage, invocation=invocation)
-            state.start_stage(run_id=run_id, identity=identity)
-            stage_input = stage.validate_input(invocation.stage_input)
-            result = stage.execute(
-                snapshot=snapshot, context=run_context, stage_input=stage_input, config=cfg,
-            )
-            state.complete_stage(
-                run_id=run_id, stage_name=stage.name, result=result,
-                completion=StageCompletionInput(stage_input=stage_input, config=cfg),
-            )
-            outputs[stage.name] = result.output
+        configs += (("persist_manifest", PersistManifestStageConfig()),)
 
-        assert outputs["suitability"].valid_count == 100
-        distance = RunScopedRoadProximityFactor(
-            SqlAlchemyFixedRoadSourceReader(session_factory=session_factory),
-        ).evaluate(grid=outputs["suitability"].grid, snapshot=snapshot, context=run_context)
-        assert np.all(distance.valid_mask)
-        assert distance.values[0, 0] == pytest.approx(0.5)
-        assert distance.values[4, 4] == pytest.approx(4.5)
-        assert outputs["buildings"].area_subjects
-        assert outputs["demography"].population.diagnostics.allocated_generated_population == 8
-        infrastructure = outputs["infrastructure"]
-        assert len(infrastructure.existing.facilities) == 1
-        assert infrastructure.existing.facilities[0].capacity == 1
-        assert infrastructure.types[0].placement.accepted_facilities
-        validation = outputs["final_validation"]
-        assert validation.report.results
-        score = outputs["metrics"]
-        assert score.metrics[0].raw_value == len(validation.report.hard_failures)
+        def encode(value):
+            if is_dataclass(value):
+                return {field.name: encode(getattr(value, field.name))
+                        for field in fields(value) if field.init}
+            if isinstance(value, (tuple, list, frozenset)):
+                items = sorted(value, key=str) if isinstance(value, frozenset) else value
+                return [encode(item) for item in items]
+            if isinstance(value, dict):
+                return {key: encode(item) for key, item in value.items()}
+            return value
+
+        payload = json.loads(json.dumps({
+            "schema_version": COMPLETE_CONFIG_SCHEMA_VERSION,
+            "stages": {name: {"stage_version": "1.0.0", "config": encode(cfg)}
+                       for name, cfg in configs},
+        }, allow_nan=False))
+        with session_factory() as session:
+            run = session.get(GenerationRun, run_id)
+            run.config_json = payload
+            run.config_schema_version = COMPLETE_CONFIG_SCHEMA_VERSION
+            session.commit()
+
+        async def invoke():
+            ctx = {}
+            await worker_settings.GenerationWorkerSettings.on_startup(ctx)
+            return await run_generation(ctx, str(run_id))
+
+        if reject_hard:
+            with pytest.raises(GenerationTaskFailed):
+                asyncio.run(invoke())
+        else:
+            result = asyncio.run(invoke())
+            assert result["status"] == "succeeded"
+            assert tuple(result["succeeded_stages"]) == CANONICAL_STAGE_ORDER
+            replay = asyncio.run(invoke())
+            assert replay["status"] == "already_succeeded"
+
         with session_factory() as session:
             for table in ("generated_zones", "generated_roads", "generated_blocks",
                           "generated_parcels", "generated_buildings", "generated_infrastructure"):
@@ -1064,15 +1057,37 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 ).scalar_one()
                 assert count > 0, table
             run = session.get(GenerationRun, run_id)
-            assert run.status == "running"
+            assert run.status == ("failed" if reject_hard else "succeeded")
             assert "demography" in run.metrics_json
             assert session.query(SourceRoad).count() == 1
             stages = session.query(RunStageResult).filter_by(run_id=run_id).all()
             assert session.query(SourceFacility).count() == 1
-            assert len(stages) == 11
-            assert run.validation_json["results"]
-            assert run.metrics_json["evaluation"]["composite_score"] == score.score
-            assert all(stage.status == "succeeded" for stage in stages)
+            assert len(stages) == 12
+            report = deserialize_validation_report(json.dumps(run.validation_json).encode())
+            assert report.is_valid is not reject_hard
+            assert "evaluation" in run.metrics_json
+            manifest = next(stage for stage in stages if stage.stage_name == "persist_manifest")
+            assert all(stage.status == "succeeded" for stage in stages if stage is not manifest)
+            if reject_hard:
+                assert manifest.status == "failed"
+                assert not manifest.artifacts
+                assert run.error_json["message"] == "generation has hard validation failures"
+            else:
+                assert manifest.status == "succeeded"
+                assert len(manifest.artifacts) == 1
+                manifest_row = manifest.artifacts[0]
+                assert manifest_row.owner_id == manifest.id
+                ref = ArtifactRef(manifest_row.uri.removeprefix("artifact://")).as_ready()
+                with store.open(ref) as stream:
+                    pending = json.load(stream)
+                assert pending["run"]["status"] == "running"
+                assert len(pending["stages"]) == 11
+                assert store.stat(ref).checksum == manifest_row.checksum
+                exported = SqlAlchemyProvenanceManifestService(
+                    session_factory=session_factory,
+                ).build(run_id=run_id).as_dict()
+                assert exported["run"]["status"] == "succeeded"
+                assert len(exported["stages"]) == 12
             raster_stage = next(stage for stage in stages if stage.stage_name == "suitability")
             assert len(raster_stage.artifacts) == 1
             artifact = raster_stage.artifacts[0]

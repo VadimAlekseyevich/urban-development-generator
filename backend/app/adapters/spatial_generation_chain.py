@@ -361,7 +361,7 @@ def build_spatial_registry(
     *, context: PipelineContext, constraint_engine: ConstraintEngine,
     session_factory: Callable[[], Session] = SessionLocal,
 ) -> StageRegistry:
-    """First eight, nine or eleven real stages; never deploy an incomplete registry."""
+    """Build configured stages; the production factory requires all twelve."""
     config = context.require_config(SuitabilityStage.name, SuitabilityStageConfig)
     factors: list[SuitabilityFactor] = [
         RunScopedDEMSlopeFactor(SqlAlchemyDEMSourceReader(

@@ -140,3 +140,11 @@ Metrics requires a versioned normalization profile and matching score weights.
 Only real scalar metric outputs are consumed; missing values follow the
 existing explicit normalization policy. This does not yet install a worker
 or complete persist_manifest. Earlier schema versions remain unchanged.
+
+## Schema v5: complete generation
+
+`canonical-stage-configs-v5` configures all twelve stages, including
+persist_manifest (schema_version "1"). The deployed worker requires this
+complete schema; v1-v4 remain offline/integration contracts. The final stage
+publishes provenance only for a valid report; failed hard bounds are preserved
+for diagnosis and block generation success.
