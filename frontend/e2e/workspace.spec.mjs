@@ -96,7 +96,14 @@ test('create → upload → ready fixture → run → inspect → compare → CS
     'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev',
     'python', '-m', 'scripts.generation_smoke_config',
   ], { cwd: repoRoot, encoding: 'utf8', timeout: 60_000 })
-  await runForm.locator('textarea').fill(configText.trim())
+  await runForm.getByLabel('Импорт конфигурации (.json)').setInputFiles({
+    name: 'invalid-config.json', mimeType: 'application/json', buffer: Buffer.from('{}'),
+  })
+  await expect(runForm.getByText('Требуется полная конфигурация canonical-stage-configs-v5.')).toBeVisible()
+  await runForm.getByLabel('Импорт конфигурации (.json)').setInputFiles({
+    name: 'generation-config.json', mimeType: 'application/json', buffer: Buffer.from(configText.trim()),
+  })
+  await expect(runForm.locator('textarea')).toHaveValue(configText.trim())
   const createRunResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' &&
     response.url().endsWith('/projects/' + projectId + '/runs'),
