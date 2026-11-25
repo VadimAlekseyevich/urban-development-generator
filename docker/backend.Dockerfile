@@ -17,6 +17,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY . .
 ARG GENERATION_BUILD_REVISION=""
-RUN printf '%s\\n' "$GENERATION_BUILD_REVISION" > /app/.generation-revision
+RUN printf '%s' "$GENERATION_BUILD_REVISION" > /app/.generation-revision
 
 CMD ["uv", "run", "--no-dev", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
