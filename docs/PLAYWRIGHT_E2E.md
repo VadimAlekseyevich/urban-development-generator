@@ -96,3 +96,11 @@ and facilities without fixed urban state. Both modes must finish all twelve
 stages; empty layers are failures. The FROM_SCRATCH case is not yet proven.
 Browser interaction with actual successful outputs, revision enforcement and
 representative real territories remain separate acceptance work. The test is not claimed to pass until CI confirms it.
+
+
+The first FROM_SCRATCH attempt failed at demographic persistence after seven
+successful stages: building-derived aggregation omitted unbuilt blocks.
+The fix completes associated block aggregates with explicit zero population,
+jobs and age cohorts; blocks lacking zone identity remain unassociated.
+Exact matching remains required for all associated blocks. The same end-to-end
+assertions remain mandatory and no success is claimed before a green rerun.
