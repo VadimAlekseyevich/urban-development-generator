@@ -20,7 +20,7 @@ from shapely.ops import transform
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--size-m", type=int, choices=(10, 100), default=10)
+    parser.add_argument("--size-m", type=int, choices=(10, 100, 400), default=10)
     size = parser.parse_args().size_m
     srid = 32637
     x, y = 500_000, 6_000_000
@@ -48,7 +48,7 @@ def main() -> None:
         with memory.open(
             driver="GTiff", width=raster_size, height=raster_size, count=1, dtype="float32",
             crs=f"EPSG:{srid}", transform=from_origin(x - 15, y + size + 15, 1, 1),
-            nodata=-9999,
+            nodata=-9999, compress="deflate",
         ) as raster:
             raster.write(np.full((raster_size, raster_size), 100, dtype=np.float32), 1)
         dem = base64.b64encode(memory.read()).decode("ascii")

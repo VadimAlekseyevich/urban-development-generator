@@ -288,7 +288,7 @@ export function BuildingsPanel({
       })
 
     return () => controller.abort()
-  }, [apiBase, map, projectId])
+  }, [apiBase, map, projectId, pinnedRunId])
 
   const loadViewport = useCallback(async () => {
     if (!map || !projectId || !selectedRunId || !visible) {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import numpy as np
 from shapely.geometry import Point
 from shapely.strtree import STRtree
 
@@ -33,10 +34,17 @@ class CandidateRoadAnchorPolicy:
     max_sampled_cells: int = DEFAULT_MAX_ANCHOR_SAMPLE_CELLS
     minimum_suitability_score: float = 0.0
     allowed_zone_classes: tuple[ZoneClass, ...] = _ALL_ZONE_CLASSES
+    spatially_balanced: bool = False
 
     def __post_init__(self) -> None:
         _require_positive_int("max_candidates", self.max_candidates)
         _require_positive_int("max_sampled_cells", self.max_sampled_cells)
+        if type(self.spatially_balanced) is not bool:
+            raise CandidateRoadAnchorError("spatially_balanced must be boolean")
+        if self.spatially_balanced and (
+            self.max_candidates > 128 or self.max_sampled_cells > 250_000
+        ):
+            raise CandidateRoadAnchorError("spatially balanced anchor work budget exceeded")
         score = _require_finite_number(
             "minimum_suitability_score",
             self.minimum_suitability_score,
@@ -313,7 +321,10 @@ class CandidateRoadAnchorSampler:
                 item.col,
             )
         )
-        selected = eligible[: policy.max_candidates]
+        selected = (
+            _spatially_balanced(eligible, policy.max_candidates)
+            if policy.spatially_balanced else eligible[: policy.max_candidates]
+        )
         anchors = tuple(
             CandidateRoadAnchor(
                 anchor_id=f"anchor:r{item.row:08d}:c{item.col:08d}",
@@ -360,8 +371,37 @@ class CandidateRoadAnchorSampler:
             diagnostics=diagnostics,
             zoning_config_fingerprint=assignment.zoning_config_fingerprint,
             suitability_config_fingerprint=suitability.config_fingerprint,
-            sampler_version=self.version,
+            sampler_version='2-balanced' if policy.spatially_balanced else self.version,
         )
+
+
+
+def _spatially_balanced(
+    eligible: list[_EligibleAnchor], limit: int,
+) -> list[_EligibleAnchor]:
+    """Deterministic farthest-point sampling with a bounded suitability weight.
+
+    The input is already eligibility-filtered and score-ranked. At most
+    128 vectorised distance updates over 250,000 cells are allowed by policy.
+    Stable rank breaks ties; exact equal scores no longer cluster by row.
+    """
+    if len(eligible) <= limit:
+        return eligible[:]
+    coords = np.asarray([(item.point.x_m, item.point.y_m) for item in eligible])
+    weights = np.asarray([0.5 + 0.5 * item.suitability_score for item in eligible])
+    nearest = np.full(len(eligible), np.inf)
+    chosen = np.zeros(len(eligible), dtype=bool)
+    selected: list[_EligibleAnchor] = []
+    index = 0
+    for _ in range(limit):
+        selected.append(eligible[index])
+        chosen[index] = True
+        delta = coords - coords[index]
+        nearest = np.minimum(nearest, np.sum(delta * delta, axis=1))
+        priority = nearest * weights
+        priority[chosen] = -1
+        index = int(np.argmax(priority))
+    return selected
 
 
 def _validate_zoning_alignment(
