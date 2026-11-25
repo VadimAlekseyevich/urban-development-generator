@@ -82,7 +82,22 @@ test('create → upload → ready fixture → run → inspect → compare → CS
 
   // Submit a genuine queued generation job; test does not fabricate worker success.
   await page.getByRole('button', { name: 'Генерация' }).click()
+  const planning = page.locator('.planning-config')
+  await planning.getByLabel('Жилая зона, %').fill('50')
+  await planning.getByRole('button', { name: 'Сформировать конфигурацию' }).click()
+  await expect(planning.getByText('Сумма долей зон должна равняться 100%.')).toBeVisible()
+  await planning.getByLabel('Смешанная зона, %').fill('30')
+  await planning.getByLabel('Этажность', { exact: true }).fill('6')
+  const previewResponse = page.waitForResponse((response) =>
+    response.url().endsWith('/generation/planning-config') && response.request().method() === 'POST',
+  )
+  await planning.getByRole('button', { name: 'Сформировать конфигурацию' }).click()
+  const preview = await previewResponse
+  expect(preview.status()).toBe(200)
+  const profile = await preview.json()
+  expect(profile.stages.buildings.config.attributes.rules[0].min_floors).toBe(6)
   const runForm = page.locator('.run-form')
+  await expect(runForm.locator('textarea')).toHaveValue(JSON.stringify(profile, null, 2))
   const inputs = runForm.locator('.run-inputs')
   await expect(inputs.getByRole('checkbox', { name: /constraints.*uploaded/ })).toBeDisabled()
   const roadsInput = inputs.getByRole('checkbox', { name: /roads.*ready/ })
