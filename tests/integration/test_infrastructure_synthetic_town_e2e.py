@@ -706,3 +706,138 @@ def test_synthetic_town_is_deterministic_and_does_not_mutate_fixed_state() -> No
             )
         )
     assert by_run[first.run_id] == by_run[second.run_id]
+
+
+def _run_canonical_stage(*, occupied: bool = False):
+    from core.urban_generator.blocks import (
+        BlockZoneAssociation,
+        BlockZoneAssociationDiagnostics,
+        BlockZoneAssociationResult,
+        BlockZoneAssociationStatus,
+        CleanedBlockCandidate,
+        PlanningParcel,
+        SplitBlockCandidate,
+        ZoneAssociatedBlock,
+    )
+    from core.urban_generator.domain import (
+        ConfigRef,
+        CorrelationMetadata,
+        ProjectRef,
+        ProjectSettings,
+        RunContext,
+        RunMode,
+        SnapshotLayerKind,
+        SnapshotLayerRef,
+        TerritorySnapshot,
+    )
+    from core.urban_generator.infrastructure import (
+        ExistingFacilityMappingRule,
+        ExistingFacilitySourceRecord,
+    )
+    from core.urban_generator.stages import (
+        InfrastructureStage,
+        InfrastructureStageConfig,
+        InfrastructureStageInput,
+    )
+
+    run_id = uuid.UUID("00000000-0000-0000-0000-000000001010")
+    snapshot = TerritorySnapshot(
+        snapshot_id=run_id, project=ProjectRef(project_id=uuid.UUID(int=1)),
+        settings=ProjectSettings(working_srid=WORKING_SRID),
+        boundary=SnapshotLayerRef(kind=SnapshotLayerKind.BOUNDARY, source_ref="boundary:v1"),
+        facilities=(SnapshotLayerRef(
+            kind=SnapshotLayerKind.FACILITIES, source_ref="dataset:facilities:v1",
+        ),),
+        buildings=(SnapshotLayerRef(
+            kind=SnapshotLayerKind.BUILDINGS, source_ref="dataset:buildings:v1",
+        ),) if occupied else (),
+    )
+    context = RunContext(
+        run_id=run_id, mode=RunMode.EXPANSION, seed=42, working_srid=WORKING_SRID,
+        config_refs=(ConfigRef(name="generation", ref="infrastructure-fixture"),),
+        correlation=CorrelationMetadata(correlation_id="infrastructure-stage"),
+    )
+    blocks = []
+    parcels = []
+    for block_id, x, site_x in (("block-a", 100, 200), ("block-b", 400, 400)):
+        geometry = box(x - 115, -15, x + 115, 15) if block_id == "block-a" else box(
+            x - 15, -15, x + 15, 15,
+        )
+        member = SplitBlockCandidate(
+            block_id="split:" + block_id, input_block_id="input:" + block_id,
+            source_block_id="source:" + block_id, source_fragment_index=0,
+            split_path=(), geometry=geometry,
+        )
+        blocks.append(ZoneAssociatedBlock(
+            cleaned_block=CleanedBlockCandidate(
+                block_id=block_id, members=(member,), geometry=geometry,
+            ),
+            association=BlockZoneAssociation(
+                status=BlockZoneAssociationStatus.ASSOCIATED,
+                zone_id="zone-public", zone_class=ZoneClass.PUBLIC,
+                positive_overlap_zone_ids=("zone-public",), maximum_overlap_ratio=1.0,
+            ),
+        ))
+        parcel_geometry = box(site_x - 10, -10, site_x + 10, 10)
+        parcels.append(PlanningParcel(
+            parcel_id="parcel-" + block_id, block_id=block_id,
+            working_srid=WORKING_SRID, geometry=parcel_geometry,
+            buildable_envelope=parcel_geometry, zone_id="zone-public", zone_class=ZoneClass.PUBLIC,
+        ))
+    return InfrastructureStage().execute(
+        snapshot=snapshot, context=context,
+        stage_input=InfrastructureStageInput(
+            demand_profile=_profile(), network=_network(),
+            blocks=BlockZoneAssociationResult(
+                working_crs=WorkingCRS(srid=WORKING_SRID), blocks=tuple(blocks),
+                diagnostics=BlockZoneAssociationDiagnostics(
+                    block_count=2, zone_count=1, associated_block_count=2,
+                    no_overlap_block_count=0, partial_overlap_block_count=0,
+                    ambiguous_block_count=0, spatial_candidate_pair_count=2,
+                    positive_overlap_pair_count=2,
+                ),
+            ),
+            parcels=tuple(parcels),
+            fixed_facilities=(ExistingFacilitySourceRecord(
+                source_ref="dataset:facilities:v1", source_feature_id="school-fixed",
+                facility_use="school", capacity=5, geometry=Point(0, 0),
+                working_srid=WORKING_SRID,
+            ),),
+            fixed_building_footprints=(box(190, -10, 210, 10),) if occupied else (),
+        ),
+        config=InfrastructureStageConfig(
+            infrastructure_types=(_type(),),
+            snap_policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=1, max_batch_size=10),
+            mapping_rules=(ExistingFacilityMappingRule("school", TYPE_CODE),),
+            candidate_policy=InfrastructureCandidateAccessibilityPolicy(
+                max_candidates=10, max_demands=10, demand_batch_size=10,
+                max_routing_calls=10, max_results=10,
+            ),
+            placement_policy=InfrastructureGreedyPlacementPolicy(
+                max_facilities=4, max_iterations=4,
+            ),
+        ),
+    )
+
+
+def test_canonical_infrastructure_stage_composes_actual_candidate_and_network_algorithms() -> None:
+    first = _run_canonical_stage()
+    second = _run_canonical_stage()
+    assert first.fingerprint == second.fingerprint
+    result = first.output
+    assert len(result.types[0].placement.accepted_facilities) == 2
+    assert result.metrics.require(
+        RawMetricId.INFRASTRUCTURE_UNMET_DEMAND
+    ).scalar_value == pytest.approx(5.0)
+    assert len(result.existing.facilities) == 1
+    assert result.existing.facilities[0].capacity == 5
+
+
+def test_canonical_infrastructure_does_not_place_site_on_fixed_building() -> None:
+    result = _run_canonical_stage(occupied=True).output
+    placements = result.types[0].placement.accepted_facilities
+    assert len(placements) == 1
+    assert placements[0].candidate_ref.candidate_id.endswith("parcel-block-b")
+    assert result.metrics.require(
+        RawMetricId.INFRASTRUCTURE_UNMET_DEMAND
+    ).scalar_value == pytest.approx(10.0)

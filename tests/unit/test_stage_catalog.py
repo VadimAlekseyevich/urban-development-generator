@@ -7,6 +7,7 @@ from core.urban_generator.stages import (
     BuildingStage,
     ConstraintMaskStage,
     DemographyStage,
+    InfrastructureStage,
     PrepareSnapshotStage,
     RoadStage,
     SuitabilityStage,
@@ -39,6 +40,7 @@ def test_all_implemented_stage_adapters_satisfy_canonical_protocol() -> None:
         BlocksAndParcelsStage(),
         BuildingStage(),
         DemographyStage(),
+        InfrastructureStage(),
     )
 
     for stage in stages:
