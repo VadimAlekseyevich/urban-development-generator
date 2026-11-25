@@ -63,6 +63,7 @@ from core.urban_generator.roads import (
     CandidateRoadAnchorPolicy,
     LeastCostConnectorPolicy,
     RoadValidationPolicy,
+    RuleBasedRoadGrowthPolicy,
 )
 from core.urban_generator.roads.endpoint_snapping import EndpointRoadSnappingPolicy
 from core.urban_generator.roads.fixed_network_attachment import FixedNetworkAttachmentPolicy
@@ -200,6 +201,9 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 allowed_zone_classes=buildable, spatially_balanced=True,
             ),
             least_cost_policy=LeastCostConnectorPolicy(max_visited_cells=100_000),
+            growth_policy=RuleBasedRoadGrowthPolicy(
+                max_iterations=40, sparse_neighbourhood=True,
+            ),
             validation_policy=RoadValidationPolicy(
                 max_component_count=1, max_dead_end_ratio=1,
             ),

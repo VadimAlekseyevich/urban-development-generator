@@ -129,3 +129,19 @@ persists all already-calculated canonical scalar metrics during final validation
 and displays them separately from the score. Old successful runs are immutable
 and explicitly lack the new envelope; no fabricated or retroactive metric data.
 Population attainment, road geometry and land-use quality remain open work.
+
+
+### Real Ryazan acceptance (manual, 2026-11-26)
+
+Cached PBF, 800 m square, EPSG:32637, EXPANSION; 196 roads, 117 buildings,
+23 landuse polygons, 3 water polygons and 4 water lines imported through
+actual API/worker. Run 733814f4: first five stages succeeded, block
+polygonization failed because GEOS returned an invalid candidate. Map showed
+partial output, not a successful plan. Fix repairs invalid polygonal faces
+without noding or mutating the routing graph; refuses overlapping repairs,
+reports repair counts, tests a real GEOS touching-hole case. Profile candidate
+limits growth attempts to 40 and uses strict Gabriel neighbours for extra
+anchor pairs (MST remains); avoids square-grid diagonal shortcuts at the
+candidate-selection level, not a guarantee of orthogonal streets. Exact
+Ryazan topology requires replay of the extracted local fixture; no real-data
+success claim before that replay. No DEM in cached OSM extract.

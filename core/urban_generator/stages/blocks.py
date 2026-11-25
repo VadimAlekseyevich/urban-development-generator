@@ -210,7 +210,7 @@ class BlocksAndParcelsStage:
         )
         level = (
             StageDiagnosticLevel.WARNING
-            if unassociated
+            if unassociated or polygonization.diagnostics.repaired_candidate_count
             else StageDiagnosticLevel.INFO
         )
         return StageResult(
@@ -228,7 +228,9 @@ class BlocksAndParcelsStage:
                         f"blocks/parcels completed: "
                         f"{association.diagnostics.block_count} blocks, "
                         f"{subdivision.diagnostics.parcel_count} parcels, "
-                        f"{unassociated} unassociated blocks"
+                        f"{unassociated} unassociated blocks; "
+                        f"{polygonization.diagnostics.repaired_candidate_count} invalid faces "
+                        f"repaired into {polygonization.diagnostics.repaired_part_count} parts"
                     ),
                     level=level,
                 ),
