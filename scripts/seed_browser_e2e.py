@@ -23,7 +23,7 @@ from backend.app.db.session import engine
 from backend.app.models.dataset import Dataset, DatasetVersion
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.project import Project
-from backend.app.models.source_layer import SourceRoad
+from backend.app.models.source_layer import SourceLanduse, SourceRoad
 from core.urban_generator.domain import ValidationReport, serialize_validation_report
 from core.urban_generator.domain.benchmarking import RawMetricId
 from core.urban_generator.metrics.score import (
@@ -136,6 +136,31 @@ def seed(project_id: uuid.UUID) -> dict[str, object]:
             version.status = "ready"
             session.flush()
 
+            # Additional input catalog entries for the multi-select UI smoke.
+            landuse = Dataset(project_id=project_id, kind="landuse")
+            pending = Dataset(project_id=project_id, kind="constraints")
+            session.add_all([landuse, pending])
+            session.flush()
+            landuse_version = DatasetVersion(
+                dataset_id=landuse.id, version=1, status="processing",
+                source_metadata={"source": "isolated-e2e-fixture"},
+            )
+            pending_version = DatasetVersion(
+                dataset_id=pending.id, version=1, status="uploaded",
+                source_metadata={"source": "isolated-e2e-fixture"},
+            )
+            session.add_all([landuse_version, pending_version])
+            session.flush()
+            session.add(SourceLanduse(
+                dataset_version_id=landuse_version.id,
+                source_feature_id="e2e-fixture-landuse",
+                landuse_class="residential", attributes_json={},
+                geometry=project.boundary,
+            ))
+            session.flush()
+            landuse_version.status = "ready"
+            session.flush()
+
             validation = json.loads(
                 serialize_validation_report(ValidationReport(results=()))
             )
@@ -160,7 +185,11 @@ def seed(project_id: uuid.UUID) -> dict[str, object]:
                 session.flush()
                 run_ids.append(str(run.id))
 
-            return {"version_id": str(version.id), "run_ids": run_ids}
+            return {
+                "version_id": str(version.id),
+                "landuse_version_id": str(landuse_version.id),
+                "run_ids": run_ids,
+            }
 
 
 if __name__ == "__main__":

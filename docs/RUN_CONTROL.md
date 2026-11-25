@@ -3,7 +3,8 @@
 ## Contract
 
 The frontend sidebar contains a create/cancel/manual-retry/progress panel for the
-currently selected Project and DatasetVersion. The database, not React, Redis,
+currently selected Project and explicitly selected ready input versions. The
+map's inspected DatasetVersion is independent from the 1–32 input selection. The database, not React, Redis,
 or HTTP polling, owns GenerationRun, Job, RunStageResult and JobOutbox state.
 The run-control API does not execute GIS code or enqueue jobs directly.
 
