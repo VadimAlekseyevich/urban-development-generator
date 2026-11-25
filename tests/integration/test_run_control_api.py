@@ -49,7 +49,9 @@ def clean_database(migrated_database: None) -> None:
         connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))
 
 
-def _fixture(*, boundary: bool = True, ready: bool = True, kind: str = "landuse") -> tuple[uuid.UUID, uuid.UUID]:
+def _fixture(
+    *, boundary: bool = True, ready: bool = True, kind: str = "landuse",
+) -> tuple[uuid.UUID, uuid.UUID]:
     with Session(engine, expire_on_commit=False) as session:
         with session.begin():
             project = Project(
