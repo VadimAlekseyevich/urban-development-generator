@@ -11,9 +11,9 @@ const stages = [
   'final_validation', 'metrics', 'persist_manifest',
 ]
 
-function python(module) {
+function python(module, ...args) {
   return execFileSync('docker', [
-    'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev', 'python', '-m', module,
+    'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev', 'python', '-m', module, ...args,
   ], { cwd: repoRoot, encoding: 'utf8', timeout: 60_000 })
 }
 
@@ -23,18 +23,29 @@ async function checked(response, status) {
   return JSON.parse(body)
 }
 
-test('real uploads → ingest worker → EXPANSION → all stages → GIS and provenance', async ({ request }) => {
+for (const mode of ['EXPANSION', 'FROM_SCRATCH']) {
+test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and provenance', async ({ request }) => {
   test.setTimeout(300_000)
   // Generate bytes, not DB records. All state changes go through public HTTP routes.
-  const input = JSON.parse(python('scripts.generation_acceptance_inputs'))
+  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', mode === 'EXPANSION' ? '10' : '100'))
   const config = JSON.parse(python('scripts.generation_smoke_config'))
   // Explicitly exercise the normalized DEM in addition to vector suitability.
   config.stages.suitability.config.suitability.factors.push({
     code: 'slope', weight: 1, normalization: 'INVERTED_MIN_MAX', raw_min: 0, raw_max: 30,
   })
+  if (mode === 'FROM_SCRATCH') {
+    // Larger bare terrain and a denser anchor sample give the real road
+    // growth algorithm a chance to form closed blocks without fixed roads.
+    config.stages.prepare_snapshot.config.cell_size_m = 10
+    config.stages.roads.config.anchor_policy.max_candidates = 36
+    config.stages.roads.config.anchor_policy.max_sampled_cells = 200
+    config.stages.roads.config.growth_policy.max_iterations = 128
+    config.stages.roads.config.fixed_attachment_policy = null
+    config.stages.blocks_and_parcels.config.split_policy.max_area_m2 = 500
+  }
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
   const project = await checked(await request.post(api + '/projects', {
-    data: { name: 'E2E unseeded generation ' + Date.now(), working_srid: input.working_srid },
+    data: { name: 'E2E unseeded ' + mode + ' ' + Date.now(), working_srid: input.working_srid },
   }), 201)
   const root = api + '/projects/' + project.id
   await checked(await request.put(root + '/boundary', {
@@ -42,7 +53,8 @@ test('real uploads → ingest worker → EXPANSION → all stages → GIS and pr
   }), 200)
 
   const ids = []
-  for (const kind of ['roads', 'landuse', 'facilities', 'dem']) {
+  for (const kind of (mode === 'EXPANSION'
+    ? ['roads', 'landuse', 'facilities', 'dem'] : ['landuse', 'dem'])) {
     const raster = kind === 'dem'
     const upload = await checked(await request.post(api + '/uploads', {
       multipart: { file: {
@@ -70,7 +82,7 @@ test('real uploads → ingest worker → EXPANSION → all stages → GIS and pr
 
   const run = await checked(await request.post(root + '/runs', {
     data: {
-      mode: 'EXPANSION', seed: 20260919, dataset_version_ids: ids,
+      mode, seed: 20260919, dataset_version_ids: ids,
       config_schema_version: config.schema_version, config_json: config, commit_sha: revision,
     },
   }), 201)
@@ -105,9 +117,11 @@ test('real uploads → ingest worker → EXPANSION → all stages → GIS and pr
   const provenance = await request.get(root + '/exports/provenance/' + run.id)
   const manifest = await checked(provenance, 200)
   expect(manifest.run.status).toBe('succeeded')
+  expect(manifest.run.mode).toBe(mode)
   expect(manifest.code.commit_sha).toBe(revision)
   expect(manifest.datasets.map((item) => item.dataset_version_id).sort()).toEqual([...ids].sort())
   expect(manifest.datasets.find((item) => item.kind === 'dem').derived_artifacts).toHaveLength(1)
   expect(manifest.stages.map((item) => item.name).sort()).toEqual([...stages].sort())
   expect(provenance.headers()['x-provenance-checksum']).toMatch(/^sha256:[0-9a-f]{64}$/)
 })
+}
