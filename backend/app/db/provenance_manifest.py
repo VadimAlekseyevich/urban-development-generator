@@ -37,6 +37,7 @@ from backend.app.models.dataset import DatasetVersion
 from backend.app.models.generation_run import RUN_SUCCESS_STATUS, GenerationRun
 from backend.app.models.run_stage_result import RunStageResult
 from core.urban_generator.domain.benchmarking import CANONICAL_METRIC_REGISTRY
+from core.urban_generator.stages.catalog import CANONICAL_STAGE_ORDER
 
 MANIFEST_SCHEMA_VERSION = "1"
 _SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -71,6 +72,13 @@ class SqlAlchemyProvenanceManifestService:
         self._session_factory = session_factory
 
     def build(self, *, run_id: uuid.UUID) -> ProvenanceManifest:
+        return self._build(run_id=run_id, pending=False)
+
+    def build_pending(self, *, run_id: uuid.UUID) -> ProvenanceManifest:
+        """Snapshot eleven completed stages before starting persist_manifest."""
+        return self._build(run_id=run_id, pending=True)
+
+    def _build(self, *, run_id: uuid.UUID, pending: bool) -> ProvenanceManifest:
         if not isinstance(run_id, uuid.UUID):
             raise TypeError("run_id must be UUID")
         with self._session_factory() as session:
@@ -92,9 +100,20 @@ class SqlAlchemyProvenanceManifestService:
                         ),
                     )
                 )
-                if run is None or run.status != RUN_SUCCESS_STATUS:
+                expected_status = "running" if pending else RUN_SUCCESS_STATUS
+                if run is None or run.status != expected_status:
                     raise ProvenanceManifestError(
-                        "manifest requires an existing successful generation run"
+                        "manifest requires an existing running generation run"
+                        if pending else "manifest requires an existing successful generation run"
+                    )
+                if pending and (
+                    {stage.stage_name for stage in run.stage_results}
+                    != set(CANONICAL_STAGE_ORDER[:-1])
+                    or len(run.stage_results) != len(CANONICAL_STAGE_ORDER) - 1
+                    or any(stage.status != "succeeded" for stage in run.stage_results)
+                ):
+                    raise ProvenanceManifestError(
+                        "pending manifest requires every preceding canonical stage to succeed"
                     )
                 if run.commit_sha is None or _COMMIT_SHA.fullmatch(run.commit_sha) is None:
                     raise ProvenanceManifestError("successful run has no valid code commit")
@@ -176,15 +195,24 @@ class SqlAlchemyProvenanceManifestService:
                     f"dataset version has no valid checksum: {version.id}"
                 )
             rows = by_owner.get(version.id, [])
-            if len(rows) != 1:
+            key = version.source_metadata.get("artifact_key")
+            if not isinstance(key, str):
+                raise ProvenanceManifestError(
+                    f"dataset version has no source artifact key: {version.id}"
+                )
+            sources = [row for row in rows if row.uri == f"artifact://{key}"]
+            if len(sources) != 1:
                 raise ProvenanceManifestError(
                     f"dataset version must have one referenced source artifact: {version.id}"
                 )
-            artifact = rows[0]
-            key = version.source_metadata.get("artifact_key")
-            if not isinstance(key, str) or artifact.uri != f"artifact://{key}":
+            artifact = sources[0]
+            derived = [row for row in rows if row.id != artifact.id]
+            if derived and (
+                version.dataset.kind != "dem" or len(derived) != 1
+                or derived[0].uri != f"artifact://datasets/{version.id}/normalized/raster.tif"
+            ):
                 raise ProvenanceManifestError(
-                    f"dataset version source artifact key disagrees with ownership: {version.id}"
+                    f"unexpected derived dataset artifacts: {version.id}"
                 )
             if artifact.checksum != f"sha256:{version.checksum_sha256}":
                 raise ProvenanceManifestError(
@@ -200,6 +228,10 @@ class SqlAlchemyProvenanceManifestService:
                     "source_artifact": _artifact(
                         artifact, owner_type="dataset_version", owner_id=version.id
                     ),
+                    **({"derived_artifacts": [
+                        _artifact(row, owner_type="dataset_version", owner_id=version.id)
+                        for row in derived
+                    ]} if derived else {}),
                 }
             )
         return sorted(

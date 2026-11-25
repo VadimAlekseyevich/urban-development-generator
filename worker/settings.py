@@ -4,9 +4,13 @@ ARQ inspects each concrete settings class __dict__, so redis_settings and
 job_timeout MUST be declared on every concrete role (not inherited only).
 """
 
+from typing import Any
+
 from arq import cron
 from arq.connections import RedisSettings
 
+from backend.app.adapters.artifact_store_factory import get_runtime_artifact_store
+from backend.app.adapters.complete_generation_runtime import build_complete_generation_service
 from backend.app.core.config import settings
 from worker.queues import LEGACY_QUEUE, REDIS_QUEUES
 from worker.tasks import (
@@ -21,6 +25,14 @@ _REDIS_SETTINGS = RedisSettings.from_dsn(settings.redis_url)
 _JOB_TIMEOUT = 60 * 60
 
 
+async def configure_generation(ctx: dict[str, Any]) -> None:
+    """Install real generation composition in both ARQ roles that execute generation."""
+    ctx.setdefault(
+        "generation_job_service",
+        build_complete_generation_service(artifact_store=get_runtime_artifact_store()),
+    )
+
+
 class IngestWorkerSettings:
     functions = [run_ingest]
     redis_settings = _REDIS_SETTINGS
@@ -30,6 +42,7 @@ class IngestWorkerSettings:
 
 
 class GenerationWorkerSettings:
+    on_startup = configure_generation
     functions = [run_generation]
     redis_settings = _REDIS_SETTINGS
     queue_name = REDIS_QUEUES["generation"]
@@ -56,6 +69,7 @@ class ExportWorkerSettings:
 
 
 class LegacyWorkerSettings:
+    on_startup = configure_generation
     # Drain already-queued legacy jobs, including GC, without a duplicate cron.
     functions = [
         run_generation, run_ingest, run_geojson_export,
