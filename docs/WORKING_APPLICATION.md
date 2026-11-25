@@ -145,3 +145,16 @@ anchor pairs (MST remains); avoids square-grid diagonal shortcuts at the
 candidate-selection level, not a guarantee of orthogonal streets. Exact
 Ryazan topology requires replay of the extracted local fixture; no real-data
 success claim before that replay. No DEM in cached OSM extract.
+
+The actual uploaded repro archive was inspected: all 343 vector features
+(196 roads, 117 buildings, 23 landuse, 7 water) are individually valid.
+The run reports 634 nodes, 817 edges, eight components and 153 road
+validation issues. A separate geometric probe using the exact source
+geometries, projected 21×21 40 m grid and a center-based obstacle mask
+found 296/1048 candidate adjacent-cell segments intersect buildings or water.
+This probe is not the production road graph or the exact pipeline mask.
+Road routing now checks each candidate segment against the exact vector
+exclusions via a shared STRtree; fixed-road attachment extensions also
+must be clear. Final forbidden-crossing validation remains unchanged.
+Source network disconnections and post-snap intersections still need real
+replay analysis. No arbitrary relaxation of hard constraints.

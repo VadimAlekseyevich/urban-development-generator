@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 import pytest
+from shapely.geometry import box
 
 from core.urban_generator.roads import (
     CandidateRoadAnchor,
@@ -361,3 +362,32 @@ def test_policy_validates_bounds_penalty_and_boolean_options() -> None:
         LeastCostConnectorPolicy(allow_diagonal=1)  # type: ignore[arg-type]
     with pytest.raises(LeastCostConnectorError, match="prevent_corner_cutting"):
         LeastCostConnectorPolicy(prevent_corner_cutting=0)  # type: ignore[arg-type]
+
+
+def test_exact_vector_obstacle_between_free_cell_centers() -> None:
+    suitability, hard_mask = make_surface(((1., 1., 1.), (1., 1., 1.), (1., 1., 1.)))
+    obstacle = box(9, 14, 11, 16)
+    start = make_anchor(suitability, row=1, col=0)
+    target = make_anchor(suitability, row=1, col=2)
+    direct = LeastCostConnector().connect(
+        start=start, target=target, suitability=suitability, hard_mask=hard_mask,
+    )
+    assert direct.geometry is not None and direct.geometry.intersects(obstacle)
+    routed = LeastCostConnector(forbidden_geometries=(obstacle,)).connect(
+        start=start, target=target, suitability=suitability, hard_mask=hard_mask,
+    )
+    assert routed.connected
+    assert routed.geometry is not None and not routed.geometry.intersects(obstacle)
+    assert routed.length_m is not None and direct.length_m is not None
+    assert routed.length_m > direct.length_m
+
+
+def test_exact_vector_barrier_returns_no_path() -> None:
+    suitability, hard_mask = make_surface(((1., 1., 1.),))
+    result = LeastCostConnector(forbidden_geometries=(box(9, 0, 11, 10),)).connect(
+        start=make_anchor(suitability, row=0, col=0),
+        target=make_anchor(suitability, row=0, col=2),
+        suitability=suitability, hard_mask=hard_mask,
+    )
+    assert result.status is LeastCostConnectionStatus.NO_PATH
+    assert result.geometry is None

@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
+from shapely.geometry.base import BaseGeometry
+from shapely.strtree import STRtree
 
 from core.urban_generator.domain import require_working_crs
 from core.urban_generator.roads.candidate_anchors import CandidateRoadAnchor
@@ -168,6 +170,24 @@ class LeastCostConnector:
 
     version = "1"
 
+    def __init__(
+        self, *, forbidden_geometries: tuple[BaseGeometry, ...] = (),
+    ) -> None:
+        if not isinstance(forbidden_geometries, tuple):
+            raise LeastCostConnectorError("forbidden geometries must be a tuple")
+        if any(
+            not isinstance(geometry, BaseGeometry) or geometry.is_empty or not geometry.is_valid
+            for geometry in forbidden_geometries
+        ):
+            raise LeastCostConnectorError("forbidden geometries must be valid and non-empty")
+        self._forbidden = STRtree(forbidden_geometries) if forbidden_geometries else None
+
+    def geometry_allowed(self, geometry: BaseGeometry) -> bool:
+        """Exact vector check complements the raster, including subcell obstacles."""
+        return self._forbidden is None or not len(
+            self._forbidden.query(geometry, predicate="intersects")
+        )
+
     def connect(
         self,
         *,
@@ -212,6 +232,14 @@ class LeastCostConnector:
         if start_cell == target_cell:
             raise LeastCostConnectorError(
                 "start and target anchors must occupy different raster cells"
+            )
+
+        if not all(self.geometry_allowed(Point(anchor.point.x_m, anchor.point.y_m))
+                   for anchor in (start, target)):
+            return _non_connected_result(
+                start=start, target=target, suitability=suitability, hard_mask=hard_mask,
+                outcome=_SearchOutcome(LeastCostConnectionStatus.NO_PATH, (), None, 0),
+                connector_version=self.version,
             )
 
         outcome = self._search(
@@ -309,6 +337,11 @@ class LeastCostConnector:
                 policy=policy,
             ):
                 if neighbor in closed:
+                    continue
+                if self._forbidden is not None and not self.geometry_allowed(LineString((
+                    _cell_center(suitability=suitability, row=row, col=col),
+                    _cell_center(suitability=suitability, row=neighbor[0], col=neighbor[1]),
+                ))):
                     continue
                 candidate_cost = current_cost + _step_cost(
                     current=current,
