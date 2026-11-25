@@ -36,6 +36,7 @@ def test_parameters_map_to_existing_stage_contracts() -> None:
     config = build_planning_config(PlanningParameters(
         cell_size_m=20, residential_percent=50, mixed_percent=30,
         floors=6, coverage_ratio=0.3, zoning_seeds=20, road_anchors=32,
+        road_growth_iterations=25, building_size_m=12,
         target_population=3000, area_per_person_m2=35,
         max_block_area_m2=30000, clinic_distance_m=1200, clinic_capacity=2000,
     ))["stages"]
@@ -44,6 +45,8 @@ def test_parameters_map_to_existing_stage_contracts() -> None:
     assert config["zoning"]["config"]["zoning"]["zones"][0]["target_share"] == 0.5
     assert config["roads"]["config"]["anchor_policy"]["max_candidates"] == 32
     assert config["roads"]["config"]["anchor_policy"]["spatially_balanced"] is True
+    assert config["roads"]["config"]["growth_policy"]["max_iterations"] == 25
+    assert config["blocks_and_parcels"]["config"]["parcel_policy"]["minimum_parcel_area_m2"] == 480
     assert config["blocks_and_parcels"]["config"]["split_policy"]["max_area_m2"] == 30000
     building = config["buildings"]["config"]
     assert building["building"]["archetypes"][0]["placement_scope"] == "parcel_or_block"
@@ -65,6 +68,8 @@ def test_parameters_map_to_existing_stage_contracts() -> None:
     {"floors": 0},
     {"coverage_ratio": float("nan")},
     {"road_anchors": 10000},
+    {"road_growth_iterations": 201},
+    {"building_size_m": 0},
     {"suitability_source": "unsupported"},
     {"surprise": 1},
 ])
