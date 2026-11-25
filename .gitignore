@@ -48,3 +48,6 @@ data/processed/*
 # Playwright browser traces
 frontend/test-results/
 frontend/playwright-report/
+
+# Local backend build revision marker
+.generation-revision
