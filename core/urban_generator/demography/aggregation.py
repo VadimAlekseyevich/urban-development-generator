@@ -64,7 +64,7 @@ class BlockDemographicAggregate:
             raise DemographicAggregationError(
                 "zone_class must be a ZoneClass value"
             )
-        _require_positive_int("building_count", self.building_count)
+        _require_non_negative_int("building_count", self.building_count)
         _require_non_negative_int("population", self.population)
         _validate_age_groups(
             self.age_groups,
@@ -75,6 +75,8 @@ class BlockDemographicAggregate:
             self.jobs_estimate,
         )
         object.__setattr__(self, "jobs_estimate", jobs)
+        if self.building_count == 0 and (self.population != 0 or jobs != 0):
+            raise DemographicAggregationError("empty buildings cannot support population or jobs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +98,7 @@ class ZoneDemographicAggregate:
                 "zone_class must be a ZoneClass value"
             )
         _require_positive_int("block_count", self.block_count)
-        _require_positive_int("building_count", self.building_count)
+        _require_non_negative_int("building_count", self.building_count)
         _require_non_negative_int("population", self.population)
         _validate_age_groups(
             self.age_groups,
@@ -107,6 +109,8 @@ class ZoneDemographicAggregate:
             self.jobs_estimate,
         )
         object.__setattr__(self, "jobs_estimate", jobs)
+        if self.building_count == 0 and (self.population != 0 or jobs != 0):
+            raise DemographicAggregationError("empty buildings cannot support population or jobs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +138,8 @@ class DemographicAggregationTotals:
             self.jobs_estimate,
         )
         object.__setattr__(self, "jobs_estimate", jobs)
+        if self.building_count == 0 and (self.population != 0 or jobs != 0):
+            raise DemographicAggregationError("empty buildings cannot support population or jobs")
 
 
 @dataclass(frozen=True, slots=True)

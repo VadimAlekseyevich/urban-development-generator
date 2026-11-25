@@ -90,6 +90,27 @@ The source-only helper `scripts/generation_acceptance_inputs.py` generates
 a tiny artificial 10 m square and DEM; it does not connect to a database
 or fabricate any run/output. This is an engineering acceptance gate for
 EXPANSION, not a real-city quality benchmark or proof of the neighbourhood
-planning preset. FROM_SCRATCH, browser interaction with actual successful
-outputs, revision enforcement and representative real territories remain
-separate acceptance work. The test is not claimed to pass until CI confirms it.
+planning preset. A second acceptance case uses a 100 m square and only DEM/landuse source
+versions in FROM_SCRATCH, requiring generated roads, blocks, parcels, buildings
+and facilities without fixed urban state. Both modes must finish all twelve
+stages; empty layers are failures. The FROM_SCRATCH case is not yet proven.
+Browser interaction with actual successful outputs, revision enforcement and
+representative real territories remain separate acceptance work. The test is not claimed to pass until CI confirms it.
+
+
+The first FROM_SCRATCH attempt failed at demographic persistence after seven
+successful stages: building-derived aggregation omitted unbuilt blocks.
+The fix completes associated block aggregates with explicit zero population,
+jobs and age cohorts; blocks lacking zone identity remain unassociated.
+Exact matching remains required for all associated blocks. The same end-to-end
+assertions remain mandatory and no success is claimed before a green rerun.
+
+
+The second FROM_SCRATCH attempt completed all twelve stages but returned
+zero buildings. The nonempty layer assertion remains mandatory. The next
+attempt uses a 20 m routing grid, bounded 40 growth iterations and 2 m
+building candidate spacing, with explicit discrete placement tolerances.
+No hard GIS validation is relaxed. Final validation now rejects a positive
+generated population target with zero allocation; stage diagnostics are
+exposed in run control so a user can see the reason. Partial positive
+allocation remains an explicit shortfall, not a universal failure.

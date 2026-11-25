@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, replace
 
 from core.urban_generator.demography import (
     AgeGroupAllocationResult,
     AgeGroupAllocator,
+    BlockDemographicAggregate,
     BuildingAggregationRef,
     DemographicAggregationResult,
     DemographicAggregator,
@@ -27,6 +29,7 @@ from core.urban_generator.demography import (
     SpatialCalibrationPolicy,
     SpatialCalibrationResult,
     SpatialDemographicCalibrator,
+    ZoneDemographicAggregate,
 )
 from core.urban_generator.domain import (
     RunContext,
@@ -40,8 +43,9 @@ from core.urban_generator.domain import (
     build_stage_fingerprint,
     require_stage_input,
 )
-from core.urban_generator.stages.buildings import BuildingStageOutput
+from core.urban_generator.stages.buildings import BuildingStageBlockRef, BuildingStageOutput
 from core.urban_generator.stages.catalog import BUILDINGS_STAGE, DEMOGRAPHY_STAGE
+from core.urban_generator.zoning import ZoneClass
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,6 +243,11 @@ class DemographyStage:
             )
             effective_aggregation = calibration.aggregation
 
+        # Complete the demographic universe after optional calibration so empty
+        # associated blocks cannot acquire residents via a raster redistribution.
+        effective_aggregation = complete_associated_blocks(
+            effective_aggregation, value.buildings.blocks, max_blocks=config.max_blocks,
+        )
         demand_profile = DemographicDemandProfileBuilder(
             max_blocks=config.max_blocks
         ).build(
@@ -344,6 +353,59 @@ class DemographyStage:
             raise ValueError(
                 "EXPANSION fixed demography refs require baseline_population"
             )
+
+
+
+def complete_associated_blocks(
+    aggregation: DemographicAggregationResult,
+    refs: tuple[BuildingStageBlockRef, ...],
+    *,
+    max_blocks: int,
+) -> DemographicAggregationResult:
+    """Include every zoned block, including unbuilt and recreational blocks."""
+    if len(refs) > max_blocks:
+        raise ValueError("demography block limit exceeded")
+    by_id = {ref.block_id: ref for ref in refs}
+    if len(by_id) != len(refs):
+        raise ValueError("demography block refs must be unique")
+    blocks = {block.block_id: block for block in aggregation.blocks}
+    if not set(blocks) <= set(by_id):
+        raise ValueError("demography aggregation references unknown blocks")
+    zone_classes: dict[str, ZoneClass] = {}
+    zero_groups = tuple(replace(group, residents=0) for group in aggregation.totals.age_groups)
+    for ref in refs:
+        if zone_classes.setdefault(ref.zone_id, ref.zone_class) != ref.zone_class:
+            raise ValueError("demography zone class mismatch")
+        existing = blocks.get(ref.block_id)
+        if existing is not None:
+            if (existing.zone_id, existing.zone_class) != (ref.zone_id, ref.zone_class):
+                raise ValueError("demography block zone mismatch")
+        else:
+            blocks[ref.block_id] = BlockDemographicAggregate(
+                block_id=ref.block_id, zone_id=ref.zone_id, zone_class=ref.zone_class,
+                building_count=0, population=0, age_groups=zero_groups, jobs_estimate=0,
+            )
+    counts = Counter(block.zone_id for block in blocks.values())
+    zones = {zone.zone_id: zone for zone in aggregation.zones}
+    if not set(zones) <= set(zone_classes):
+        raise ValueError("demography aggregation references unknown zones")
+    for zone_id, zone_class in zone_classes.items():
+        existing_zone = zones.get(zone_id)
+        if existing_zone is not None:
+            if existing_zone.zone_class != zone_class:
+                raise ValueError("demography aggregate zone class mismatch")
+            zones[zone_id] = replace(existing_zone, block_count=counts[zone_id])
+        else:
+            zones[zone_id] = ZoneDemographicAggregate(
+                zone_id=zone_id, zone_class=zone_class, block_count=counts[zone_id],
+                building_count=0, population=0, age_groups=zero_groups, jobs_estimate=0,
+            )
+    return replace(
+        aggregation,
+        blocks=tuple(blocks[key] for key in sorted(blocks)),
+        zones=tuple(zones[key] for key in sorted(zones)),
+        totals=replace(aggregation.totals, block_count=len(blocks), zone_count=len(zones)),
+    )
 
 
 def _fingerprint(

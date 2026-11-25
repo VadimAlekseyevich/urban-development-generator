@@ -165,6 +165,13 @@ class FinalValidationStage:
                 raise ValueError("final validation report exceeds result budget")
             results.append(result)
 
+        population_check = validate_positive_population(
+            target=value.demography.population.diagnostics.generated_population_target,
+            allocated=value.demography.population.diagnostics.allocated_generated_population,
+        )
+        if population_check is not None:
+            append(population_check)
+
         edges = {edge.edge_id: edge.geometry for edge in value.roads.graph.edges}
         for issue in value.roads.validation.issues:
             geometry = edges.get(issue.edge_id) if issue.edge_id is not None else None
@@ -257,12 +264,28 @@ class FinalValidationStage:
             output=output, fingerprint=fingerprint.finalize(),
             diagnostics=(StageDiagnostic(
                 code="final_validation.completed",
-                message=f"Validation found {len(report.hard_failures)} hard failures",
+                message=(
+                    f"Validation found {len(report.hard_failures)} hard failures"
+                    + (f"; {population_check.message}" if population_check is not None else "")
+                ),
                 level=(
                     StageDiagnosticLevel.INFO if report.is_valid else StageDiagnosticLevel.WARNING
                 ),
             ),),
         )
+
+
+def validate_positive_population(*, target: int, allocated: int) -> ConstraintResult | None:
+    """A positive requested population cannot be fulfilled by an empty allocation."""
+    if target == 0:
+        return None
+    return ConstraintResult(
+        code="demography.positive_population",
+        severity=ConstraintSeverity.HARD,
+        scope=ConstraintScope.DEMOGRAPHY,
+        passed=allocated > 0,
+        message=f"Allocated {allocated} of {target} requested new residents",
+    )
 
 
 @dataclass(frozen=True, slots=True)

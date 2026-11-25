@@ -344,6 +344,13 @@ export function RunsPanel({
                 <progress max={100} value={stage.progress_percent}
                   aria-label={`${stage.stage_name}: ${stage.progress_percent}%`} />
                 <small>{stage.progress_percent}%</small>
+                {stage.diagnostics?.map((diagnostic, index) => (
+                  <small key={diagnostic.code + ':' + index}
+                    className={diagnostic.level === 'WARNING' ? 'warning-text' : 'helper-text'}
+                    style={{ gridColumn: '1 / -1' }}>
+                    {diagnostic.message}
+                  </small>
+                ))}
               </li>
             ))}
           </ol>

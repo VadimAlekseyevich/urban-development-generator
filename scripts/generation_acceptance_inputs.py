@@ -5,6 +5,7 @@ The tiny synthetic geometry deliberately mirrors the existing tested spatial
 chain, translated to a valid UTM location. It is not a real city benchmark.
 """
 
+import argparse
 import base64
 import json
 
@@ -18,6 +19,9 @@ from shapely.ops import transform
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--size-m", type=int, choices=(10, 100), default=10)
+    size = parser.parse_args().size_m
     srid = 32637
     x, y = 500_000, 6_000_000
     converter = Transformer.from_crs(srid, 4326, always_xy=True)
@@ -34,18 +38,19 @@ def main() -> None:
             }],
         }
 
-    boundary = box(0, 0, 10, 10)
+    boundary = box(0, 0, size, size)
     roads = MultiLineString([
-        [(0, 0), (10, 0)], [(10, 0), (10, 10)],
-        [(10, 10), (0, 10)], [(0, 10), (0, 0)],
+        [(0, 0), (size, 0)], [(size, 0), (size, size)],
+        [(size, size), (0, size)], [(0, size), (0, 0)],
     ])
+    raster_size = size + 30
     with MemoryFile() as memory:
         with memory.open(
-            driver="GTiff", width=40, height=40, count=1, dtype="float32",
-            crs=f"EPSG:{srid}", transform=from_origin(x - 15, y + 25, 1, 1),
+            driver="GTiff", width=raster_size, height=raster_size, count=1, dtype="float32",
+            crs=f"EPSG:{srid}", transform=from_origin(x - 15, y + size + 15, 1, 1),
             nodata=-9999,
         ) as raster:
-            raster.write(np.full((40, 40), 100, dtype=np.float32), 1)
+            raster.write(np.full((raster_size, raster_size), 100, dtype=np.float32), 1)
         dem = base64.b64encode(memory.read()).decode("ascii")
 
     print(json.dumps({
