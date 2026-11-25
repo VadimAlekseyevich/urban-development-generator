@@ -198,6 +198,14 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   const metrics = await checked(await request.get(root + '/metric-runs/' + run.id + '/metrics'), 200)
   expect(metrics.run_id).toBe(run.id)
   expect(metrics.metrics.length).toBeGreaterThan(0)
+  expect(metrics.raw_metrics_available).toBe(true)
+  const raw = Object.fromEntries(metrics.raw_metrics.map(row => [row.metric_id, row.raw_value]))
+  for (const id of ['demography.total_population', 'buildings.far',
+    'roads.length_density_km_per_km2', 'infrastructure.population_coverage_ratio']) {
+    expect(raw[id], id).toEqual(expect.any(Number))
+  }
+  expect(raw['demography.total_population']).toBeGreaterThan(0)
+  console.log(scenario + ' actual scalar metrics: ' + JSON.stringify(raw))
   const provenance = await request.get(root + '/exports/provenance/' + run.id)
   const manifest = await checked(provenance, 200)
   expect(manifest.run.status).toBe('succeeded')
@@ -230,6 +238,7 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
     }
     const replayMetrics = await checked(await request.get(root + '/metric-runs/' + replay.id + '/metrics'), 200)
     expect(replayMetrics.metrics).toEqual(metrics.metrics)
+    expect(replayMetrics.raw_metrics).toEqual(metrics.raw_metrics)
     expect(replayMetrics.composite_score).toBe(metrics.composite_score)
     console.log('FROM_SCRATCH: same seed geometry and score replay passed')
   }

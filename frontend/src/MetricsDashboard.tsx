@@ -55,6 +55,36 @@ function directionLabel(direction: MetricDashboardMetric['direction']): string {
   }
 }
 
+const RAW_LABELS: Record<string, string> = {
+  'land.developable_area_m2': 'Пригодная для освоения площадь',
+  'land.developed_area_m2': 'Освоенная площадь',
+  'land.green_recreation_share': 'Доля зелёных и рекреационных зон',
+  'buildings.coverage_ratio': 'Доля пятна застройки',
+  'buildings.far': 'Коэффициент интенсивности застройки (FAR)',
+  'buildings.gfa_m2': 'Суммарная поэтажная площадь',
+  'demography.total_population': 'Расчётное население',
+  'demography.density_per_km2': 'Плотность населения',
+  'demography.jobs_estimate': 'Расчётные рабочие места',
+  'roads.length_density_km_per_km2': 'Плотность дорожной сети',
+  'roads.connected_components': 'Компоненты дорожной сети',
+  'roads.average_degree': 'Средняя степень дорожного узла',
+  'roads.intersection_density_per_km2': 'Плотность перекрёстков',
+  'roads.circuity': 'Непрямолинейность маршрутов',
+  'roads.dead_end_ratio': 'Доля тупиков',
+  'infrastructure.population_coverage_ratio': 'Охват населения инфраструктурой',
+  'infrastructure.network_distance_p50_m': 'Медианное сетевое расстояние',
+  'infrastructure.network_distance_p90_m': '90-й процентиль сетевого расстояния',
+  'infrastructure.unmet_demand': 'Неудовлетворённый спрос',
+  'infrastructure.capacity_utilization': 'Использование вместимости',
+  'constraints.hard_violation_count': 'Число жёстких нарушений',
+  'constraints.affected_area_m2': 'Площадь нарушений',
+  'constraints.weighted_soft_penalty': 'Штраф за мягкие ограничения',
+}
+const RATIO_IDS = new Set([
+  'land.green_recreation_share', 'buildings.coverage_ratio', 'roads.dead_end_ratio',
+  'infrastructure.population_coverage_ratio', 'infrastructure.capacity_utilization',
+])
+
 function MetricRow({ metric }: { metric: MetricDashboardMetric }) {
   return (
     <article className="metric-card">
@@ -231,7 +261,7 @@ export function MetricsDashboard({
       <div className="section-heading section-heading-row">
         <div>
           <p className="section-kicker">S11 · Evaluation</p>
-          <h2>Metrics dashboard</h2>
+          <h2>Показатели района</h2>
         </div>
         <span className="badge">
           {selectedRun ? selectedRun.composite_score.toFixed(3) : '—'}
@@ -239,7 +269,7 @@ export function MetricsDashboard({
       </div>
 
       <label className="metrics-select">
-        <span>Metric run</span>
+        <span>Запуск</span>
         <select
           value={selectedRunId}
           onChange={changeRun}
@@ -273,15 +303,37 @@ export function MetricsDashboard({
         <>
           <div className="metrics-score-summary">
             <div>
-              <span>Composite score</span>
+              <span>Оценка по выбранным критериям</span>
               <strong>{dashboard.composite_score.toFixed(4)}</strong>
             </div>
             <div>
-              <span>Metrics</span>
+              <span>Критериев в оценке</span>
               <strong>{dashboard.metrics.length}</strong>
             </div>
           </div>
 
+          {dashboard.metrics.length === 1 &&
+            dashboard.metrics[0].metric_id === 'constraints.hard_violation_count' && (
+            <p className="warning-text">Оценка учитывает только жёсткие нарушения.
+              1,0 не означает, что район качественно спроектирован.</p>
+          )}
+          <h3>Фактические показатели модели</h3>
+          {dashboard.raw_metrics_available ? (
+            <dl className="metrics-provenance" aria-label="Фактические показатели модели">
+              {(dashboard.raw_metrics ?? []).map(metric => (
+                <div key={metric.metric_id}>
+                  <dt title={metric.metric_id}>{RAW_LABELS[metric.metric_id] ?? metric.metric_id}</dt>
+                  <dd>{RATIO_IDS.has(metric.metric_id) ? formatPercent(metric.raw_value)
+                    : formatNumber(metric.raw_value)}
+                    {metric.raw_value !== null && !RATIO_IDS.has(metric.metric_id) ? ' ' + metric.unit : ''}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="warning-text">Для этого старого запуска полный набор показателей не
+              сохранён. Он доступен для новых запусков после обновления.</p>
+          )}
           <dl className="metrics-provenance">
             <div>
               <dt>Score config</dt>
@@ -318,6 +370,7 @@ export function MetricsDashboard({
 
       {dashboard && (
         <div className="metrics-list" aria-label="Score metric explanation">
+          <h3>Состав оценки</h3>
           {dashboard.metrics.map((metric) => (
             <MetricRow metric={metric} key={metric.metric_id} />
           ))}

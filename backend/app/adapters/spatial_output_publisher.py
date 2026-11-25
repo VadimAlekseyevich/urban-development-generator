@@ -112,7 +112,7 @@ class SpatialOutputPublisher:
             output, FinalValidationStageOutput,
         ):
             SqlAlchemyRunValidationWriter(session_factory=self._session_factory).replace(
-                run_id=run_id, report=output.report,
+                run_id=run_id, report=output.report, scalar_metrics=output.scalar_metrics,
             )
         elif stage_name == MetricsStage.name and isinstance(output, CompositeScoreResult):
             SqlAlchemyRunMetricsWriter(session_factory=self._session_factory).replace(

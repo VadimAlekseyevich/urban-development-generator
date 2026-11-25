@@ -56,6 +56,14 @@ class MetricDashboardMetricResponse(BaseModel):
     was_missing: bool
 
 
+class RawScalarMetricResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    metric_id: RawMetricId
+    unit: str
+    raw_value: float | None
+
+
 class MetricDashboardResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,5 +79,7 @@ class MetricDashboardResponse(BaseModel):
     normalization_profile_id: str
     normalization_profile_version: str
     metrics: list[MetricDashboardMetricResponse]
+    raw_metrics: list[RawScalarMetricResponse] = Field(default_factory=list)
+    raw_metrics_available: bool = False
     created_at: datetime
     finished_at: datetime | None

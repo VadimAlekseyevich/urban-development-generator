@@ -57,6 +57,8 @@ export type MetricDashboardResponse = {
   normalization_profile_id: string
   normalization_profile_version: string
   metrics: MetricDashboardMetric[]
+  raw_metrics?: { metric_id: string; unit: string; raw_value: number | null }[]
+  raw_metrics_available?: boolean
   created_at: string
   finished_at: string | null
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,6 +10,7 @@ from core.urban_generator.domain.benchmarking import (
     CANONICAL_METRIC_REGISTRY,
     MetricDirection,
     MetricScope,
+    MetricValueKind,
     RawMetricId,
 )
 from core.urban_generator.metrics.score import (
@@ -107,6 +109,13 @@ class MetricDashboardMetric:
 
 
 @dataclass(frozen=True, slots=True)
+class RawScalarMetric:
+    metric_id: RawMetricId
+    unit: str
+    raw_value: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class MetricDashboardResult:
     project_id: uuid.UUID
     run_id: uuid.UUID
@@ -122,6 +131,8 @@ class MetricDashboardResult:
     metrics: tuple[MetricDashboardMetric, ...]
     created_at: datetime
     finished_at: datetime | None
+    raw_metrics: tuple[RawScalarMetric, ...] = ()
+    raw_metrics_available: bool = False
 
 
 class MetricDashboardQueryRepository(Protocol):
@@ -187,6 +198,7 @@ class MetricDashboardQueryService:
             raise MetricDashboardRunNotFoundError(project_id, run_id)
 
         result = _decode_evaluation(record)
+        raw_metrics = decode_raw_scalars(record.metrics_json)
         return MetricDashboardResult(
             project_id=record.project_id,
             run_id=record.id,
@@ -200,6 +212,8 @@ class MetricDashboardQueryService:
             normalization_profile_id=result.normalization_profile_id,
             normalization_profile_version=result.normalization_profile_version,
             metrics=tuple(_dashboard_metric(item) for item in result.metrics),
+            raw_metrics=raw_metrics or (),
+            raw_metrics_available=raw_metrics is not None,
             created_at=record.created_at,
             finished_at=record.finished_at,
         )
@@ -381,3 +395,33 @@ def _require_bool(
     if not isinstance(value, bool):
         raise TypeError(f"{field_name} must be boolean")
     return value
+
+
+def decode_raw_scalars(metrics_json: dict[str, Any] | None) -> tuple[RawScalarMetric, ...] | None:
+    """Older immutable runs have no raw envelope; do not fabricate values."""
+    if metrics_json is None or "raw_scalars" not in metrics_json:
+        return None
+    payload = metrics_json["raw_scalars"]
+    try:
+        if not isinstance(payload, dict) or payload.get("schema_version") != "1":
+            raise ValueError("invalid raw scalar envelope version")
+        values = _require_dict(payload, "values")
+        if not values:
+            raise ValueError("empty raw scalar envelope")
+        by_id: dict[RawMetricId, float | None] = {}
+        for key in values:
+            metric_id = RawMetricId(key)
+            definition = CANONICAL_METRIC_REGISTRY.get(metric_id)
+            if definition.value_kind is not MetricValueKind.SCALAR:
+                raise ValueError("unexpected distribution in scalar envelope")
+            value = _optional_number(values, key)
+            if value is not None and not math.isfinite(value):
+                raise ValueError("nonfinite raw scalar")
+            by_id[metric_id] = value
+        return tuple(
+            RawScalarMetric(metric_id, CANONICAL_METRIC_REGISTRY.get(metric_id).unit,
+                            by_id[metric_id])
+            for metric_id in CANONICAL_METRIC_REGISTRY.metric_ids if metric_id in by_id
+        )
+    except (TypeError, ValueError) as exc:
+        raise MetricDashboardDataError("malformed persisted raw scalar metrics") from exc
