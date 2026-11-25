@@ -34,12 +34,16 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
     code: 'slope', weight: 1, normalization: 'INVERTED_MIN_MAX', raw_min: 0, raw_max: 30,
   })
   if (mode === 'FROM_SCRATCH') {
-    // Larger bare terrain and a denser anchor sample give the real road
-    // growth algorithm a chance to form closed blocks without fixed roads.
-    config.stages.prepare_snapshot.config.cell_size_m = 10
+    // A 20 m road-routing grid avoids over-dense 10 m triangular blocks.
+    // Keep the strict nonempty layer checks; tolerances below reflect discrete
+    // footprint placement rather than the exact 10 m square smoke fixture.
+    config.stages.prepare_snapshot.config.cell_size_m = 20
     config.stages.roads.config.anchor_policy.max_candidates = 36
     config.stages.roads.config.anchor_policy.max_sampled_cells = 200
-    config.stages.roads.config.growth_policy.max_iterations = 128
+    config.stages.roads.config.growth_policy.max_iterations = 40
+    config.stages.buildings.config.candidate_policy.grid_spacing_m = 2
+    config.stages.buildings.config.zone_targets[0].coverage_tolerance = 0.04
+    config.stages.buildings.config.zone_targets[0].far_tolerance = 0.08
     config.stages.roads.config.fixed_attachment_policy = null
     config.stages.blocks_and_parcels.config.split_policy.max_area_m2 = 500
   }
@@ -109,6 +113,7 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
     const collection = await checked(await request.get(
       root + '/' + path + '/' + run.id + '/' + layer + '/geojson?bbox=' + bbox,
     ), 200)
+    console.log(mode + ' ' + layer + ': ' + collection.features.length + ' features')
     expect(collection.features.length, 'nonempty generated ' + layer).toBeGreaterThan(0)
   }
   const metrics = await checked(await request.get(root + '/metric-runs/' + run.id + '/metrics'), 200)
