@@ -117,3 +117,15 @@ case checks a 4.8 million pair input against the production default budget.
 The previously suggested 40 m / 300 residents workaround also failed locally.
 Do not request further manual reruns before the corrected overflow gate passes.
 Exact local configuration and source-normalization differences remain unverified.
+
+
+### Manual acceptance — quality and metrics
+
+A user successfully displayed run 92d4bb0f locally after #226. The screenshot
+shows over-triangulated roads/blocks, sparse buildings, overlapping map layers,
+and only one score criterion (hard violations). A 1.0 score means only that
+this criterion passed, not satisfactory urban quality. The dashboard fix
+persists all already-calculated canonical scalar metrics during final validation
+and displays them separately from the score. Old successful runs are immutable
+and explicitly lack the new envelope; no fabricated or retroactive metric data.
+Population attainment, road geometry and land-use quality remain open work.
