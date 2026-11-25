@@ -13,9 +13,11 @@ from core.urban_generator.demography import DemographicDemandProfile
 from core.urban_generator.domain import (
     NetworkBackend,
     NetworkPoint,
+    RawMetricId,
     RunContext,
     RunMode,
     StageDiagnostic,
+    StageDiagnosticLevel,
     StageFingerprintWriter,
     StageResult,
     TerritorySnapshot,
@@ -387,11 +389,24 @@ class InfrastructureStage:
                 fingerprint.add_text(repr(remaining))
         for metric in output.metrics.raw_metrics:
             fingerprint.add_text(repr(metric))
+        unmet = output.metrics.require(RawMetricId.INFRASTRUCTURE_UNMET_DEMAND).scalar_value
+        coverage = output.metrics.require(
+            RawMetricId.INFRASTRUCTURE_POPULATION_COVERAGE_RATIO
+        ).scalar_value
+        coverage_text = "unavailable" if coverage is None else f"{coverage:.1%}"
+        unmet_text = "unavailable" if unmet is None else f"{unmet:.6g}"
         return StageResult(
             output=output, fingerprint=fingerprint.finalize(),
             diagnostics=(StageDiagnostic(
                 code="infrastructure.completed",
-                message=f"Placed {len(accepted_geometries)} infrastructure facilities",
+                message=(
+                    f"Placed {len(accepted_geometries)} infrastructure facilities; "
+                    f"population coverage {coverage_text}, unmet demand {unmet_text}"
+                ),
+                level=(
+                    StageDiagnosticLevel.WARNING
+                    if unmet is None or unmet > 0 else StageDiagnosticLevel.INFO
+                ),
             ),),
         )
 

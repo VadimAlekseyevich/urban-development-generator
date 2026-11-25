@@ -16,6 +16,8 @@ const FIELDS = [
   { key: 'recreation_percent', label: 'Рекреационная зона, %', initial: 10, min: 0, max: 99, step: 1 },
   { key: 'zoning_seeds', label: 'Опорные точки зонирования', initial: 16, min: 1, max: 128, step: 1 },
   { key: 'road_anchors', label: 'Лимит дорожных опорных точек', initial: 24, min: 3, max: 64, step: 1 },
+  { key: 'road_growth_iterations', label: 'Лимит дополнительных дорожных связей', initial: 40, min: 1, max: 200, step: 1 },
+  { key: 'building_size_m', label: 'Сторона пятна здания, м', initial: 10, min: 6, max: 24, step: 1 },
   { key: 'max_block_area_m2', label: 'Предельная площадь квартала, м²', initial: 20000, min: 400, max: 100000, step: 100 },
   { key: 'floors', label: 'Этажность', initial: 4, min: 1, max: 16, step: 1 },
   { key: 'coverage_ratio', label: 'Доля пятна застройки (0–1)', initial: 0.25, min: 0.05, max: 0.6, step: 0.01 },
@@ -35,6 +37,7 @@ export function PlanningConfigPanel({ apiBase, projectId, disabled, onLoading, o
   const total = ['residential_percent', 'mixed_percent', 'public_percent', 'recreation_percent']
     .reduce((sum, key) => sum + Number(values[key]), 0)
   const far = Number(values.floors) * Number(values.coverage_ratio)
+  const minimumLot = Math.max(200, Math.ceil(Number(values.building_size_m) ** 2 / Number(values.coverage_ratio)))
 
   async function apply(): Promise<void> {
     if (!projectId || disabled) return
@@ -104,6 +107,7 @@ export function PlanningConfigPanel({ apiBase, projectId, disabled, onLoading, o
           }} />
       </label>)}
       <p className="helper-text">Сумма зон: {total}% · целевой FAR: {Number.isFinite(far) ? far.toFixed(2) : '—'}</p>
+      <p className="helper-text">Расчётный минимум участка: {Number.isFinite(minimumLot) ? minimumLot : '—'} м². Лимит дополнительных связей ограничивает попытки роста дорог, не число итоговых сегментов.</p>
       <button type="button" className="button" onClick={() => { void apply() }}>
         Сформировать конфигурацию
       </button>

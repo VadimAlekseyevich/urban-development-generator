@@ -137,6 +137,7 @@ class SqlAlchemyGeneratedDemographyWriter:
         aggregation: DemographicAggregationResult,
     ) -> dict[str, GeneratedBlock]:
         by_key: dict[str, GeneratedBlock] = {}
+        seen: set[str] = set()
         for block in blocks:
             if block.block_key is None or not block.block_key:
                 raise GeneratedDemographyPersistenceError(
@@ -146,10 +147,11 @@ class SqlAlchemyGeneratedDemographyWriter:
                 raise GeneratedDemographyPersistenceError(
                     f"generated block {block.block_key} must have positive area_m2"
                 )
-            if block.block_key in by_key:
+            if block.block_key in seen:
                 raise GeneratedDemographyPersistenceError(
                     f"duplicate generated block_key: {block.block_key}"
                 )
+            seen.add(block.block_key)
             zone_class = (block.attributes_json or {}).get("zone_class")
             if block.zone_id is None and zone_class is None:
                 if block.association_status == "ASSOCIATED":

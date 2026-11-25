@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import fields, is_dataclass
 from typing import Any, Literal
 
@@ -63,6 +64,7 @@ from core.urban_generator.roads import (
     CandidateRoadAnchorPolicy,
     LeastCostConnectorPolicy,
     RoadValidationPolicy,
+    RuleBasedRoadGrowthPolicy,
 )
 from core.urban_generator.roads.endpoint_snapping import EndpointRoadSnappingPolicy
 from core.urban_generator.roads.fixed_network_attachment import FixedNetworkAttachmentPolicy
@@ -108,6 +110,8 @@ class PlanningParameters(BaseModel):
     recreation_percent: int = Field(default=10, ge=0, le=99)
     zoning_seeds: int = Field(default=16, ge=1, le=128)
     road_anchors: int = Field(default=24, ge=3, le=64)
+    road_growth_iterations: int = Field(default=40, ge=1, le=200)
+    building_size_m: float = Field(default=10, ge=6, le=24)
     max_block_area_m2: float = Field(default=20000, ge=400, le=100000)
     floors: int = Field(default=4, ge=1, le=16)
     coverage_ratio: float = Field(default=0.25, ge=0.05, le=0.6)
@@ -157,7 +161,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
     }
     buildable = tuple(uses)
     zoning = ZoningConfig(
-        version="neighbourhood-v1",
+        version="neighbourhood-v2",
         zones=tuple(
             ZoneClassConfig(zone, percent / 100, 100)
             for zone, percent in shares.items()
@@ -174,7 +178,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
             code="landuse", weight=1, normalization=SuitabilityNormalization.IDENTITY,
         )
         landuse_weights = LanduseClassWeights(
-            version="neighbourhood-v1",
+            version="neighbourhood-v2",
             classes=(
                 LanduseClassWeight("residential", 1),
                 LanduseClassWeight("grass", 0.8),
@@ -182,12 +186,15 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 LanduseClassWeight("farmland", 0.5),
             ),
         )
+    # A full footprint must fit within the allowed coverage window of a lot.
+    # The conservative target below uses the nominal ratio, not its tolerance.
+    minimum_lot_area = max(200, math.ceil(p.building_size_m ** 2 / p.coverage_ratio))
     configs = (
         ("prepare_snapshot", PrepareSnapshotStageConfig(cell_size_m=p.cell_size_m)),
         ("evaluate_constraints", ConstraintMaskStageConfig()),
         ("suitability", PreparedSuitabilityStageConfig(
             suitability=SuitabilityConfig(
-                version="neighbourhood-v1", factors=(factor,),
+                version="neighbourhood-v2", factors=(factor,),
                 thresholds=SuitabilityThresholds(minimum_score=0.2),
             ),
             landuse_weights=landuse_weights,
@@ -200,6 +207,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 allowed_zone_classes=buildable, spatially_balanced=True,
             ),
             least_cost_policy=LeastCostConnectorPolicy(max_visited_cells=100_000),
+            growth_policy=RuleBasedRoadGrowthPolicy(max_iterations=p.road_growth_iterations),
             validation_policy=RoadValidationPolicy(
                 max_component_count=1, max_dead_end_ratio=1,
             ),
@@ -212,12 +220,13 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
             split_policy=OversizedBlockSplitPolicy(max_area_m2=p.max_block_area_m2),
             sliver_policy=SliverCleanupPolicy(min_area_m2=100),
             parcel_policy=ParcelSubdivisionPolicy(
-                target_frontage_m=25, minimum_frontage_m=8, minimum_parcel_area_m2=200,
+                target_frontage_m=max(25, p.building_size_m + 8), minimum_frontage_m=8,
+                minimum_parcel_area_m2=minimum_lot_area,
             ),
         )),
         ("buildings", BuildingStageConfig(
             building=BuildingConfig(
-                version="neighbourhood-v1",
+                version="neighbourhood-v2",
                 archetypes=(BuildingArchetypeConfig(
                     archetype=BuildingArchetype.POINT,
                     footprint_strategy=BuildingFootprintStrategy.RECTANGULAR_POINT,
@@ -226,7 +235,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 ),),
             ),
             attributes=BuildingAttributeConfig(
-                version="neighbourhood-v1",
+                version="neighbourhood-v2",
                 rules=tuple(
                     BuildingAttributeRule(zone, BuildingArchetype.POINT, use, p.floors, p.floors)
                     for zone, use in uses.items()
@@ -234,7 +243,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
             ),
             archetype_specs=(BuildingArchetypeStageSpec(
                 archetype=BuildingArchetype.POINT,
-                footprint_spec=RectangularPointFootprintSpec.point(size_m=12),
+                footprint_spec=RectangularPointFootprintSpec.point(size_m=p.building_size_m),
                 planning_floor_area_multiplier=p.floors,
             ),),
             zone_targets=tuple(
@@ -245,13 +254,14 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 for zone in buildable
             ),
             candidate_policy=BuildingPlacementCandidatePolicy(
-                grid_spacing_m=16, frontage_spacing_m=16, include_frontage=False,
+                grid_spacing_m=p.building_size_m, frontage_spacing_m=p.building_size_m,
+                include_frontage=False,
             ),
             spacing_policy=BuildingSpacingPolicy(minimum_gap_m=4),
         )),
         ("demography", DemographyStageConfig(
             scenario=DemographicScenario(
-                version="neighbourhood-v1",
+                version="neighbourhood-v2",
                 population_target=PopulationTarget(
                     kind=PopulationTargetKind.TOTAL_POPULATION, value=p.target_population,
                 ),
@@ -265,7 +275,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 working_population_ratio=0.5,
             ),
             employment=EmploymentConfig(
-                version="neighbourhood-v1",
+                version="neighbourhood-v2",
                 rules=(
                     JobDensityRule(use=BuildingUse.MIXED, area_per_job_m2=50),
                     JobDensityRule(use=BuildingUse.PUBLIC, area_per_job_m2=40),
@@ -275,7 +285,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
         )),
         ("infrastructure", InfrastructureStageConfig(
             infrastructure_types=(InfrastructureType(
-                version="neighbourhood-v1", code="clinic.primary",
+                version="neighbourhood-v2", code="clinic.primary",
                 category=InfrastructureCategory.HEALTHCARE,
                 demand_model=InfrastructureDemandModel(
                     signal=DemographicDemandCategory.POPULATION, demand_rate=1,
@@ -299,7 +309,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
         ))),
         ("metrics", MetricsStageConfig(
             normalization_profile=MetricNormalizationProfile(
-                profile_id="neighbourhood-v1", version="1",
+                profile_id="neighbourhood-v2", version="1",
                 policies=(MetricNormalizationPolicy(
                     metric_id=RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
                     direction=MetricDirection.LOWER_IS_BETTER, lower_bound=0, upper_bound=10,
@@ -308,7 +318,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 ),),
             ),
             score=CompositeScoreConfig(
-                config_id="neighbourhood-v1", version="1",
+                config_id="neighbourhood-v2", version="1",
                 weights=(CompositeScoreMetricWeight(
                     RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT, 1,
                 ),),
@@ -325,6 +335,6 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
     }, allow_nan=False))
     CanonicalStageConfigResolver(schema_version=COMPLETE_CONFIG_SCHEMA_VERSION).resolve(
         config_json=payload, schema_version=COMPLETE_CONFIG_SCHEMA_VERSION,
-        source=ConfigRef(name="generation", ref="neighbourhood-v1"),
+        source=ConfigRef(name="generation", ref="neighbourhood-v2"),
     )
     return payload

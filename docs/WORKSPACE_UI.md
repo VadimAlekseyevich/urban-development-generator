@@ -28,7 +28,7 @@ a second layer registry, Stage model, metrics vocabulary or job lifecycle.
    (20 per page). Selections persist across pages and are independent of the
    map's inspected version; a project change clears them. Choose mode and seed,
    import a complete v5 JSON file (up to 1 MiB) or paste/edit its content, and
-   specify the executable commit SHA. The initial neighbourhood profile can
+   use the executable commit SHA supplied by the backend build (manual only in unverified local development). The initial neighbourhood profile can
    instead build the same v5 JSON from bounded numeric fields and a suitability
    source. Explicitly click «Сформировать конфигурацию» to replace the JSON;
    preview does not queue work. It is a pilot profile, not a planning standard
@@ -96,4 +96,12 @@ spatially balanced eligible road anchors (bounded to 128 picks and 250,000
 sampled cells) and parcel-or-block placement; mixed/public blocks without
 residential parcels can receive their eligible archetype. Existing JSON
 omitting the anchor flag retains score-ranked sampling. These are model
-choices, not standards; the pilot browser profile acceptance is still pending.
+choices, not standards; the v1 browser profile acceptance passed in #224.
+
+
+The candidate neighbourhood-v2 preset exposes road-growth attempt budget
+and square building footprint size. The displayed calculated minimum lot
+area is derived from the footprint and target coverage (not a zoning norm).
+The run diagnostic now explains ready envelopes without fitting proposals,
+density-window and spacing rejections, actual population shortfall and
+infrastructure coverage/unmet demand. v2 remains subject to CI quality gates.

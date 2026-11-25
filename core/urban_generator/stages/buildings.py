@@ -620,6 +620,15 @@ class BuildingStage:
             result.envelope.status is not BuildingEnvelopeStatus.READY
             for result in source_results
         )
+        no_proposals = sum(
+            result.envelope.status is BuildingEnvelopeStatus.READY and not result.proposal_count
+            for result in source_results
+        )
+        placement_diagnostics = tuple(
+            result.placement.diagnostics for result in source_results if result.placement is not None
+        )
+        window_rejected = sum(item.target_window_rejected_count for item in placement_diagnostics)
+        spacing_rejected = sum(item.spacing_rejected_count for item in placement_diagnostics)
         return StageResult(
             output=output,
             fingerprint=_fingerprint(
@@ -637,7 +646,9 @@ class BuildingStage:
                     message=(
                         f"buildings completed: {len(sources)} sources, "
                         f"{len(ordered_accepted)} accepted buildings, "
-                        f"{unmet} unmet targets, {blocked} blocked envelopes"
+                        f"{unmet} unmet targets, {blocked} blocked envelopes; "
+                        f"{no_proposals} ready sources without fitting proposals, "
+                        f"{window_rejected} density-window and {spacing_rejected} spacing rejections"
                     ),
                     level=(
                         StageDiagnosticLevel.WARNING

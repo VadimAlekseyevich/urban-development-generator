@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
@@ -228,6 +230,96 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
     expect(mapBuildings.features.length).toBeGreaterThan(0)
     await expect(panel.locator('select')).toHaveValue(run.id)
     await expect(page.locator('.workspace-context-summary')).toContainText(run.id.slice(0, 8))
+
+    // Controlled A/B on identical source versions, territory, seed and runtime.
+    // Restore the previously verified v1 profile parameters; not historical binaries.
+    const v1 = await checked(await request.post(api + '/generation/planning-config', {
+      data: { cell_size_m: 40, target_population: 300, building_size_m: 12, road_growth_iterations: 200 },
+    }), 200)
+    const baselineConfig = JSON.parse(JSON.stringify(v1).replaceAll('neighbourhood-v2', 'neighbourhood-v1'))
+    const parcelPolicy = baselineConfig.stages.blocks_and_parcels.config.parcel_policy
+    parcelPolicy.minimum_parcel_area_m2 = 200
+    parcelPolicy.target_frontage_m = 25
+    const candidatePolicy = baselineConfig.stages.buildings.config.candidate_policy
+    candidatePolicy.grid_spacing_m = 16
+    candidatePolicy.frontage_spacing_m = 16
+    const baseline = await checked(await request.post(root + '/runs', {
+      data: { ...payload, config_json: baselineConfig },
+    }), 201)
+    let baselineState
+    await expect.poll(async () => {
+      baselineState = await checked(await request.get(root + '/runs/' + baseline.id), 200)
+      return ['succeeded', 'failed', 'cancelled'].includes(baselineState.status)
+    }, { timeout: 90_000, intervals: [500, 1000, 2000] }).toBe(true)
+    expect(baselineState.status, JSON.stringify(baselineState)).toBe('succeeded')
+
+    async function quality(runId) {
+      const demography = await checked(await request.get(root + '/demography-runs/' + runId + '/metrics'), 200)
+      const infrastructure = await checked(await request.get(root + '/infrastructure-runs/' + runId + '/metrics'), 200)
+      const counts = {}
+      for (const [path, layer] of layers) {
+        const collection = await checked(await request.get(
+          root + '/' + path + '/' + runId + '/' + layer + '/geojson?bbox=' + bbox,
+        ), 200)
+        expect(collection.truncated).toBe(false)
+        counts[layer] = collection.features.length
+      }
+      return {
+        ...counts, population: demography.population, target_population: 300,
+        target_fraction: demography.population / 300,
+        infrastructure: Object.fromEntries(infrastructure.raw_metrics.map(row => [row.metric_id, row.scalar_value])),
+      }
+    }
+    const previous = await quality(baseline.id)
+    const improved = await quality(run.id)
+    console.log('PLANNING_QUALITY ' + JSON.stringify({ previous, improved }))
+    // Do not pass merely because both runs are technically successful.
+    expect(improved.buildings, 'more buildings than v1').toBeGreaterThan(previous.buildings)
+    expect(improved.population, 'no population regression').toBeGreaterThanOrEqual(previous.population)
+    expect(improved.population).toBeGreaterThan(0)
+    expect(improved.population).toBeLessThanOrEqual(300)
+
+    // Real comparison and CSV for actual completed runs, not seeded fixtures.
+    await page.getByRole('button', { name: 'Анализ' }).click()
+    const compare = page.locator('section.compare-panel')
+    await compare.getByRole('button', { name: 'Обновить' }).click()
+    await compare.locator('.compare-option').filter({ hasText: baseline.id.slice(0, 8) }).getByRole('checkbox').check()
+    await compare.locator('.compare-option').filter({ hasText: run.id.slice(0, 8) }).getByRole('checkbox').check()
+    await compare.getByRole('button', { name: /Сравнить 2/ }).click()
+    await expect(compare.locator('.compare-result')).toContainText('demography.total_population')
+    const downloadPromise = page.waitForEvent('download')
+    await compare.getByRole('button', { name: 'Скачать CSV сравнения' }).click()
+    const download = await downloadPromise
+    const csv = readFileSync(await download.path(), 'utf8')
+    expect(csv).toContain('demography.total_population')
+    expect(csv).toContain(baseline.id)
+    expect(csv).toContain(run.id)
+    expect(csv).toContain(project.id)
+
+    // Real asynchronous spatial export of the generated building and road layers.
+    const exportJob = await checked(await request.post(root + '/exports/geopackage', {
+      data: {
+        run_id: run.id, layer_ids: ['generated.buildings', 'generated.roads'],
+        bbox: bbox.split(',').map(Number),
+      },
+    }), 202)
+    let exported
+    const exportUrl = root + '/exports/geopackage/' + exportJob.job_id
+    await expect.poll(async () => {
+      exported = await checked(await request.get(exportUrl), 200)
+      return ['succeeded', 'failed', 'cancelled'].includes(exported.status)
+    }, { timeout: 90_000, intervals: [500, 1000, 2000] }).toBe(true)
+    expect(exported.status, JSON.stringify(exported)).toBe('succeeded')
+    const exportedCounts = Object.fromEntries(exported.layer_counts.map(row => [row.layer_id, row.feature_count]))
+    expect(exportedCounts['generated.buildings']).toBe(improved.buildings)
+    expect(exportedCounts['generated.roads']).toBe(improved.roads)
+    const gpkg = await request.get(exportUrl + '/download')
+    expect(gpkg.status()).toBe(200)
+    const bytes = await gpkg.body()
+    expect(bytes.subarray(0, 16).toString()).toBe('SQLite format 3\0')
+    expect(bytes.length).toBe(exported.artifact.size_bytes)
+    expect('sha256:' + createHash('sha256').update(bytes).digest('hex')).toBe(exported.artifact.checksum)
+    console.log('PLANNING_QUALITY: real comparison, CSV and GeoPackage verified')
   }
 })
 }
