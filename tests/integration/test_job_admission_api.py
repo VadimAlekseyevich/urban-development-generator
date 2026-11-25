@@ -67,7 +67,7 @@ def _project() -> tuple[uuid.UUID, uuid.UUID]:
             )
             session.add(project)
             session.flush()
-            dataset = Dataset(project_id=project.id, kind="roads")
+            dataset = Dataset(project_id=project.id, kind="landuse")
             session.add(dataset)
             session.flush()
             version = DatasetVersion(

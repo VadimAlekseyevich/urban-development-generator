@@ -115,3 +115,22 @@ from a clean checkout and use the same immutable image for API and worker.
 Browser CI builds with its actual checkout SHA and verifies mismatch
 rejection and successful execution. For local E2E, export the build
 revision before building the stack.
+
+## Input compatibility preflight
+
+New create and new manual retry resolve canonical layer families from the
+selected ready versions, including bounded source-table probes for OSM.
+Before creating any run, Job or outbox they reject:
+
+- fixed roads/buildings/facilities/zones in FROM_SCRATCH;
+- fixed zones or population baseline layers (not yet hydrated);
+- positive slope without exactly one DEM, positive landuse without landuse,
+  positive road_proximity without roads, or unsupported positive factors;
+- fixed roads without an attachment policy, and population growth rate
+  without implemented baseline hydration.
+
+Input conflicts are HTTP 409; unsupported config choices are HTTP 422.
+Existing idempotent retry children remain unchanged. This preflight checks
+layer compatibility, not spatial coverage, raster validity, actual artifact
+checksums or topology; the worker still performs authoritative reads and
+algorithm validation. Code identity is checked separately as described above.
