@@ -109,6 +109,11 @@ when feasible. The existing exact calculation and hard validity checks still
 apply to shortlisted sites; approximate search can miss feasible alternatives.
 Stage diagnostics disclose the shortlist. A new unseeded 400 m, 10 m grid,
 seed 42, 1000 residents regression exercises the default-like configuration.
-Until CI is green, use the previously verified 40 m grid, seed 20260919 and
-300 residents for the synthetic demo, explicitly regenerate JSON and create a
-new run (old runs keep their immutable parameters).
+A second user run (seed 20260919) also failed: 4,188,528 > 1,000,000.
+CI 45698917851 completed six browser tests but the dense profile did not
+trigger the shortlist; the corrected regression forces a 4,000-pair test
+budget and asserts the diagnostic and actual pair counts. A separate unit
+case checks a 4.8 million pair input against the production default budget.
+The previously suggested 40 m / 300 residents workaround also failed locally.
+Do not request further manual reruns before the corrected overflow gate passes.
+Exact local configuration and source-normalization differences remain unverified.

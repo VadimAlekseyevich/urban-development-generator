@@ -109,10 +109,12 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   }
 
   if (scenario === 'DENSE_PROFILE') {
-    // User-reported seed 42 on the same 400 m territory with the default 10 m grid.
+    // User-reported seed 42; default-like grid, then force actual shortlist overflow.
+    // Test-only smaller budget ensures this fixture exercises the failure path.
     config = await checked(await request.post(api + '/generation/planning-config', {
       data: { cell_size_m: 10, target_population: 1000 },
     }), 200)
+    config.stages.infrastructure.config.candidate_policy.max_results = 4000
   }
 
   const runtime = await checked(await request.get(api + '/generation/revision'), 200)
@@ -162,8 +164,16 @@ test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS
   expect(result.stages.every((stage) => stage.status === 'succeeded')).toBe(true)
 
   if (scenario === 'DENSE_PROFILE') {
-    console.log('DENSE_PROFILE infrastructure diagnostics: ' + JSON.stringify(
-      result.stages.find(stage => stage.stage_name === 'infrastructure').diagnostics))
+    const diagnostics = result.stages.find(stage => stage.stage_name === 'infrastructure').diagnostics
+    console.log('DENSE_PROFILE infrastructure diagnostics: ' + JSON.stringify(diagnostics))
+    const budget = diagnostics.find(item => item.code === 'infrastructure.candidate_budget')
+    expect(budget, 'must exercise real overflow, not only successful small routing').toBeDefined()
+    const match = budget.message.match(/selected (\d+) of (\d+) candidates for (\d+) demand rows/)
+    expect(match).not.toBeNull()
+    const [, kept, offered, demands] = match.map(Number)
+    expect(offered * demands).toBeGreaterThan(4000)
+    expect(kept * demands).toBeLessThanOrEqual(4000)
+    expect(kept).toBeGreaterThan(0)
   }
   // Use a generous geographic viewport enclosing the tiny UTM fixture.
   const bounds = input.boundary.coordinates[0]

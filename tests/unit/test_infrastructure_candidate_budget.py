@@ -13,7 +13,6 @@ from core.urban_generator.stages.infrastructure import _budgeted_sites
 from core.urban_generator.zoning import ZoneClass
 
 
-
 def _sites(count: int) -> InfrastructureCandidateSiteResult:
     candidates = []
     for index in range(count):
@@ -60,3 +59,17 @@ def test_candidate_budget_bounds_matrix_and_spreads_candidates() -> None:
 def test_candidate_budget_rejects_impossible_single_candidate() -> None:
     with pytest.raises(ConfigError, match="even one candidate"):
         _budgeted_sites(_sites(10), 20, InfrastructureCandidateAccessibilityPolicy(max_results=10))
+
+
+def test_candidate_budget_handles_millions_of_pairs() -> None:
+    sites = _sites(2000)
+    policy = InfrastructureCandidateAccessibilityPolicy()
+    # Close to the 4.19/4.78 million pairs reported in the user's local worker logs.
+    demand_count = 2400
+    assert len(sites.candidates) * demand_count > policy.max_results
+    result = _budgeted_sites(sites, demand_count, policy)
+    assert len(result.candidates) == 250_000 // demand_count
+    assert len(result.candidates) * demand_count <= 250_000
+    assert result.candidates[0].anchor.x < 500
+    assert result.candidates[-1].anchor.x > 39_500
+    assert result == _budgeted_sites(sites, demand_count, policy)
