@@ -19,7 +19,6 @@ from core.urban_generator.domain import (
     ValidationReport,
     serialize_validation_report,
 )
-
 from core.urban_generator.metrics import CompositeScoreRawMetric
 
 MAX_PERSISTED_VALIDATION_RESULTS = 10_000
