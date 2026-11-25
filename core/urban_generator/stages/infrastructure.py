@@ -11,11 +11,13 @@ from core.urban_generator.blocks import BlockZoneAssociationResult, PlanningParc
 from core.urban_generator.buildings import BuildingAreaSubject
 from core.urban_generator.demography import DemographicDemandProfile
 from core.urban_generator.domain import (
+    ConfigError,
     NetworkBackend,
     NetworkPoint,
     RunContext,
     RunMode,
     StageDiagnostic,
+    StageDiagnosticLevel,
     StageFingerprintWriter,
     StageResult,
     TerritorySnapshot,
@@ -35,6 +37,8 @@ from core.urban_generator.infrastructure import (
     InfrastructureCandidateGeometryResult,
     InfrastructureCandidateRef,
     InfrastructureCandidateSiteGenerator,
+    InfrastructureCandidateSiteResult,
+    InfrastructureSiteCandidate,
     InfrastructureCandidateSnapInput,
     InfrastructureDemandRef,
     InfrastructureDemandSnapInput,
@@ -234,19 +238,31 @@ class InfrastructureStage:
             InfrastructureNetworkSnapBatchResult, InfrastructureAccessibilityBatchResult,
             InfrastructureAccessibilityBatchResult,
         ]] = []
+        budget_diagnostics: list[StageDiagnostic] = []
         for infra_type in types:
-            geometry = InfrastructureCandidateGeometryBuilder().build(
-                InfrastructureCandidateSiteGenerator(
-                    working_srid=srid, max_candidates=config.candidate_policy.max_candidates,
-                    max_inputs=config.max_spatial_inputs,
-                ).generate(
-                    infra_type, zoned_blocks=value.blocks, parcels=value.parcels,
-                    buildings=value.buildings,
-                ),
-                infrastructure_type=infra_type,
-            )
             demands = tuple(
                 item for item in gross.demands if item.infrastructure_type_code == infra_type.code
+            )
+            sites = InfrastructureCandidateSiteGenerator(
+                working_srid=srid, max_candidates=config.candidate_policy.max_candidates,
+                max_inputs=config.max_spatial_inputs,
+            ).generate(
+                infra_type, zoned_blocks=value.blocks, parcels=value.parcels,
+                buildings=value.buildings,
+            )
+            selected = _budgeted_sites(sites, len(demands), config.candidate_policy)
+            if len(selected.candidates) < len(sites.candidates):
+                budget_diagnostics.append(StageDiagnostic(
+                    code="infrastructure.candidate_budget",
+                    message=(
+                        f"{infra_type.code}: spatially selected {len(selected.candidates)} "
+                        f"of {len(sites.candidates)} candidates for {len(demands)} demand rows; "
+                        "bounded search may leave unmet demand"
+                    ),
+                    level=StageDiagnosticLevel.WARNING,
+                ))
+            geometry = InfrastructureCandidateGeometryBuilder().build(
+                selected, infrastructure_type=infra_type,
             )
             facilities = tuple(
                 item for item in existing.facilities
@@ -389,11 +405,89 @@ class InfrastructureStage:
             fingerprint.add_text(repr(metric))
         return StageResult(
             output=output, fingerprint=fingerprint.finalize(),
-            diagnostics=(StageDiagnostic(
+            diagnostics=(*budget_diagnostics, StageDiagnostic(
                 code="infrastructure.completed",
                 message=f"Placed {len(accepted_geometries)} infrastructure facilities",
             ),),
         )
+
+
+def _budgeted_sites(
+    sites: InfrastructureCandidateSiteResult,
+    demand_count: int,
+    policy: InfrastructureCandidateAccessibilityPolicy,
+) -> InfrastructureCandidateSiteResult:
+    """Bound dense matrix work, retaining all demand rows and distributed sites.
+
+    Small cases retain the original exhaustive search. On overflow, reduce
+    candidates before geometry and routing, not the demand or validity rules.
+    """
+    if demand_count > policy.max_demands:
+        raise ConfigError(
+            f"Infrastructure demand rows {demand_count} exceed limit {policy.max_demands}; "
+            "use a coarser planning grid or a smaller territory."
+        )
+    if not demand_count or not sites.candidates:
+        return sites
+    batches = (demand_count + policy.demand_batch_size - 1) // policy.demand_batch_size
+    hard_count = min(
+        policy.max_candidates,
+        policy.max_results // demand_count,
+        policy.max_routing_calls // batches,
+    )
+    if len(sites.candidates) <= hard_count:
+        return sites
+    if hard_count < 1:
+        raise ConfigError(
+            "Infrastructure routing budget cannot evaluate even one candidate; "
+            "use a coarser planning grid or a smaller territory."
+        )
+    # Use a tighter work budget after overflow to avoid allocating a million
+    # Python outcome objects. Never drop a positive demand row.
+    limit = min(hard_count, max(1, 250_000 // demand_count))
+    selected = tuple(sorted(
+        _spatial_sample(sites.candidates, limit), key=lambda item: item.candidate_id,
+    ))
+    return replace(
+        sites, candidates=selected,
+        diagnostics=replace(sites.diagnostics, candidate_count=len(selected)),
+    )
+
+
+def _spatial_sample(
+    candidates: tuple[InfrastructureSiteCandidate, ...], limit: int,
+) -> tuple[InfrastructureSiteCandidate, ...]:
+    """Deterministic balanced median partition, O(n log(limit)) sorting work.
+
+    Each recursive quota owns a separate spatial partition; IDs break ties.
+    This is an approximate shortlist, not an optimal facility location solver.
+    """
+    if limit >= len(candidates):
+        return candidates
+    if limit == 1:
+        mean_x = sum(item.anchor.x for item in candidates) / len(candidates)
+        mean_y = sum(item.anchor.y for item in candidates) / len(candidates)
+        return (min(candidates, key=lambda item: (
+            (item.anchor.x - mean_x) ** 2 + (item.anchor.y - mean_y) ** 2,
+            item.candidate_id,
+        )),)
+    span_x = max(item.anchor.x for item in candidates) - min(
+        item.anchor.x for item in candidates
+    )
+    span_y = max(item.anchor.y for item in candidates) - min(
+        item.anchor.y for item in candidates
+    )
+    ordered = tuple(sorted(candidates, key=lambda item: (
+        item.anchor.x if span_x >= span_y else item.anchor.y,
+        item.anchor.y if span_x >= span_y else item.anchor.x,
+        item.candidate_id,
+    )))
+    left_limit = limit // 2
+    split = len(ordered) * left_limit // limit
+    return (
+        *_spatial_sample(ordered[:split], left_limit),
+        *_spatial_sample(ordered[split:], limit - left_limit),
+    )
 
 
 def _occupied_geometry(
