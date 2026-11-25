@@ -812,6 +812,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(
     import json
     from dataclasses import fields, is_dataclass
     from io import BytesIO
+
     from alembic import command
     from alembic.config import Config
     from geoalchemy2.elements import WKTElement
