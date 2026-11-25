@@ -197,7 +197,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
             endpoint_snapping=EndpointRoadSnappingPolicy(tolerance_m=1),
             anchor_policy=CandidateRoadAnchorPolicy(
                 max_candidates=p.road_anchors, max_sampled_cells=100_000,
-                allowed_zone_classes=buildable,
+                allowed_zone_classes=buildable, spatially_balanced=True,
             ),
             least_cost_policy=LeastCostConnectorPolicy(max_visited_cells=100_000),
             validation_policy=RoadValidationPolicy(
@@ -221,7 +221,7 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
                 archetypes=(BuildingArchetypeConfig(
                     archetype=BuildingArchetype.POINT,
                     footprint_strategy=BuildingFootprintStrategy.RECTANGULAR_POINT,
-                    placement_scope=BuildingPlacementScope.PARCEL,
+                    placement_scope=BuildingPlacementScope.PARCEL_OR_BLOCK,
                     allowed_zones=buildable,
                 ),),
             ),
