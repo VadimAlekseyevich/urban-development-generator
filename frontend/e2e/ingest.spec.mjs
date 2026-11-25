@@ -39,11 +39,12 @@ test('real upload → persisted Job/Outbox → worker → ready DatasetVersion',
     mimeType: 'application/geo+json',
     buffer: Buffer.from(JSON.stringify(boundaryGeometry)),
   })
-  const refreshedBoundary = page.waitForResponse(response =>
-    response.request().method() === 'GET' &&
-    response.url().includes('/projects/' + projectId + '/boundary/geojson') &&
-    response.ok(),
-  )
+  const refreshedBoundary = page.waitForResponse(async response => {
+    if (response.request().method() !== 'GET' ||
+        !response.url().includes('/projects/' + projectId + '/boundary/geojson') ||
+        !response.ok()) return false
+    return (await response.json()).geometry?.type === 'MultiPolygon'
+  })
   await boundaryPanel.getByRole('button', { name: 'Сохранить границу' }).click()
   await expect(boundaryPanel.getByRole('status')).toHaveText('Граница сохранена.')
   const boundaryResponse = await refreshedBoundary
