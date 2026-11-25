@@ -273,7 +273,9 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                 )
             buildings = _require(outputs, BuildingStage.name, BuildingStageOutput)
             value = DemographyStageInput(buildings=buildings)
-        elif stage.name == InfrastructureStage.name and isinstance(config, InfrastructureStageConfig):
+        elif stage.name == InfrastructureStage.name and isinstance(
+            config, InfrastructureStageConfig,
+        ):
             demography = _require(outputs, DemographyStage.name, DemographyStageOutput)
             roads_output = _require(outputs, RoadStage.name, RoadStageOutput)
             blocks = _require(outputs, BlocksAndParcelsStage.name, BlocksAndParcelsStageOutput)
@@ -293,7 +295,7 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                 *(ref.source_ref for ref in (
                     *context.snapshot.facilities, *context.snapshot.buildings,
                 )),
-                *(geom.geometry.wkb for geom in footprints),
+                *(item.geometry.wkb for item in footprints),
                 *(part for facility in facilities for part in (
                     facility.source_ref, facility.source_feature_id, facility.facility_use,
                     repr(facility.capacity), facility.name or "", facility.geometry.wkb,

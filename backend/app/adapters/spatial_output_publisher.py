@@ -86,7 +86,9 @@ class SpatialOutputPublisher:
             )
         elif stage_name == DemographyStage.name and isinstance(output, DemographyStageOutput):
             self._demography.replace(run_id=run_id, aggregation=output.aggregation)
-        elif stage_name == InfrastructureStage.name and isinstance(output, InfrastructureStageOutput):
+        elif stage_name == InfrastructureStage.name and isinstance(
+            output, InfrastructureStageOutput,
+        ):
             for item in output.types:
                 self._infrastructure.replace(
                     run_id=run_id, state=item.placement, candidate_geometry=item.candidate_geometry,

@@ -92,7 +92,9 @@ class SqlAlchemyFacilitySourceReader:
                     raise FacilitySourceReadError("duplicate facility version")
                 selected[version_id] = (version, ref.source_ref)
             if {(key, value[0]) for key, value in selected.items()} != expected:
-                raise FacilitySourceReadError("facility versions differ from ready run-linked inputs")
+                raise FacilitySourceReadError(
+                    "facility versions differ from ready run-linked inputs"
+                )
             if run.mode == "FROM_SCRATCH" and expected:
                 raise FacilitySourceReadError("FROM_SCRATCH must not consume fixed facilities")
             for version_id, (_, source_ref) in sorted(selected.items()):
@@ -107,9 +109,13 @@ class SqlAlchemyFacilitySourceReader:
                 remaining = self._max_features - len(records)
                 rows = session.scalars(
                     select(SourceFacility)
+                    .join(DatasetVersion, DatasetVersion.id == SourceFacility.dataset_version_id)
+                    .join(Dataset, Dataset.id == DatasetVersion.dataset_id)
+                    .join(Project, Project.id == Dataset.project_id)
                     .where(
                         SourceFacility.dataset_version_id == version_id,
-                        func.ST_Intersects(SourceFacility.geometry, project.boundary),
+                        Project.id == project.id,
+                        func.ST_Intersects(SourceFacility.geometry, Project.boundary),
                     )
                     .order_by(SourceFacility.source_feature_id, SourceFacility.id)
                     .limit(remaining + 1)
