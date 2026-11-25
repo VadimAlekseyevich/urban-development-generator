@@ -829,12 +829,12 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
     from backend.app.models.project import Project
     from backend.app.models.run_stage_result import RunStageResult
     from backend.app.models.source_layer import SourceFacility, SourceLanduse, SourceRoad
+    from core.urban_generator.demography import DemographicDemandCategory
     from core.urban_generator.domain import (
         PipelineContext,
         PipelinePorts,
         ResolvedConfigBinding,
     )
-    from core.urban_generator.demography import DemographicDemandCategory
     from core.urban_generator.infrastructure import (
         ExistingFacilityMappingRule,
         InfrastructureCandidatePolicy,

@@ -62,7 +62,7 @@ from core.urban_generator.stages.roads import RoadStageOutput
 from core.urban_generator.stages.zoning import ZoningStageOutput
 from core.urban_generator.suitability import WeightedSuitabilityResult
 
-_MAX_VALIDATION_RESULTS = 100_000
+_MAX_VALIDATION_RESULTS = 10_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +75,9 @@ class FinalValidationStageConfig:
         # Use the canonical rule registrations to enforce exact aggregate IDs.
         build_aggregate_bound_registrations(self.hard_bounds)
         build_soft_preference_registrations(self.soft_preferences)
-        if type(self.max_results) is not int or not 1 <= self.max_results <= _MAX_VALIDATION_RESULTS:
+        if type(self.max_results) is not int or not (
+            1 <= self.max_results <= _MAX_VALIDATION_RESULTS
+        ):
             raise ValueError("final validation max_results is outside the bound")
 
 
@@ -147,15 +149,13 @@ class FinalValidationStage:
             subject=subject, stage=self.name, scope=ConstraintScope.TERRITORY,
             snapshot=snapshot, context=context,
         )
-        if len(value.zoning.constraints.report.results) + len(aggregate.results) > config.max_results:
+        prior_count = len(value.zoning.constraints.report.results) + len(aggregate.results)
+        if prior_count > config.max_results:
             raise ValueError("final validation report exceeds result budget")
         results: list[ConstraintResult] = []
 
         def append(result: ConstraintResult) -> None:
-            if (
-                len(results) + len(value.zoning.constraints.report.results)
-                + len(aggregate.results) >= config.max_results
-            ):
+            if len(results) + prior_count >= config.max_results:
                 raise ValueError("final validation report exceeds result budget")
             results.append(result)
 
@@ -184,17 +184,26 @@ class FinalValidationStage:
         site_rule = GeometryExclusionConstraint(
             scope=ConstraintScope.INFRASTRUCTURE, index=exclusion,
         )
+        building_failures = 0
         for building in value.buildings.area_subjects:
             result = building_rule.evaluate(
                 subject=GeometryExclusionSubject(building.geometry, building.working_srid),
                 snapshot=snapshot, context=context,
             )
-            append(replace(
-                result, entity_ref=ConstraintEntityRef(building.building_id),
-                problem_geometry=(
-                    None if result.passed else ConstraintProblemGeometry(building.geometry, srid)
-                ),
+            if not result.passed:
+                building_failures += 1
+                append(replace(
+                    result, entity_ref=ConstraintEntityRef(building.building_id),
+                    problem_geometry=ConstraintProblemGeometry(building.geometry, srid),
+                ))
+        if not building_failures:
+            append(ConstraintResult(
+                code="buildings.geometry.exclusion", severity=ConstraintSeverity.HARD,
+                scope=ConstraintScope.BUILDING, passed=True,
+                message=f"Checked {len(value.buildings.area_subjects)} generated buildings",
             ))
+        site_count = 0
+        site_failures = 0
         for type_output in value.infrastructure.types:
             sites = {item.candidate_id: item for item in type_output.candidate_geometry.candidates}
             for accepted in type_output.placement.accepted_facilities:
@@ -202,17 +211,23 @@ class FinalValidationStage:
                 if site.site_geometry is None:
                     # Host-building geometry is covered by the building checks.
                     continue
+                site_count += 1
                 result = site_rule.evaluate(
                     subject=GeometryExclusionSubject(site.site_geometry, site.working_srid),
                     snapshot=snapshot, context=context,
                 )
-                append(replace(
-                    result, entity_ref=ConstraintEntityRef(site.candidate_id),
-                    problem_geometry=(
-                        None if result.passed
-                        else ConstraintProblemGeometry(site.site_geometry, srid)
-                    ),
-                ))
+                if not result.passed:
+                    site_failures += 1
+                    append(replace(
+                        result, entity_ref=ConstraintEntityRef(site.candidate_id),
+                        problem_geometry=ConstraintProblemGeometry(site.site_geometry, srid),
+                    ))
+        if not site_failures:
+            append(ConstraintResult(
+                code="infrastructure.geometry.exclusion", severity=ConstraintSeverity.HARD,
+                scope=ConstraintScope.INFRASTRUCTURE, passed=True,
+                message=f"Checked {site_count} standalone generated facilities",
+            ))
         report = aggregate_validation_reports((
             value.zoning.constraints.report, ValidationReport(results=tuple(results)), aggregate,
         ))
@@ -237,7 +252,9 @@ class FinalValidationStage:
             diagnostics=(StageDiagnostic(
                 code="final_validation.completed",
                 message=f"Validation found {len(report.hard_failures)} hard failures",
-                level=StageDiagnosticLevel.INFO if report.is_valid else StageDiagnosticLevel.WARNING,
+                level=(
+                    StageDiagnosticLevel.INFO if report.is_valid else StageDiagnosticLevel.WARNING
+                ),
             ),),
         )
 

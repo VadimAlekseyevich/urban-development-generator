@@ -23,3 +23,8 @@ Spatial validation is not a complete jurisdiction-specific planning-code
 checker. Earlier placement and topology algorithms remain responsible for
 spacing, frontage and generated-object construction; this final stage checks
 specified aggregate and hard spatial evidence, not arbitrary local rules.
+
+The report budget is aligned with the SQL writer's 10,000-result bound.
+Successful building/site checks are summarized per scope; each failed spatial
+check retains its own entity and geometry evidence. Exceeding the result bound
+fails closed instead of truncating violations.

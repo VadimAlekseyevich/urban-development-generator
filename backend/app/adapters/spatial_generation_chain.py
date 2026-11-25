@@ -321,7 +321,9 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                 blocks=_require(outputs, BlocksAndParcelsStage.name, BlocksAndParcelsStageOutput),
                 buildings=_require(outputs, BuildingStage.name, BuildingStageOutput),
                 demography=_require(outputs, DemographyStage.name, DemographyStageOutput),
-                infrastructure=_require(outputs, InfrastructureStage.name, InfrastructureStageOutput),
+                infrastructure=_require(
+                    outputs, InfrastructureStage.name, InfrastructureStageOutput,
+                ),
             )
         elif stage.name == MetricsStage.name and isinstance(config, MetricsStageConfig):
             value = _require(outputs, FinalValidationStage.name, FinalValidationStageOutput)
