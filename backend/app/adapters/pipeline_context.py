@@ -85,6 +85,34 @@ _OSM_LAYER_TABLES: tuple[tuple[SnapshotLayerKind, Table], ...] = (
 )
 
 
+def dataset_snapshot_kinds(
+    session: Session, dataset_kind: str, version_id: uuid.UUID,
+) -> tuple[SnapshotLayerKind, ...]:
+    """Resolve the same layer families for run admission and worker assembly."""
+    if dataset_kind != "osm":
+        kind = _DATASET_KIND_TO_SNAPSHOT_KIND.get(dataset_kind)
+        if kind is None:
+            raise PipelineContextAssemblyError(
+                f"unsupported Dataset.kind for TerritorySnapshot: {dataset_kind}"
+            )
+        return (kind,)
+    # Six bounded, indexed probes; an OSM import can own several families.
+    kinds = tuple(
+        kind
+        for kind, table in _OSM_LAYER_TABLES
+        if session.scalar(
+            select(table.c.id)
+            .where(table.c.dataset_version_id == version_id)
+            .limit(1)
+        ) is not None
+    )
+    if not kinds:
+        raise PipelineContextAssemblyError(
+            f"ready OSM dataset version has no canonical source rows: {version_id}"
+        )
+    return kinds
+
+
 class SqlAlchemyPipelineContextAdapter:
     """Read persisted run inputs and return infrastructure-neutral core context."""
 
@@ -230,22 +258,7 @@ class SqlAlchemyPipelineContextAdapter:
                 raise PipelineContextAssemblyError(
                     f"dataset version is not ready: {version_id}"
                 )
-            if dataset_kind == "osm":
-                # A real PBF import stores roads, buildings and other source
-                # families in one version. Preserve typed snapshot ownership
-                # by looking at the actual canonical tables for that version.
-                kinds = self._osm_snapshot_kinds(version_id)
-                if not kinds:
-                    raise PipelineContextAssemblyError(
-                        f"ready OSM dataset version has no canonical source rows: {version_id}"
-                    )
-            else:
-                snapshot_kind = _DATASET_KIND_TO_SNAPSHOT_KIND.get(dataset_kind)
-                if snapshot_kind is None:
-                    raise PipelineContextAssemblyError(
-                        f"unsupported Dataset.kind for TerritorySnapshot: {dataset_kind}"
-                    )
-                kinds = (snapshot_kind,)
+            kinds = dataset_snapshot_kinds(self._session, dataset_kind, version_id)
             for snapshot_kind in kinds:
                 layers[snapshot_kind].append(
                     SnapshotLayerRef(
@@ -271,20 +284,6 @@ class SqlAlchemyPipelineContextAdapter:
             constraints=tuple(layers[SnapshotLayerKind.CONSTRAINTS]),
             dem=tuple(layers[SnapshotLayerKind.DEM]),
             demography=tuple(layers[SnapshotLayerKind.DEMOGRAPHY]),
-        )
-
-    def _osm_snapshot_kinds(self, version_id: uuid.UUID) -> tuple[SnapshotLayerKind, ...]:
-        # Each table has a (dataset_version_id, id) keyset index. These six
-        # LIMIT 1 probes are independent of the number of city features.
-        return tuple(
-            kind
-            for kind, table in _OSM_LAYER_TABLES
-            if self._session.scalar(
-                select(table.c.id)
-                .where(table.c.dataset_version_id == version_id)
-                .limit(1)
-            )
-            is not None
         )
 
     @staticmethod
