@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from math import isfinite
 
 from shapely import make_valid, normalize
-from shapely.strtree import STRtree
 from shapely.geometry import LineString, Polygon
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import polygonize_full
+from shapely.strtree import STRtree
 
 from core.urban_generator.domain.crs import WorkingCRS, require_working_crs
 from core.urban_generator.roads.road_graph import RoadGraph
@@ -196,7 +197,7 @@ class RoadNetworkBlockPolygonizer:
         )
 
 
-def _polygon_parts(geometry) -> tuple[Polygon, ...]:
+def _polygon_parts(geometry: BaseGeometry) -> tuple[Polygon, ...]:
     if isinstance(geometry, Polygon):
         return (geometry,) if not geometry.is_empty else ()
     if geometry.geom_type in {"MultiPolygon", "GeometryCollection"}:
