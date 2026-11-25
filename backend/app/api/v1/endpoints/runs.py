@@ -13,6 +13,7 @@ from backend.app.db.run_control import RunConfigInvalid, RunControlConflict, Run
 from backend.app.schemas.run_control import RunCreate, RunListRead, RunStateRead
 
 router = APIRouter(prefix="/projects/{project_id}/runs", tags=["runs"])
+config_router = APIRouter(prefix="/generation", tags=["generation-config"])
 
 
 def _raise_run_error(exc: RunControlNotFound | RunControlConflict) -> NoReturn:
@@ -55,7 +56,7 @@ def create_run(
         _raise_run_error(exc)
 
 
-@router.post("/planning-config")
+@config_router.post("/planning-config")
 def planning_config(payload: PlanningParameters) -> dict[str, Any]:
     """Preview a complete canonical profile; this endpoint never queues work."""
     try:
