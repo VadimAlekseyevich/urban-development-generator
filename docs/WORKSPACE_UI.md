@@ -60,3 +60,17 @@ Frontend Node tests assert URL restoration, project/version owner resets,
 project API read/create/error flows, and a single root workspace/pin. Existing
 layer registry/tree, compare and polling tests remain mandatory, together
 with Python/core, PostGIS, benchmark, migration and Compose CI.
+
+## Project boundary input (P0)
+
+The **Данные** workspace includes a **Граница территории** panel. Select or
+create a project, then upload a GeoJSON Polygon/MultiPolygon (geometry, Feature
+or single-feature FeatureCollection) in WGS84 longitude/latitude, up to 2 MiB.
+The panel submits the existing project boundary PUT endpoint and refreshes the
+canonical boundary map source after a successful server response. The backend
+owns topology, CRS and post-run immutability checks; HTTP errors are shown in
+the panel. Drawing/editing on the map is not included in this slice.
+
+The real browser ingest test now also exercises boundary persistence and the
+subsequent canonical GET before importing the source roads. This does not
+resolve the production generation worker blocker (#202).
