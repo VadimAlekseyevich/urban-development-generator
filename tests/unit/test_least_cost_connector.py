@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 import pytest
-from shapely.geometry import box
+from shapely.geometry import Polygon, box
 
 from core.urban_generator.roads import (
     CandidateRoadAnchor,
@@ -391,3 +391,21 @@ def test_exact_vector_barrier_returns_no_path() -> None:
     )
     assert result.status is LeastCostConnectionStatus.NO_PATH
     assert result.geometry is None
+
+
+def test_ryazan_building_between_cell_centers() -> None:
+    # Source osm:way:87646349 from the uploaded Ryazan case (OSM, ODbL).
+    # Translated UTM coordinates, rounded to micrometres, then scaled /4
+    # to match this helper's 10 m cells (original grid 40 m).
+    obstacle = Polygon(tuple((5 + x / 4, 5 + y / 4) for x, y in (
+        (27.486971, -23.053985), (15.988858, -19.557657),
+        (39.769103, 58.291109), (52.379077, 58.435388),
+        (27.486971, -23.053985),
+    )))
+    suitability, hard_mask = make_surface(((1., 1.),))
+    result = LeastCostConnector(forbidden_geometries=(obstacle,)).connect(
+        start=make_anchor(suitability, row=0, col=0),
+        target=make_anchor(suitability, row=0, col=1),
+        suitability=suitability, hard_mask=hard_mask,
+    )
+    assert result.status is LeastCostConnectionStatus.NO_PATH
