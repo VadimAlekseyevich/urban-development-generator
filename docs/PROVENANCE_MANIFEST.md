@@ -77,3 +77,16 @@ Unicode config canonicalization, stage ordering, linked source/stage artifacts,
 registered metric units/IDs, successful-run immutability, missing evaluation,
 missing output fingerprint, incorrect ownership/checksum, non-successful and
 unknown runs.
+
+## Generation finalization (v5)
+
+The production worker uses the same canonical projection before the final stage:
+`build_pending` requires precisely eleven successful preceding stages and a
+running run. The JSON artifact retains status running and omits the twelfth
+stage, avoiding recursive inclusion of its own artifact/checksum. The public
+successful-run projection includes the final stage and its referenced artifact.
+A HARD validation failure prevents publication and success. A DEM can own its
+original source plus the canonical normalized raster; both are represented,
+with the latter under derived_artifacts. Unrecognized extra artifacts fail
+closed. The worker publishes the manifest with stage completion and requires
+all twelve successful stages and valid persisted validation before run success.

@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from backend.app.adapters.stage_config_resolver import (
+    COMPLETE_CONFIG_SCHEMA_VERSION,
     CONFIG_SCHEMA_VERSION,
     EVALUATION_CONFIG_SCHEMA_VERSION,
     INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
@@ -41,6 +42,7 @@ def main(argv: list[str] | None = None) -> None:
         "--schema-version", choices=(
             CONFIG_SCHEMA_VERSION, PREPARED_CONFIG_SCHEMA_VERSION,
             INFRASTRUCTURE_CONFIG_SCHEMA_VERSION, EVALUATION_CONFIG_SCHEMA_VERSION,
+            COMPLETE_CONFIG_SCHEMA_VERSION,
         ),
         default=CONFIG_SCHEMA_VERSION,
     )

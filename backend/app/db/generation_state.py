@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from collections.abc import Callable
@@ -32,8 +33,9 @@ from backend.app.db.session import SessionLocal
 from backend.app.models.generation_run import GenerationRun
 from backend.app.models.job import Job
 from backend.app.models.run_stage_result import RunStageResult
-from core.urban_generator.domain import StageResult
+from core.urban_generator.domain import StageResult, deserialize_validation_report
 from core.urban_generator.domain.errors import CancelledError, UrbanGeneratorError
+from core.urban_generator.stages.catalog import CANONICAL_STAGE_ORDER, PERSIST_MANIFEST_STAGE
 from core.urban_generator.stages.registry import StageAny, StageSkipReason
 
 _GENERATION_JOB_TYPE = "generation_run"
@@ -58,10 +60,12 @@ class SqlAlchemyGenerationStateStore:
         session_factory: Callable[[], Session] = SessionLocal,
         clock: Callable[[], datetime] | None = None,
         materializer: StageOutputMaterializer | None = None,
+        require_complete_manifest: bool = False,
     ) -> None:
         self._session_factory = session_factory
         self._clock = clock or (lambda: datetime.now(UTC))
         self._materializer = materializer
+        self._require_complete_manifest = require_complete_manifest
 
     def claim(self, *, run_id: uuid.UUID) -> GenerationClaimDisposition:
         with self._session_factory() as session:
@@ -438,6 +442,26 @@ class SqlAlchemyGenerationStateStore:
                     raise GenerationExecutionError(
                         "cannot complete generation with missing or incomplete stage results"
                     )
+                if self._require_complete_manifest:
+                    if (
+                        expected_stage_names != CANONICAL_STAGE_ORDER
+                        or any(row.status != "succeeded" for row in rows)
+                    ):
+                        raise GenerationExecutionError("production run requires all canonical stages")
+                    manifest = next(row for row in rows if row.stage_name == PERSIST_MANIFEST_STAGE)
+                    if (
+                        len(manifest.artifacts) != 1
+                        or manifest.artifacts[0].state != "referenced"
+                        or manifest.artifacts[0].owner_type != "run_stage_result"
+                        or manifest.artifacts[0].owner_id != manifest.id
+                        or manifest.artifacts[0].content_type != "application/json"
+                    ):
+                        raise GenerationExecutionError("production run requires a referenced manifest")
+                    report = deserialize_validation_report(
+                        json.dumps(run.validation_json, allow_nan=False).encode("utf-8")
+                    )
+                    if not report.is_valid:
+                        raise GenerationExecutionError("hard validation failures block run success")
                 if run.commit_sha is None:
                     raise GenerationExecutionError(
                         "cannot complete generation without code commit SHA"

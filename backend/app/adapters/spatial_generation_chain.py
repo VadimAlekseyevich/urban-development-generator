@@ -25,6 +25,7 @@ from backend.app.adapters.fixed_road_source_reader import SqlAlchemyFixedRoadSou
 from backend.app.adapters.hard_exclusion_source_reader import SqlAlchemyHardExclusionSourceReader
 from backend.app.adapters.urban_polygon_sources import SqlAlchemyUrbanPolygonSourceReader
 from backend.app.application.generation import GenerationExecutionError, StageInvocation
+from backend.app.db.provenance_manifest import SqlAlchemyProvenanceManifestService
 from backend.app.db.session import SessionLocal
 from core.urban_generator.blocks import BlockDevelopableArea
 from core.urban_generator.domain import (
@@ -73,6 +74,11 @@ from core.urban_generator.stages.final_evaluation import (
     FinalValidationStageOutput,
     MetricsStage,
     MetricsStageConfig,
+)
+from core.urban_generator.stages.persist_manifest import (
+    PersistManifestStage,
+    PersistManifestStageConfig,
+    PersistManifestStageInput,
 )
 from core.urban_generator.stages.registry import StageAny
 from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
@@ -205,6 +211,7 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
         self, *, session_factory: Callable[[], Session] = SessionLocal,
     ) -> None:
         super().__init__(SqlAlchemyHardExclusionSourceReader(session_factory=session_factory))
+        self._manifest = SqlAlchemyProvenanceManifestService(session_factory=session_factory)
         self._facilities = SqlAlchemyFacilitySourceReader(session_factory=session_factory)
         self._roads = SqlAlchemyFixedRoadSourceReader(session_factory=session_factory)
         self._polygons = SqlAlchemyUrbanPolygonSourceReader(session_factory=session_factory)
@@ -327,6 +334,18 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
             )
         elif stage.name == MetricsStage.name and isinstance(config, MetricsStageConfig):
             value = _require(outputs, FinalValidationStage.name, FinalValidationStageOutput)
+        elif stage.name == PersistManifestStage.name and isinstance(
+            config, PersistManifestStageConfig,
+        ):
+            validation = _require(outputs, FinalValidationStage.name, FinalValidationStageOutput)
+            # Preserve the validation failure as the terminal reason, even if a
+            # malformed source artifact would also prevent building provenance.
+            content = (
+                self._manifest.build_pending(run_id=context.run.run_id).content
+                if validation.report.is_valid else b""
+            )
+            value = PersistManifestStageInput(validation=validation.report, content=content)
+            parts = (content,)
         else:
             raise GenerationExecutionError(f"unsupported spatial stage or config: {stage.name}")
         if not is_dataclass(config) or isinstance(config, type):
@@ -377,4 +396,7 @@ def build_spatial_registry(
         registered = (
             *registered, cast(StageAny, FinalValidationStage()), cast(StageAny, MetricsStage()),
         )
+    if any(item.stage_name == PersistManifestStage.name for item in context.configs):
+        context.require_config(PersistManifestStage.name, PersistManifestStageConfig)
+        registered = (*registered, cast(StageAny, PersistManifestStage()))
     return StageRegistry(stages=registered)

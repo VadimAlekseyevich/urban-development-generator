@@ -45,12 +45,17 @@ from core.urban_generator.stages.final_evaluation import (
     MetricsStage,
     MetricsStageConfig,
 )
+from core.urban_generator.stages.persist_manifest import (
+    PersistManifestStage,
+    PersistManifestStageConfig,
+)
 from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
 
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
 PREPARED_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v2"
 INFRASTRUCTURE_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v3"
 EVALUATION_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v4"
+COMPLETE_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v5"
 MAX_CONFIG_BYTES = 1_048_576
 MAX_COLLECTION_ITEMS = 2048
 MAX_NESTED_DEPTH = 24
@@ -89,11 +94,16 @@ _EVALUATION_CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
     FinalValidationStage.name: (FinalValidationStage.version, FinalValidationStageConfig),
     MetricsStage.name: (MetricsStage.version, MetricsStageConfig),
 }
+_COMPLETE_CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
+    **_EVALUATION_CONFIG_TYPES,
+    PersistManifestStage.name: (PersistManifestStage.version, PersistManifestStageConfig),
+}
 _CONFIG_SCHEMAS: dict[str, dict[str, tuple[str, type[Any]]]] = {
     CONFIG_SCHEMA_VERSION: _CONFIG_TYPES,
     PREPARED_CONFIG_SCHEMA_VERSION: _PREPARED_CONFIG_TYPES,
     INFRASTRUCTURE_CONFIG_SCHEMA_VERSION: _INFRASTRUCTURE_CONFIG_TYPES,
     EVALUATION_CONFIG_SCHEMA_VERSION: _EVALUATION_CONFIG_TYPES,
+    COMPLETE_CONFIG_SCHEMA_VERSION: _COMPLETE_CONFIG_TYPES,
 }
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
+from io import BytesIO
 
 from sqlalchemy.orm import Session
 
@@ -44,6 +45,10 @@ from core.urban_generator.stages.final_evaluation import (
     FinalValidationStage,
     FinalValidationStageOutput,
     MetricsStage,
+)
+from core.urban_generator.stages.persist_manifest import (
+    PersistManifestStage,
+    PersistManifestStageOutput,
 )
 from core.urban_generator.suitability import (
     HardExclusionMask,
@@ -170,6 +175,17 @@ class TransactionalSpatialMaterializer:
             SqlAlchemyStageArtifactPublisher(
                 store=self._store, session_factory=nested_session,
             ).publish(run_id=run_id, stage_name=stage_name, temporary_stat=artifact.stat)
+            return
+        if stage_name == PersistManifestStage.name:
+            if not isinstance(output, PersistManifestStageOutput):
+                raise GenerationExecutionError("invalid manifest output")
+            ref = ArtifactRef(f"runs/{run_id}/stages/persist_manifest/{uuid.uuid4()}.json")
+            stat = self._store.put(ref, BytesIO(output.content), content_type="application/json")
+            if stat.checksum != output.checksum:
+                raise GenerationExecutionError("manifest checksum differs from stored bytes")
+            SqlAlchemyStageArtifactPublisher(
+                store=self._store, session_factory=nested_session,
+            ).publish(run_id=run_id, stage_name=stage_name, temporary_stat=stat)
             return
         SpatialOutputPublisher(session_factory=nested_session).publish(
             run_id=run_id, stage_name=stage_name, output=output,

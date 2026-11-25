@@ -14,6 +14,7 @@ from core.urban_generator.stages import (
     ZoningStage,
 )
 from core.urban_generator.stages.final_evaluation import FinalValidationStage, MetricsStage
+from core.urban_generator.stages.persist_manifest import PersistManifestStage
 
 
 def test_canonical_stage_catalog_is_unique_and_dependency_ordered() -> None:
@@ -44,6 +45,7 @@ def test_all_implemented_stage_adapters_satisfy_canonical_protocol() -> None:
         InfrastructureStage(),
         FinalValidationStage(),
         MetricsStage(),
+        PersistManifestStage(),
     )
 
     for stage in stages:
