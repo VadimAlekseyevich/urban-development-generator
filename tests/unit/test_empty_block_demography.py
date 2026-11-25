@@ -4,13 +4,13 @@ from dataclasses import replace
 
 import pytest
 
+from core.urban_generator.demography.age_allocation import AgeGroupPopulation
 from core.urban_generator.demography.aggregation import (
     BlockDemographicAggregate,
     DemographicAggregationResult,
     DemographicAggregationTotals,
     ZoneDemographicAggregate,
 )
-from core.urban_generator.demography.age_allocation import AgeGroupPopulation
 from core.urban_generator.stages.buildings import BuildingStageBlockRef
 from core.urban_generator.stages.demography import complete_associated_blocks
 from core.urban_generator.zoning import ZoneClass
