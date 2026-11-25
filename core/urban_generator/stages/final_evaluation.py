@@ -129,14 +129,20 @@ class FinalValidationStage:
         roads = RoadMetricAdapter().adapt(roads=value.roads)
         population = DemographyMetricAdapter().adapt(demography=value.demography)
         scalars: dict[RawMetricId, float | None] = {}
-        for metric in (
-            *land.raw_metrics, *roads.raw_metrics, *population.raw_metrics,
-            *value.infrastructure.metrics.raw_metrics,
-        ):
-            if CANONICAL_METRIC_REGISTRY.get(metric.metric_id).value_kind is MetricValueKind.SCALAR:
-                if metric.metric_id in scalars:
+        def add_scalar(metric_id: RawMetricId, scalar: float | None) -> None:
+            if CANONICAL_METRIC_REGISTRY.get(metric_id).value_kind is MetricValueKind.SCALAR:
+                if metric_id in scalars:
                     raise ValueError("duplicate authoritative scalar metric")
-                scalars[metric.metric_id] = metric.scalar_value
+                scalars[metric_id] = scalar
+
+        for land_metric in land.raw_metrics:
+            add_scalar(land_metric.metric_id, land_metric.scalar_value)
+        for road_metric in roads.raw_metrics:
+            add_scalar(road_metric.metric_id, road_metric.scalar_value)
+        for population_metric in population.raw_metrics:
+            add_scalar(population_metric.metric_id, population_metric.scalar_value)
+        for infrastructure_metric in value.infrastructure.metrics.raw_metrics:
+            add_scalar(infrastructure_metric.metric_id, infrastructure_metric.scalar_value)
         subject = AggregateConstraintSubject(values=tuple(
             AggregateMetricValue(metric_id=metric_id, value=number)
             for metric_id, number in scalars.items() if number is not None

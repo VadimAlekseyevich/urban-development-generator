@@ -73,23 +73,23 @@ SUPPORTED_CONFIG_STAGE_NAMES = tuple(
 )
 
 
-_PREPARED_CONFIG_TYPES = {
+_PREPARED_CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
     **_CONFIG_TYPES,
     SuitabilityStage.name: (SuitabilityStage.version, PreparedSuitabilityStageConfig),
     PrepareSnapshotStage.name: (PrepareSnapshotStage.version, PrepareSnapshotStageConfig),
 }
 
 
-_INFRASTRUCTURE_CONFIG_TYPES = {
+_INFRASTRUCTURE_CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
     **_PREPARED_CONFIG_TYPES,
     InfrastructureStage.name: (InfrastructureStage.version, InfrastructureStageConfig),
 }
-_EVALUATION_CONFIG_TYPES = {
+_EVALUATION_CONFIG_TYPES: dict[str, tuple[str, type[Any]]] = {
     **_INFRASTRUCTURE_CONFIG_TYPES,
     FinalValidationStage.name: (FinalValidationStage.version, FinalValidationStageConfig),
     MetricsStage.name: (MetricsStage.version, MetricsStageConfig),
 }
-_CONFIG_SCHEMAS = {
+_CONFIG_SCHEMAS: dict[str, dict[str, tuple[str, type[Any]]]] = {
     CONFIG_SCHEMA_VERSION: _CONFIG_TYPES,
     PREPARED_CONFIG_SCHEMA_VERSION: _PREPARED_CONFIG_TYPES,
     INFRASTRUCTURE_CONFIG_SCHEMA_VERSION: _INFRASTRUCTURE_CONFIG_TYPES,
