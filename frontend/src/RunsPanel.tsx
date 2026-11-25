@@ -50,6 +50,8 @@ export function RunsPanel({
   const [seed, setSeed] = useState('42')
   const configVersion = 'canonical-stage-configs-v5'
   const [configText, setConfigText] = useState('')
+  const [configLoading, setConfigLoading] = useState(false)
+  const [configFileError, setConfigFileError] = useState<string | null>(null)
   const [commitSha, setCommitSha] = useState(import.meta.env.VITE_GENERATION_COMMIT_SHA ?? '')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -94,13 +96,37 @@ export function RunsPanel({
     [runs, selectedRunId],
   )
 
+  async function importConfig(file: File): Promise<void> {
+    setConfigFileError(null)
+    if (file.size > 1024 * 1024) {
+      setConfigFileError('Файл конфигурации должен быть не больше 1 МиБ.')
+      return
+    }
+    setConfigLoading(true)
+    try {
+      const content = await file.text()
+      const parsed: unknown = JSON.parse(content)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
+        !('schema_version' in parsed) || parsed.schema_version !== configVersion ||
+        !('stages' in parsed) || !parsed.stages || typeof parsed.stages !== 'object' ||
+        Array.isArray(parsed.stages)) {
+        throw new Error('Требуется полная конфигурация canonical-stage-configs-v5.')
+      }
+      setConfigText(content)
+    } catch (caught: unknown) {
+      setConfigFileError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
   function refresh(): void {
     setRefreshKey((current) => current + 1)
   }
 
   async function submitCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
-    if (!projectId || chosenInputs.length === 0 || busy) return
+    if (!projectId || chosenInputs.length === 0 || busy || configLoading) return
     setActionError(null)
     setActionMessage(null)
     if (!/^\d+$/.test(seed) || !Number.isSafeInteger(Number(seed))) {
@@ -192,9 +218,19 @@ export function RunsPanel({
             onChange={(event) => setCommitSha(event.target.value)} placeholder="Commit worker-сборки" required />
         </label>
         <label>
+          Импорт конфигурации (.json)
+          <input type="file" accept=".json,application/json" disabled={busy || configLoading}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void importConfig(file)
+            }} />
+        </label>
+        {configFileError && <p className="form-error" role="alert">{configFileError}</p>}
+        <label>
           Полная конфигурация (JSON)
           <textarea rows={4} value={configText} placeholder="Вставьте полную конфигурацию v5"
-            onChange={(event) => setConfigText(event.target.value)} spellCheck={false} required />
+            onChange={(event) => setConfigText(event.target.value)} disabled={configLoading || busy} spellCheck={false} required />
         </label>
         <fieldset className="run-inputs" disabled={!projectId || busy}>
           <legend>Исходные данные генерации ({chosenInputs.length}/32)</legend>
@@ -234,7 +270,7 @@ export function RunsPanel({
           </ul>}
         </fieldset>
         <p className="helper-text">Указывайте реальный исполняемый commit и поддерживаемую worker конфигурацию.</p>
-        <button className="button button-primary" disabled={!projectId || chosenInputs.length === 0 || busy}
+        <button className="button button-primary" disabled={!projectId || chosenInputs.length === 0 || busy || configLoading}
           type="submit">Создать запуск</button>
       </form>
 
