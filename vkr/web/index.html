@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Квартал · Генератор застройки</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="shell brand">
+        <svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">
+          <rect width="30" height="30" rx="5" fill="#234f48" />
+          <path
+            d="M5 5h10v8H5zm13 0h7v14h-7zM5 16h10v9H5zm13 6h7v3h-7z"
+            fill="#f6f1df"
+          /></svg
+        ><strong>Квартал</strong
+        ><span class="brand-tag">Генератор городской застройки</span>
+      </div>
+    </header>
+    <main class="shell">
+      <div class="heading">
+        <h1>План застройки</h1>
+        <p>Учебный квартал <span>·</span> 800 × 500 м</p>
+      </div>
+      <div class="workspace">
+        <aside class="panel controls">
+          <h2>Параметры генерации</h2>
+          <form id="params">
+            <label for="target">Целевое население</label>
+            <div class="field">
+              <input
+                type="number"
+                id="target"
+                value="300"
+                required
+                min="0"
+                max="1000000"
+                step="1"
+              /><span>чел.</span>
+            </div>
+            <label for="seats">Свободные места в школе</label>
+            <div class="field">
+              <input
+                type="number"
+                id="seats"
+                value="60"
+                required
+                min="0"
+                max="1000000"
+                step="1"
+              /><span>мест</span>
+            </div>
+            <label for="seed">Номер варианта</label>
+            <div class="field">
+              <input
+                type="number"
+                id="seed"
+                value="42"
+                required
+                min="0"
+                max="1000000"
+                step="1"
+              /><span>seed</span>
+            </div>
+            <p class="hint">Одинаковые параметры дают один и тот же план.</p>
+            <button id="generate" type="submit" disabled>
+              Сгенерировать <span aria-hidden="true">→</span>
+            </button>
+            <p id="error" role="alert" hidden></p>
+          </form>
+          <details>
+            <summary>Допущения модели</summary>
+            <p>
+              Жилая площадь — 75% площади этажей. На одного жителя отведено 30
+              м². На каждые начатые 10 жителей требуется одно школьное место.
+              Доступность школы измеряется по прямой.
+            </p>
+          </details>
+        </aside>
+        <section class="panel map-panel" aria-labelledby="map-title">
+          <div class="map-head">
+            <h2 id="map-title">Схема квартала</h2>
+            <span id="map-state">Исходный участок</span>
+          </div>
+          <div class="drawing">
+            <svg
+              id="map"
+              viewBox="-22 -24 844 550"
+              role="group"
+              aria-label="Карта участка, улиц, школы, парка и жилых домов"
+            ></svg>
+          </div>
+          <div class="legend">
+            <span><i class="home"></i>Жильё</span
+            ><span><i class="park"></i>Парк</span
+            ><span><i class="school"></i>Школа</span
+            ><span><i class="zone"></i>Радиус школы</span>
+          </div>
+          <p id="house" class="house" aria-live="polite">
+            Выберите дом на готовой схеме, чтобы посмотреть его характеристики.
+          </p>
+        </section>
+      </div>
+      <section class="panel results" aria-labelledby="result-title">
+        <div class="result-head">
+          <h2 id="result-title">Результат расчёта</h2>
+          <span id="reason" role="status">Ожидает генерации</span>
+        </div>
+        <dl>
+          <div>
+            <dt>Цель, чел.</dt>
+            <dd id="goal">—</dd>
+          </div>
+          <div>
+            <dt>Размещено, чел.</dt>
+            <dd id="population">—</dd>
+          </div>
+          <div>
+            <dt>Дефицит, чел.</dt>
+            <dd id="deficit">—</dd>
+          </div>
+          <div>
+            <dt>Жилых домов</dt>
+            <dd id="count">—</dd>
+          </div>
+          <div>
+            <dt>Мест в школе занято</dt>
+            <dd id="used">—</dd>
+          </div>
+        </dl>
+        <p id="limits" hidden></p>
+      </section>
+    </main>
+  </body>
+</html>

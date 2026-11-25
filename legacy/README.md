@@ -1,0 +1,180 @@
+# Urban Development Generator
+
+Информационная система для процедурной генерации и моделирования развития городской застройки с учётом пространственных, инфраструктурных и демографических ограничений.
+
+Основной сценарий — **расширение существующего города**. Дополнительный режим — генерация городской структуры с нуля на том же алгоритмическом ядре.
+
+## Что должен уметь продукт
+
+Система должна поддерживать полный 2D GIS-конвейер:
+
+1. создание проекта и загрузку геоданных;
+2. импорт GeoJSON, Shapefile, GeoPackage, GeoTIFF и подготовленных данных OSM/Overture;
+3. нормализацию CRS и валидацию геометрий;
+4. анализ пригодности территории;
+5. функциональное зонирование;
+6. расширение/генерацию дорожной сети;
+7. выделение и разбиение кварталов;
+8. процедурное размещение зданий без внутренней планировки помещений;
+9. расчёт населения и спроса на инфраструктуру;
+10. размещение инфраструктуры с учётом сетевой доступности;
+11. проверку ограничений и расчёт метрик;
+12. генерацию нескольких вариантов с фиксированным seed;
+13. сравнение сценариев на интерактивной карте;
+14. экспорт пространственных результатов и метрик.
+
+3D-визуализация, поэтажные планы и внутренняя планировка зданий не входят в обязательный объём.
+
+## Архитектура
+
+Монорепозиторий состоит из четырёх основных частей:
+
+- `backend/` — FastAPI, REST API, проекты, загрузки, запуски и экспорт;
+- `core/` — независимое Python-ядро пространственного анализа и генерации;
+- `worker/` — выполнение тяжёлых GIS-задач вне HTTP-процесса;
+- `frontend/` — React + TypeScript + MapLibre GL JS.
+
+Хранилище — PostgreSQL + PostGIS. Redis используется как брокер/хранилище состояния фоновых задач.
+
+## Быстрый старт
+
+Требования: Docker Compose, Python 3.12+, Node.js 22+ (если запускать frontend вне Docker).
+
+Полный dev stack поднимается одной стандартной командой:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+После запуска:
+
+- API: `http://localhost:8000`
+- Swagger: `http://localhost:8000/docs`
+- Frontend: `http://localhost:5173`
+- PostgreSQL: `localhost:5432`
+
+Проверка готовности backend и его зависимостей:
+
+```bash
+curl http://localhost:8000/api/v1/health/ready
+```
+
+Для production-like развёртывания с **внешними** PostgreSQL/Redis/S3 и
+непривилегированными контейнерами используйте `compose.production.yml`;
+сохраните секреты в локальном `.env.production`, не публикуйте их в Git.
+Подробности: [docs/PRODUCTION_COMPOSE.md](docs/PRODUCTION_COMPOSE.md).
+
+## Разработка
+
+Python-зависимости фиксируются в `uv.lock`; установка должна быть воспроизводимой:
+
+```bash
+make install
+make check
+```
+
+Эквивалентные команды:
+
+```bash
+uv sync --frozen --dev
+uv run ruff check .
+uv run mypy backend core worker
+uv run pytest
+```
+
+Frontend-зависимости фиксируются в `frontend/package-lock.json`:
+
+```bash
+make frontend-install
+make frontend-check
+```
+
+Для запуска frontend отдельно:
+
+```bash
+cd frontend
+npm ci --no-audit --no-fund
+npm run dev
+```
+
+## Quality gates
+
+Required CI проверяет Python lint/typecheck/tests, полный Alembic `upgrade → downgrade → upgrade`, frontend typecheck/build и smoke-запуск полного Docker Compose stack. Work item не считается завершённым при красном HEAD CI.
+
+## Документация
+
+- `docs/PROJECT_DESCRIPTION.md` — исходная постановка ВКР;
+- `docs/DEVELOPMENT_PLAN.md` — техническое задание и общий roadmap;
+- `docs/IMPLEMENTATION_VERSION_ROADMAP.md` — capability roadmap и sprint/release gates;
+- `docs/07-planning/AI_EXECUTION_TASKS.md` — ordered one-request-sized execution backlog;
+- `docs/07-planning/IMPLEMENTATION_READINESS.md` — архитектурный gate перед feature work;
+- `docs/07-planning/ARCHITECTURE_DEBT_AUDIT.md` — текущий аудит архитектурного долга;
+- `docs/02-architecture/PIPELINE_MODEL.md` — канонический Stage/pipeline execution contract;
+- `docs/DEMO_REFERENCE.md` — ориентир по demo/reference-сценарию; для реальных примеров используется Рязань без привязки архитектуры к конкретному городу;
+- `docs/METRIC_REGISTRY.md` — canonical RawMetricId/MetricDefinition registry и runtime metadata;
+- `docs/LAND_BUILDING_METRICS.md` — S11 land/building raw metric adapter и source policy;
+- `docs/ROAD_RAW_METRICS.md` — S11 road raw metric adapter без graph rebuild;
+- `docs/DEMOGRAPHY_RAW_METRICS.md` — S11 demography raw metric adapter поверх typed S09 metrics;
+- `docs/INFRASTRUCTURE_RAW_METRICS.md` — S11 infrastructure adapter, напрямую переиспользующий canonical S10 metrics;
+- `docs/CONSTRAINT_RAW_METRICS.md` — S11 constraint raw metrics из canonical ValidationReport;
+- `docs/METRIC_NORMALIZATION.md` — S11 versioned normalization direction/range/clamp/missing contract;
+- `docs/COMPOSITE_SCORE.md` — S11 explainable composite score, weights and persisted raw score inputs;
+- `docs/SCORE_SENSITIVITY.md` — S11 weight sensitivity over persisted evaluation snapshots without GIS rerun;
+- `docs/VIOLATIONS_LAYER.md` — S11 run-scoped canonical validation persistence, API and MapLibre violations UI;
+- `docs/METRICS_DASHBOARD.md` — S11 persisted score explanation API/UI with canonical raw metric units;
+- `docs/S11_REGRESSION_FIXTURES.md` — S11 deterministic raw-metric/validation/score regression acceptance envelope;
+- `docs/PROVENANCE_MANIFEST.md` — S12 canonical successful-run provenance JSON, ordering and validation contract;
+- `docs/RUN_COMPARE.md` — S12 bounded persisted scenario comparison over canonical raw metrics and validation;
+- `docs/RUN_CONTROL.md` — S12 project-scoped run create/cancel/retry API and bounded frontend progress polling;
+- `docs/COMPARE_UI.md` — S12 2–10 persisted comparison tables and shared generated-layer map run pin;
+- `docs/LAYER_CATALOG.md` — S13 canonical owner-qualified layer definitions, delivery bounds and renderer-neutral hints;
+- `docs/BOUNDED_VECTOR_API.md` — S13 generalized catalog-scoped bbox/keyset reads with strict WGS84 presentation and metre simplification;
+- `docs/MVT_TILE_API.md` — S13 bounded MVT tiles with published-only immutable ETags, conditional 304 and active-run no-store;
+- `docs/FRONTEND_LAYER_REGISTRY.md` — frontend layer ID/owner/transport registry and separate renderer styles;
+- `docs/LAYER_TREE.md` — complete 18-layer owner-aware tree with shared visibility and source/generated/validation convergence;
+- `docs/GEOJSON_EXPORT.md` — asynchronous immutable-owner single-layer GeoJSON export jobs and ArtifactStore download;
+- `docs/GEOPACKAGE_EXPORT.md` — bounded canonical multi-layer GeoPackage export jobs with batch reads and ArtifactStore publication;
+- `docs/METRICS_CSV_EXPORT.md` — bounded synchronous single-run/compare canonical raw-metrics CSV export;
+- `docs/PROVENANCE_EXPORT.md` — project-scoped deterministic JSON download of normalized config and complete successful-run provenance;
+- `docs/LARGE_UPLOAD_UX.md` — raw multipart upload progress/cancel/retry and bounded dataset version discovery;
+- `docs/WORKSPACE_UI.md` — S13 project/datasets/map/generation/metrics/compare workspace composition and owner isolation;
+- `docs/PLAYWRIGHT_E2E.md` — S13 real-browser Playwright CI, isolated fixture, and explicit ingest workflow limitations;
+- `docs/INGEST_SUBMISSION.md` — real project-scoped uploaded Artifact → DatasetVersion → outbox → deployed ingest worker, verified without seeded DB versions;
+- `docs/WORKER_QUEUES.md` — S14 isolated ARQ workers, limits, legacy drain and rollout/rollback;
+- `docs/JOB_ADMISSION.md` — S14 DB-authoritative per-project active job budgets and HTTP 429 backpressure;
+- `docs/OPERATIONAL_METRICS.md` — S14 disabled-by-default token-guarded Prometheus DB/Redis operational telemetry;
+- `docs/DB_QUERY_PROFILING.md` and `docs/RASTER_MEMORY_PROFILING.md` — S14 measured SQL/PostGIS plans and raster peak memory/streamed fingerprints;
+- `docs/ROAD_HOTPATH_PROFILING.md` — S14 repeated noding/snap/routing performance and bounded-work counters, archived as CI JSON;
+- `docs/TERRITORY_COMPOSITE_PROFILING.md` — S14 reproducible 25/100 km² composite reference workloads, machine metadata and budgets;
+- `docs/07-planning/DELIVERY_RISK_AUDIT_2026-10-11.md` — independent release-risk audit with functional blockers and non-waivable acceptance gates;
+- `docs/ARCHITECTURE.md` — стабильные системные границы;
+- `docs/DATA_MODEL.md` — модель данных;
+- `docs/API.md` — контракт API по мере реализации.
+
+## Статус
+
+**Sprint S11 и S12 завершены; M0–M4 contract/integration gates закрыты. S13 реализован through UG-AI-094**: canonical Stage DAG выполняется worker-side через explicit typed runtime composition и DB-authoritative run/job/stage progress; checkpoint provenance и StageResult output fingerprint сохраняются раздельно.
+
+Обязательный **M0 Architecture Stabilization Gate завершён**. Stabilization evidence commit:
+`39eaa1688e06669b0e01e999304710873fd9cf0e`; required Python, frontend и Docker Compose CI на нём зелёные.
+
+Результат M0:
+
+- один канонический `Stage/StageResult` contract и coarse stage catalog;
+- S04–S09 доступны через typed Stage adapters;
+- deterministic in-memory pipeline spine проходит через demography;
+- fixed/generated, CRS, determinism, bounds, persistence/job/artifact invariants защищены regression gates;
+- `RunStageResult` отдельно хранит input/config provenance и canonical output fingerprint;
+- Critical/High architecture debt: **0 open**;
+- оставшиеся Medium-пункты назначены конкретным будущим S11/S13 задачам;
+- future roadmap S10–S15/R1–R10 проверен против стабилизированных contracts.
+
+Readiness остаётся **ACCEPTED**; S12-T15 добавляет сравнение 2–10 запусков и единый выбранный run для generated/validation слоёв карты. Playwright браузерный E2E с синтетическими persisted fixtures добавлен в S13-T14; полноценный пользовательский импорт и расчёт по реальным данным всё ещё требуют отдельного подтверждения. Эксперименты воспроизводимости — S15. Следующий ordered execution item —
+**`UG-AI-107 / S14-T13`** из `docs/07-planning/AI_EXECUTION_TASKS.md`.
+
+Историческая арифметика work items не является оценкой end-to-end готовности продукта. Текущий
+прогресс определяется milestone gates и ordered UG-AI backlog.
+
+Актуальный порядок выполнения определяют `IMPLEMENTATION_READINESS.md`, `MILESTONES.md`,
+`AI_EXECUTION_TASKS.md` и capability roadmap.
