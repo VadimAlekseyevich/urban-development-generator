@@ -114,3 +114,16 @@ No hard GIS validation is relaxed. Final validation now rejects a positive
 generated population target with zero allocation; stage diagnostics are
 exposed in run control so a user can see the reason. Partial positive
 allocation remains an explicit shortfall, not a universal failure.
+
+
+## Planning profile and replay acceptance (new gate)
+
+The 100 m FROM_SCRATCH smoke scenario passed alongside EXPANSION in CI
+45684956177. The new 400 m square test imports real DEM and landuse bytes,
+uses the browser planning form (40 m cells, target 300 residents, other
+profile fields unchanged), submits the actual configuration, waits for all
+stages, checks nonempty spatial layers, pins the new result without reload
+and verifies the building viewport reads that run. The public background
+style alone is replaced offline. A second same-seed FROM_SCRATCH run must
+match complete geometry multisets and score metrics, not run UUIDs or
+timestamps. No database seeding. New gates are not confirmed until green CI.
