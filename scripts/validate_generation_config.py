@@ -16,6 +16,7 @@ from pathlib import Path
 
 from backend.app.adapters.stage_config_resolver import (
     CONFIG_SCHEMA_VERSION,
+    EVALUATION_CONFIG_SCHEMA_VERSION,
     INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
     PREPARED_CONFIG_SCHEMA_VERSION,
     CanonicalStageConfigResolver,
@@ -39,7 +40,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--schema-version", choices=(
             CONFIG_SCHEMA_VERSION, PREPARED_CONFIG_SCHEMA_VERSION,
-            INFRASTRUCTURE_CONFIG_SCHEMA_VERSION,
+            INFRASTRUCTURE_CONFIG_SCHEMA_VERSION, EVALUATION_CONFIG_SCHEMA_VERSION,
         ),
         default=CONFIG_SCHEMA_VERSION,
     )

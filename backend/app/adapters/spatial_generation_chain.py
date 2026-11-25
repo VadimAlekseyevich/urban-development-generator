@@ -52,6 +52,7 @@ from core.urban_generator.stages import (
     InfrastructureStage,
     InfrastructureStageConfig,
     InfrastructureStageInput,
+    InfrastructureStageOutput,
     PrepareSnapshotStage,
     RoadStage,
     RoadStageConfig,
@@ -64,6 +65,14 @@ from core.urban_generator.stages import (
     ZoningStageConfig,
     ZoningStageInput,
     ZoningStageOutput,
+)
+from core.urban_generator.stages.final_evaluation import (
+    FinalValidationStage,
+    FinalValidationStageConfig,
+    FinalValidationStageInput,
+    FinalValidationStageOutput,
+    MetricsStage,
+    MetricsStageConfig,
 )
 from core.urban_generator.stages.registry import StageAny
 from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
@@ -301,6 +310,23 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                     repr(facility.capacity), facility.name or "", facility.geometry.wkb,
                 )),
             )
+        elif stage.name == FinalValidationStage.name and isinstance(
+            config, FinalValidationStageConfig,
+        ):
+            value = FinalValidationStageInput(
+                prepared=_require(outputs, PrepareSnapshotStage.name, ConstraintMaskStageInput),
+                suitability=_require(outputs, SuitabilityStage.name, WeightedSuitabilityResult),
+                zoning=_require(outputs, ZoningStage.name, ZoningStageOutput),
+                roads=_require(outputs, RoadStage.name, RoadStageOutput),
+                blocks=_require(outputs, BlocksAndParcelsStage.name, BlocksAndParcelsStageOutput),
+                buildings=_require(outputs, BuildingStage.name, BuildingStageOutput),
+                demography=_require(outputs, DemographyStage.name, DemographyStageOutput),
+                infrastructure=_require(
+                    outputs, InfrastructureStage.name, InfrastructureStageOutput,
+                ),
+            )
+        elif stage.name == MetricsStage.name and isinstance(config, MetricsStageConfig):
+            value = _require(outputs, FinalValidationStage.name, FinalValidationStageOutput)
         else:
             raise GenerationExecutionError(f"unsupported spatial stage or config: {stage.name}")
         if not is_dataclass(config) or isinstance(config, type):
@@ -316,7 +342,7 @@ def build_spatial_registry(
     *, context: PipelineContext, constraint_engine: ConstraintEngine,
     session_factory: Callable[[], Session] = SessionLocal,
 ) -> StageRegistry:
-    """First eight or nine real stages; not yet a complete deployed worker registry."""
+    """First eight, nine or eleven real stages; never deploy an incomplete registry."""
     config = context.require_config(SuitabilityStage.name, SuitabilityStageConfig)
     factors: list[SuitabilityFactor] = [
         RunScopedDEMSlopeFactor(SqlAlchemyDEMSourceReader(
@@ -345,4 +371,10 @@ def build_spatial_registry(
     if any(item.stage_name == InfrastructureStage.name for item in context.configs):
         context.require_config(InfrastructureStage.name, InfrastructureStageConfig)
         registered = (*registered, cast(StageAny, InfrastructureStage()))
+    if any(item.stage_name == FinalValidationStage.name for item in context.configs):
+        context.require_config(FinalValidationStage.name, FinalValidationStageConfig)
+        context.require_config(MetricsStage.name, MetricsStageConfig)
+        registered = (
+            *registered, cast(StageAny, FinalValidationStage()), cast(StageAny, MetricsStage()),
+        )
     return StageRegistry(stages=registered)

@@ -845,6 +845,10 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
         InfrastructureType,
     )
     from core.urban_generator.stages import InfrastructureStageConfig, PrepareSnapshotStageConfig
+    from core.urban_generator.stages.final_evaluation import (
+        FinalValidationStageConfig,
+        MetricsStageConfig,
+    )
     from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
     from core.urban_generator.suitability import LanduseClassWeight, LanduseClassWeights
 
@@ -975,6 +979,31 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 snap_policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=100),
                 mapping_rules=(ExistingFacilityMappingRule("clinic", "clinic.primary"),),
             )),
+            ("final_validation", FinalValidationStageConfig(hard_bounds=(
+                AggregateMetricBound(RawMetricId.BUILDINGS_COVERAGE_RATIO, minimum=0, maximum=1),
+                AggregateMetricBound(RawMetricId.BUILDINGS_FAR, minimum=0, maximum=10),
+                AggregateMetricBound(RawMetricId.DEMOGRAPHY_DENSITY_PER_KM2, minimum=0),
+                AggregateMetricBound(RawMetricId.INFRASTRUCTURE_CAPACITY_UTILIZATION,
+                                     minimum=0, maximum=1),
+            ))),
+            ("metrics", MetricsStageConfig(
+                normalization_profile=MetricNormalizationProfile(
+                    profile_id="real-chain", version="1",
+                    policies=(MetricNormalizationPolicy(
+                        metric_id=RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT,
+                        direction=MetricDirection.LOWER_IS_BETTER,
+                        lower_bound=0, upper_bound=10, version="1",
+                        clamp_policy=NormalizationClampPolicy.CLAMP,
+                        missing_policy=NormalizationMissingPolicy.REJECT,
+                    ),),
+                ),
+                score=CompositeScoreConfig(
+                    config_id="real-chain", version="1",
+                    weights=(CompositeScoreMetricWeight(
+                        RawMetricId.CONSTRAINTS_HARD_VIOLATION_COUNT, 1,
+                    ),),
+                ),
+            )),
         )
         context = PipelineContext(
             run=run_context, snapshot=snapshot,
@@ -1022,6 +1051,10 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
         assert len(infrastructure.existing.facilities) == 1
         assert infrastructure.existing.facilities[0].capacity == 1
         assert infrastructure.types[0].placement.accepted_facilities
+        validation = outputs["final_validation"]
+        assert validation.report.results
+        score = outputs["metrics"]
+        assert score.metrics[0].raw_value == len(validation.report.hard_failures)
         with session_factory() as session:
             for table in ("generated_zones", "generated_roads", "generated_blocks",
                           "generated_parcels", "generated_buildings", "generated_infrastructure"):
@@ -1036,7 +1069,9 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             assert session.query(SourceRoad).count() == 1
             stages = session.query(RunStageResult).filter_by(run_id=run_id).all()
             assert session.query(SourceFacility).count() == 1
-            assert len(stages) == 9
+            assert len(stages) == 11
+            assert run.validation_json["results"]
+            assert run.metrics_json["evaluation"]["composite_score"] == score.score
             assert all(stage.status == "succeeded" for stage in stages)
             raster_stage = next(stage for stage in stages if stage.stage_name == "suitability")
             assert len(raster_stage.artifacts) == 1

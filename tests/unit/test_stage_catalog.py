@@ -13,6 +13,7 @@ from core.urban_generator.stages import (
     SuitabilityStage,
     ZoningStage,
 )
+from core.urban_generator.stages.final_evaluation import FinalValidationStage, MetricsStage
 
 
 def test_canonical_stage_catalog_is_unique_and_dependency_ordered() -> None:
@@ -41,6 +42,8 @@ def test_all_implemented_stage_adapters_satisfy_canonical_protocol() -> None:
         BuildingStage(),
         DemographyStage(),
         InfrastructureStage(),
+        FinalValidationStage(),
+        MetricsStage(),
     )
 
     for stage in stages:

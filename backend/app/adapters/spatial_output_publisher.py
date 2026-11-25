@@ -14,9 +14,12 @@ from backend.app.db.generated_demography_writer import SqlAlchemyGeneratedDemogr
 from backend.app.db.generated_infrastructure_writer import SqlAlchemyGeneratedInfrastructureWriter
 from backend.app.db.generated_road_writer import SqlAlchemyGeneratedRoadWriter
 from backend.app.db.generated_zone_writer import SqlAlchemyGeneratedZoneWriter
+from backend.app.db.run_metrics_writer import SqlAlchemyRunMetricsWriter
+from backend.app.db.run_validation_writer import SqlAlchemyRunValidationWriter
 from backend.app.db.session import SessionLocal
 from backend.app.db.stage_artifact_publication import SqlAlchemyStageArtifactPublisher
 from core.urban_generator.domain import ArtifactRef, ArtifactStore, StageResult
+from core.urban_generator.metrics import CompositeScoreResult
 from core.urban_generator.stages import (
     BlocksAndParcelsStage,
     BlocksAndParcelsStageOutput,
@@ -37,6 +40,11 @@ from core.urban_generator.stages import (
     ZoningStage,
     ZoningStageOutput,
 )
+from core.urban_generator.stages.final_evaluation import (
+    FinalValidationStage,
+    FinalValidationStageOutput,
+    MetricsStage,
+)
 from core.urban_generator.suitability import (
     HardExclusionMask,
     SuitabilityArtifactWriter,
@@ -54,6 +62,7 @@ class SpatialOutputPublisher:
     def __init__(
         self, *, session_factory: Callable[[], Session] = SessionLocal,
     ) -> None:
+        self._session_factory = session_factory
         self._zones = SqlAlchemyGeneratedZoneWriter(session_factory=session_factory)
         self._roads = SqlAlchemyGeneratedRoadWriter(session_factory=session_factory)
         self._blocks = SqlAlchemyGeneratedBlockParcelWriter(session_factory=session_factory)
@@ -94,6 +103,16 @@ class SpatialOutputPublisher:
                     run_id=run_id, state=item.placement, candidate_geometry=item.candidate_geometry,
                     candidate_snaps=item.snaps, infrastructure_type=item.infrastructure_type,
                 )
+        elif stage_name == FinalValidationStage.name and isinstance(
+            output, FinalValidationStageOutput,
+        ):
+            SqlAlchemyRunValidationWriter(session_factory=self._session_factory).replace(
+                run_id=run_id, report=output.report,
+            )
+        elif stage_name == MetricsStage.name and isinstance(output, CompositeScoreResult):
+            SqlAlchemyRunMetricsWriter(session_factory=self._session_factory).replace(
+                run_id=run_id, result=output,
+            )
         else:
             raise GenerationExecutionError(f"unsupported spatial output: {stage_name}")
 
