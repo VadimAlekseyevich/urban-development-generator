@@ -63,6 +63,6 @@ cases still require separate scenario measurements.
   changes require S14-T03's independent `EXPLAIN ANALYZE` evidence.
 - Timings are diagnostic measurements on CI hardware, **not throughput SLOs**.
   Variance, fixture representativeness and real 25/100 km² end-to-end
-  performance require S14-T07. The production runtime blocker #178 remains
+  performance require S14-T07. The production runtime blocker #202 remains
   independently tracked.
 

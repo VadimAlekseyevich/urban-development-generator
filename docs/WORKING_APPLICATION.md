@@ -83,3 +83,15 @@ docker compose up --build
 [07-planning](07-planning/README.md) — исторический контекст.
 Подсистемные документы в docs/ сохраняются как технические справочники;
 название sprint/work item в них не является заявлением о готовности продукта.
+
+### Documentation review scope (25.11.2026)
+
+Inventory: 166 existing Markdown documents (including README) plus this page.
+All 167 were retrieved and screened for stale issue #178, conflicting explicit
+next-task statements, misleading production-readiness phrases and missing
+relative Markdown link targets. The main navigation, readiness, run/ingest
+contracts, browser-test descriptions and affected subsystem notes were
+reviewed and corrected. This is a targeted consistency review, not a claim
+that every historical algorithm specification has been revalidated against
+all current source code. Preserve contract evidence; correct subsystem details
+as part of the corresponding functional changes.
