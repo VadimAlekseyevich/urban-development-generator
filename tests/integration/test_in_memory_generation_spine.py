@@ -819,11 +819,15 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
         SpatialGenerationInputResolver,
         build_spatial_registry,
     )
-    from backend.app.adapters.spatial_output_publisher import SpatialOutputPublisher
+    from backend.app.adapters.spatial_output_publisher import TransactionalSpatialMaterializer
+    from backend.app.application.generation import GenerationClaimDisposition, StageCompletionInput
+    from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
     from backend.app.db.session import engine
     from backend.app.models.dataset import Dataset, DatasetVersion
     from backend.app.models.generation_run import GenerationRun
+    from backend.app.models.job import Job
     from backend.app.models.project import Project
+    from backend.app.models.run_stage_result import RunStageResult
     from backend.app.models.source_layer import SourceLanduse, SourceRoad
     from core.urban_generator.domain import (
         PipelineContext,
@@ -883,10 +887,15 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             run = GenerationRun(
                 project_id=project.id, mode="EXPANSION", status="queued",
                 seed=20260919, working_srid=WORKING_SRID,
-                config_json={}, config_schema_version="fixture",
+                config_json={}, config_schema_version="fixture", commit_sha="a" * 40,
             )
             run.dataset_versions.extend(versions)
             session.add(run)
+            session.flush()
+            session.add(Job(
+                project_id=project.id, run_id=run.id, job_type="generation_run",
+                idempotency_key=f"run:{run.id}", status="queued",
+            ))
             session.commit()
             snapshot = TerritorySnapshot(
                 snapshot_id=run.id, project=ProjectRef(project_id=project.id),
@@ -942,18 +951,28 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             session_factory=session_factory,
         )
         resolver = SpatialGenerationInputResolver(session_factory=session_factory)
-        publisher = SpatialOutputPublisher(session_factory=session_factory)
+        state = SqlAlchemyGenerationStateStore(
+            session_factory=session_factory,
+            materializer=TransactionalSpatialMaterializer(
+                artifact_store=context.ports.artifact_store,
+            ),
+        )
+        assert state.claim(run_id=run_id) is GenerationClaimDisposition.STARTED
         outputs = {}
         for stage in registry.topological_stages:
             cfg = dict(configs)[stage.name]
             invocation = resolver.resolve(stage=stage, context=context, config=cfg, outputs=outputs)
+            identity = state.resolve_identity(run_id=run_id, stage=stage, invocation=invocation)
+            state.start_stage(run_id=run_id, identity=identity)
+            stage_input = stage.validate_input(invocation.stage_input)
             result = stage.execute(
-                snapshot=snapshot, context=run_context,
-                stage_input=stage.validate_input(invocation.stage_input), config=cfg,
+                snapshot=snapshot, context=run_context, stage_input=stage_input, config=cfg,
+            )
+            state.complete_stage(
+                run_id=run_id, stage_name=stage.name, result=result,
+                completion=StageCompletionInput(stage_input=stage_input, config=cfg),
             )
             outputs[stage.name] = result.output
-            if stage.name in {"zoning", "roads", "blocks_and_parcels", "buildings", "demography"}:
-                publisher.publish(run_id=run_id, stage_name=stage.name, output=result.output)
 
         assert outputs["suitability"].valid_count == 100
         distance = RunScopedRoadProximityFactor(
@@ -973,9 +992,19 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 ).scalar_one()
                 assert count > 0, table
             run = session.get(GenerationRun, run_id)
-            assert run.status == "queued"
+            assert run.status == "running"
             assert "demography" in run.metrics_json
             assert session.query(SourceRoad).count() == 1
+            stages = session.query(RunStageResult).filter_by(run_id=run_id).all()
+            assert len(stages) == 8
+            assert all(stage.status == "succeeded" for stage in stages)
+            raster_stage = next(stage for stage in stages if stage.stage_name == "suitability")
+            assert len(raster_stage.artifacts) == 1
+            artifact = raster_stage.artifacts[0]
+            assert artifact.owner_id == raster_stage.id
+            assert artifact.state == "referenced"
+            assert artifact.content_type == "image/tiff"
+            assert artifact.uri.endswith(".tif")
     finally:
         with engine.begin() as connection:
             connection.execute(text("TRUNCATE TABLE projects, artifacts CASCADE"))

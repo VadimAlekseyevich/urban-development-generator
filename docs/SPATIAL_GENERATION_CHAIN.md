@@ -15,14 +15,20 @@ than claiming every route is automatically repaired. Blocks use the zoning
 developable geometry; building spacing uses actual fixed footprints.
 
 SpatialOutputPublisher delegates zones, roads, blocks/parcels, buildings and
-demography to the existing writers in dependency order. Each writer owns a
-transaction. This is not yet the deployed lifecycle/publication boundary.
-The test executes real PostGIS-selected roads and landuse through all eight
-stages, persists output and verifies run-scoped rows, without falsely marking
-the incomplete run succeeded. The prior DEM integration test covers GeoTIFF.
+demography to the existing writers. TransactionalSpatialMaterializer uses the
+existing SQL state store completion transaction and nested writer savepoints
+on the same connection, so stage success and output rows commit together.
+Cancellation is checked under the existing run/job locks before writing.
+Suitability is serialized by the existing two-band GeoTIFF writer, then
+published through the canonical artifact publisher and linked to the stage.
+Blob promotion remains external to SQL; orphan GC reclaims unreferenced
+bytes after rollback. The test executes real PostGIS-selected roads and
+landuse through eight stages and verifies rows, stage states and raster
+ownership without marking the incomplete run succeeded. The prior DEM test
+covers GeoTIFF inputs. Production worker startup is not yet installed.
 
 Not yet supported in this composition: fixed zones, actual demographic
-baselines, existing building GFA baseline allocation, suitability artifact
-publication, infrastructure, final validation, metrics, manifest, full worker
-startup and cancel/retry-safe output publication. Do not register the partial
+baselines, existing building GFA baseline allocation, infrastructure,
+final validation, metrics, manifest, full worker startup and full crash/retry
+acceptance. Do not register the partial
 registry as a production worker or declare release acceptance.

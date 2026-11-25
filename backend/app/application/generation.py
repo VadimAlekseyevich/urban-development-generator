@@ -73,6 +73,14 @@ class StageInvocation:
                 raise GenerationExecutionError(f"{label} must contain only str or bytes")
 
 
+@dataclass(frozen=True, slots=True)
+class StageCompletionInput:
+    """Exact typed inputs needed to publish the result of an executing Stage."""
+
+    stage_input: object
+    config: object
+
+
 class GenerationInputResolver(Protocol):
     """Resolve one canonical Stage input from completed typed dependency outputs."""
 
@@ -141,6 +149,7 @@ class GenerationStateStore(Protocol):
         run_id: uuid.UUID,
         stage_name: str,
         result: StageResult[object],
+        completion: StageCompletionInput | None = None,
     ) -> None: ...
 
     def skip_stage(
@@ -279,6 +288,7 @@ class GenerationJobService:
                     run_id=run_id,
                     stage_name=stage.name,
                     result=result,
+                    completion=StageCompletionInput(stage_input=stage_input, config=binding.value),
                 )
                 completed[stage.name] = result.output
                 succeeded.append(stage.name)

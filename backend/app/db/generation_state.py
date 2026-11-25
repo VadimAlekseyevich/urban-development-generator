@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from math import ceil
+from typing import Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
     GenerationRetryScheduled,
+    StageCompletionInput,
     StageInvocation,
     generation_retry_delay_seconds,
 )
@@ -38,6 +40,15 @@ _GENERATION_JOB_TYPE = "generation_run"
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
+class StageOutputMaterializer(Protocol):
+    """Persist typed output using the already locked stage-completion transaction."""
+
+    def materialize(
+        self, *, session: Session, run_id: uuid.UUID, stage_name: str,
+        result: StageResult[object], completion: StageCompletionInput,
+    ) -> None: ...
+
+
 class SqlAlchemyGenerationStateStore:
     """Persist each DAG transition independently in PostgreSQL, never in core."""
 
@@ -46,9 +57,11 @@ class SqlAlchemyGenerationStateStore:
         *,
         session_factory: Callable[[], Session] = SessionLocal,
         clock: Callable[[], datetime] | None = None,
+        materializer: StageOutputMaterializer | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._materializer = materializer
 
     def claim(self, *, run_id: uuid.UUID) -> GenerationClaimDisposition:
         with self._session_factory() as session:
@@ -281,16 +294,28 @@ class SqlAlchemyGenerationStateStore:
         run_id: uuid.UUID,
         stage_name: str,
         result: StageResult[object],
+        completion: StageCompletionInput | None = None,
     ) -> None:
         with self._session_factory() as session:
             with session.begin():
                 run = self._require_running(session, run_id)
-                self._require_not_cancelled(self._job(session, run))
+                job = self._job(session, run)
+                self._require_not_cancelled(job)
+                if job.status != "running":
+                    raise GenerationExecutionError("stage publication requires a running job")
                 stage_row = self._stage(session, run_id, stage_name)
                 if stage_row.status != "running":
                     raise GenerationExecutionError(
                         f"stage must be running before completion: {stage_name}"
                     )
+                if self._materializer is not None:
+                    if completion is None:
+                        raise GenerationExecutionError("stage publication requires typed inputs")
+                    self._materializer.materialize(
+                        session=session, run_id=run_id, stage_name=stage_name,
+                        result=result, completion=completion,
+                    )
+                    session.flush()
                 stage_row.status = "succeeded"
                 stage_row.progress_percent = 100
                 stage_row.output_fingerprint = result.fingerprint.value

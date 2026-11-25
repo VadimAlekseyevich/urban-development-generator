@@ -22,6 +22,7 @@ from backend.app.application.generation import (
     GenerationJobService,
     GenerationRetryScheduled,
     GenerationRuntime,
+    StageCompletionInput,
     StageInvocation,
     generation_retry_delay_seconds,
 )
@@ -225,7 +226,10 @@ class FakeStateStore:
         run_id: uuid.UUID,
         stage_name: str,
         result: StageResult[object],
+        completion: StageCompletionInput | None = None,
     ) -> None:
+        assert completion is not None
+        assert completion.config == f"config:{stage_name}"
         self.records[stage_name] = ("succeeded", result.fingerprint)
 
     def skip_stage(

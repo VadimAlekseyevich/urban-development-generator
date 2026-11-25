@@ -7,24 +7,37 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from backend.app.application.generation import GenerationExecutionError
+from backend.app.application.generation import GenerationExecutionError, StageCompletionInput
 from backend.app.db.generated_block_parcel_writer import SqlAlchemyGeneratedBlockParcelWriter
 from backend.app.db.generated_building_writer import SqlAlchemyGeneratedBuildingWriter
 from backend.app.db.generated_demography_writer import SqlAlchemyGeneratedDemographyWriter
 from backend.app.db.generated_road_writer import SqlAlchemyGeneratedRoadWriter
 from backend.app.db.generated_zone_writer import SqlAlchemyGeneratedZoneWriter
 from backend.app.db.session import SessionLocal
+from backend.app.db.stage_artifact_publication import SqlAlchemyStageArtifactPublisher
+from core.urban_generator.domain import ArtifactRef, ArtifactStore, StageResult
 from core.urban_generator.stages import (
     BlocksAndParcelsStage,
     BlocksAndParcelsStageOutput,
     BuildingStage,
     BuildingStageOutput,
+    ConstraintMaskStage,
+    ConstraintMaskStageInput,
     DemographyStage,
     DemographyStageOutput,
+    PrepareSnapshotStage,
     RoadStage,
     RoadStageOutput,
+    SuitabilityStage,
+    SuitabilityStageConfig,
+    SuitabilityStageInput,
     ZoningStage,
     ZoningStageOutput,
+)
+from core.urban_generator.suitability import (
+    HardExclusionMask,
+    SuitabilityArtifactWriter,
+    WeightedSuitabilityResult,
 )
 
 
@@ -69,3 +82,63 @@ class SpatialOutputPublisher:
             self._demography.replace(run_id=run_id, aggregation=output.aggregation)
         else:
             raise GenerationExecutionError(f"unsupported spatial output: {stage_name}")
+
+
+
+class TransactionalSpatialMaterializer:
+    """Commit GIS rows and artifact ownership with the authoritative stage row.
+
+    Existing writers use savepoints on the already locked DB connection, not
+    independent transactions. The temporary/ready blob is external to SQL;
+    existing orphan GC is responsible for unreferenced bytes after rollback.
+    """
+
+    def __init__(self, *, artifact_store: ArtifactStore) -> None:
+        self._store = artifact_store
+
+    def materialize(
+        self, *, session: Session, run_id: uuid.UUID, stage_name: str,
+        result: StageResult[object], completion: StageCompletionInput,
+    ) -> None:
+        if not session.in_transaction():
+            raise GenerationExecutionError("materialization requires an active transaction")
+        connection = session.connection()
+
+        def nested_session() -> Session:
+            return Session(
+                bind=connection, join_transaction_mode="create_savepoint",
+                expire_on_commit=False,
+            )
+
+        output = result.output
+        if stage_name == PrepareSnapshotStage.name:
+            if not isinstance(output, ConstraintMaskStageInput):
+                raise GenerationExecutionError("invalid prepared territory output")
+            return
+        if stage_name == ConstraintMaskStage.name:
+            if not isinstance(output, HardExclusionMask):
+                raise GenerationExecutionError("invalid hard mask output")
+            return
+        if stage_name == SuitabilityStage.name:
+            if (
+                not isinstance(output, WeightedSuitabilityResult)
+                or not isinstance(completion.stage_input, SuitabilityStageInput)
+                or not isinstance(completion.config, SuitabilityStageConfig)
+            ):
+                raise GenerationExecutionError("invalid suitability publication inputs")
+            # A stage row forbids automatic replay after side effects. A unique
+            # key avoids replacing earlier bytes if a publication fails.
+            ref = ArtifactRef(f"runs/{run_id}/stages/suitability/{uuid.uuid4()}.tif")
+            artifact = SuitabilityArtifactWriter().write(
+                self._store, output_ref=ref, result=output,
+                config=completion.config.suitability,
+                hard_mask=completion.stage_input.hard_mask,
+                promote=False,
+            )
+            SqlAlchemyStageArtifactPublisher(
+                store=self._store, session_factory=nested_session,
+            ).publish(run_id=run_id, stage_name=stage_name, temporary_stat=artifact.stat)
+            return
+        SpatialOutputPublisher(session_factory=nested_session).publish(
+            run_id=run_id, stage_name=stage_name, output=output,
+        )
