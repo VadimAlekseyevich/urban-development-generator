@@ -278,6 +278,9 @@ class RoadStage:
         ).validate(
             graph=graph,
             forbidden_geometries=value.forbidden_geometries,
+            baseline_component_count=(
+                fixed_graph.diagnostics.component_count if fixed_graph is not None else 0
+            ),
         )
         metrics = RoadMetricsCalculator(policy=config.metrics_policy).calculate(
             graph=graph,
@@ -299,6 +302,11 @@ class RoadStage:
             warnings.append(
                 f"road validation produced {len(validation.issues)} issue(s), "
                 f"{validation.diagnostics.forbidden_crossing_count} forbidden crossings"
+            )
+        if validation.diagnostics.baseline_component_count > 1:
+            warnings.append(
+                f"source network has {validation.diagnostics.baseline_component_count} components; "
+                f"{validation.diagnostics.unattached_generated_component_count} unattached generated"
             )
         if fixed_attachment is not None and not fixed_attachment.complete:
             warnings.append(

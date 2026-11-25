@@ -190,3 +190,21 @@ def test_touching_hole_repair_preserves_area_without_road_graph_changes() -> Non
         for second in result.blocks[i + 1:]:
             assert first.geometry.intersection(second.geometry).area == 0
     assert tuple(edge.geometry.wkb for edge in graph.edges) == before
+
+
+def test_pedestrian_path_does_not_split_block_when_excluded() -> None:
+    graph = _graph((
+        ((0, 0), (5, 0)), ((5, 0), (10, 0)),
+        ((10, 0), (10, 10)), ((10, 10), (5, 10)),
+        ((5, 10), (0, 10)), ((0, 10), (0, 0)),
+        ((5, 0), (5, 10)),
+    ))
+    polygonizer = RoadNetworkBlockPolygonizer(working_srid=WORKING_SRID)
+    assert len(polygonizer.polygonize(graph).blocks) == 2
+    result = polygonizer.polygonize(
+        graph, excluded_road_ids=frozenset({"road-006"}),
+    )
+    assert len(result.blocks) == 1
+    assert result.blocks[0].geometry.equals(box(0, 0, 10, 10))
+    assert result.diagnostics.excluded_road_edge_count == 1
+    assert len(graph.edges) == 7

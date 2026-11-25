@@ -272,6 +272,10 @@ class SpatialGenerationInputResolver(EarlyGenerationInputResolver):
                     developable_mask=area, working_srid=context.run.working_srid,
                 ),
                 generated_zone_refs=zoning.generated_zone_refs,
+                pedestrian_road_ids=frozenset(
+                    road.road_id for road in roads_output.classification.roads
+                    if road.road_class == "path"
+                ),
             )
             parts = (area.wkb, prepared.boundary.geometry.wkb)
         elif stage.name == BuildingStage.name and isinstance(config, BuildingStageConfig):

@@ -61,6 +61,7 @@ class BlockPolygonizationDiagnostics:
     invalid_ring_count: int
     repaired_candidate_count: int = 0
     repaired_part_count: int = 0
+    excluded_road_edge_count: int = 0
 
     @property
     def non_polygonized_line_count(self) -> int:
@@ -103,7 +104,9 @@ class RoadNetworkBlockPolygonizer:
         self.max_edges = max_edges
         self.max_candidate_blocks = max_candidate_blocks
 
-    def polygonize(self, graph: RoadGraph) -> BlockPolygonizationResult:
+    def polygonize(
+        self, graph: RoadGraph, *, excluded_road_ids: frozenset[str] = frozenset(),
+    ) -> BlockPolygonizationResult:
         if not isinstance(graph, RoadGraph):
             raise BlockPolygonizationError("graph must be a RoadGraph")
         if graph.working_crs != self.working_crs:
@@ -116,9 +119,15 @@ class RoadNetworkBlockPolygonizer:
                 f"polygonize edge limit exceeded: {len(graph.edges)} > {self.max_edges}"
             )
 
+        if not isinstance(excluded_road_ids, frozenset):
+            raise BlockPolygonizationError("excluded road ids must be a frozenset")
+        excluded_edge_count = 0
         unique_lines: dict[tuple[tuple[float, float], ...], LineString] = {}
         duplicate_line_count = 0
         for edge in sorted(graph.edges, key=lambda item: item.edge_id):
+            if edge.road_id in excluded_road_ids:
+                excluded_edge_count += 1
+                continue
             key = _canonical_line_key(edge.geometry)
             if key in unique_lines:
                 duplicate_line_count += 1
@@ -189,6 +198,7 @@ class RoadNetworkBlockPolygonizer:
             invalid_ring_count=len(invalid_rings.geoms),
             repaired_candidate_count=repaired_count,
             repaired_part_count=len(repaired_indexes),
+            excluded_road_edge_count=excluded_edge_count,
         )
         return BlockPolygonizationResult(
             working_crs=self.working_crs,

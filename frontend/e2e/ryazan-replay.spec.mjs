@@ -60,6 +60,8 @@ test('Ryazan exact extracted sources, EXPANSION, real worker', async ({ request 
     const growth = config.stages.roads.config.growth_policy
     growth.max_iterations = 40
     growth.sparse_neighbourhood = true
+    config.stages.roads.config.validation_policy.preserve_source_components = true
+    config.stages.blocks_and_parcels.config.exclude_pedestrian_boundaries = true
   }
   const run = await checked(await request.post(root + '/runs', {
     data: {

@@ -109,6 +109,7 @@ class PlanningParameters(BaseModel):
     recreation_percent: int = Field(default=10, ge=0, le=99)
     zoning_seeds: int = Field(default=16, ge=1, le=128)
     road_anchors: int = Field(default=24, ge=3, le=64)
+    sparse_road_growth: bool = False
     max_block_area_m2: float = Field(default=20000, ge=400, le=100000)
     floors: int = Field(default=4, ge=1, le=16)
     coverage_ratio: float = Field(default=0.25, ge=0.05, le=0.6)
@@ -202,7 +203,8 @@ def build_planning_config(p: PlanningParameters) -> dict[str, Any]:
             ),
             least_cost_policy=LeastCostConnectorPolicy(max_visited_cells=100_000),
             growth_policy=RuleBasedRoadGrowthPolicy(
-                max_iterations=40, sparse_neighbourhood=True,
+                max_iterations=40 if p.sparse_road_growth else 200,
+                sparse_neighbourhood=p.sparse_road_growth,
             ),
             validation_policy=RoadValidationPolicy(
                 max_component_count=1, max_dead_end_ratio=1,
