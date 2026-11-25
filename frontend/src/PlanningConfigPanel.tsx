@@ -57,8 +57,7 @@ export function PlanningConfigPanel({ apiBase, projectId, disabled, onLoading, o
     }
     onLoading(true)
     try {
-      const response = await fetch(apiBase.replace(/\/$/, '') + '/projects/' +
-        encodeURIComponent(projectId) + '/runs/planning-config', {
+      const response = await fetch(apiBase.replace(/\/$/, '') + '/generation/planning-config', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
@@ -109,7 +108,7 @@ export function PlanningConfigPanel({ apiBase, projectId, disabled, onLoading, o
       </button>
       {error && <p role="alert" className="form-error">{error}</p>}
       {applied && <p role="status" className="helper-text">
-        Конфигурация записана в редактор ниже. Запуск ещё не создан.
+        Профиль сформирован. В редакторе ниже можно изменить его перед запуском.
       </p>}
     </fieldset>
   )
