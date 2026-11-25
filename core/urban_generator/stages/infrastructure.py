@@ -164,21 +164,6 @@ class InfrastructureStage:
         value = self.validate_input(stage_input)
         if not isinstance(config, InfrastructureStageConfig):
             raise TypeError("infrastructure requires InfrastructureStageConfig")
-        srid = context.working_srid
-        if (
-            snapshot.settings.working_srid != srid
-            or value.network.snapshot.working_crs.srid != srid
-            or value.blocks.working_crs.srid != srid
-        ):
-            raise ValueError("infrastructure metric CRS mismatch")
-        if context.mode is RunMode.FROM_SCRATCH and (
-            snapshot.facilities or value.fixed_facilities or value.fixed_building_footprints
-        ):
-            raise ValueError("FROM_SCRATCH cannot consume fixed urban facilities or buildings")
-        if snapshot.facilities and not value.fixed_facilities:
-            raise ValueError("fixed facility refs require hydrated source records")
-        if snapshot.buildings and not value.fixed_building_footprints:
-            raise ValueError("fixed building refs require hydrated source footprints")
         if not isinstance(value.demand_profile, DemographicDemandProfile):
             raise TypeError("invalid demographic demand profile")
         if not isinstance(value.network, NetworkBackend):
@@ -191,6 +176,24 @@ class InfrastructureStage:
             or not isinstance(value.fixed_building_footprints, tuple)
         ):
             raise TypeError("infrastructure inputs must use canonical immutable spatial types")
+        srid = context.working_srid
+        if (
+            snapshot.snapshot_id != context.run_id
+            or snapshot.settings.working_srid != srid
+            or value.network.snapshot.working_crs.srid != srid
+            or value.blocks.working_crs.srid != srid
+        ):
+            raise ValueError("infrastructure run or metric CRS mismatch")
+        if context.mode is RunMode.FROM_SCRATCH and (
+            snapshot.facilities or value.fixed_facilities or value.fixed_building_footprints
+        ):
+            raise ValueError("FROM_SCRATCH cannot consume fixed urban facilities or buildings")
+        if snapshot.facilities and not value.fixed_facilities:
+            raise ValueError("fixed facility refs require hydrated source records")
+        if snapshot.buildings and not value.fixed_building_footprints:
+            raise ValueError("fixed building refs require hydrated source footprints")
+        if value.fixed_building_footprints and not snapshot.buildings:
+            raise ValueError("resolved fixed building footprints require snapshot refs")
         count = sum(map(len, (
             value.blocks.blocks, value.parcels, value.buildings,
             value.fixed_facilities, value.fixed_building_footprints,
@@ -215,7 +218,11 @@ class InfrastructureStage:
                   for item in value.blocks.blocks}
         if any(item.block_id not in blocks for item in gross.demands):
             raise ValueError("infrastructure demand references missing block geometry")
+        if any(item.working_srid != srid for item in value.buildings):
+            raise ValueError("infrastructure building CRS mismatch")
         host_geometries = {item.building_id: item.geometry for item in value.buildings}
+        if len(host_geometries) != len(value.buildings):
+            raise ValueError("duplicate infrastructure host building identity")
         static_occupied = STRtree([
             *(item.geometry for item in value.buildings),
             *value.fixed_building_footprints,
@@ -353,30 +360,32 @@ class InfrastructureStage:
             repr(config), value.network.snapshot.snapshot_id,
         ):
             fingerprint.add_text(part)
-        for item in output.existing.facilities:
-            fingerprint.add_text(item.facility_id)
-            fingerprint.add_text(repr(item.capacity))
-            fingerprint.add_bytes(item.geometry.wkb)
-        for item in demand.demands:
-            fingerprint.add_text(repr(item))
-        for item in results:
-            for candidate in item.candidate_geometry.candidates:
+        for facility in output.existing.facilities:
+            fingerprint.add_text(facility.facility_id)
+            fingerprint.add_text(repr(facility.capacity))
+            fingerprint.add_bytes(facility.geometry.wkb)
+        for demand_item in demand.demands:
+            fingerprint.add_text(repr(demand_item))
+        for type_result in results:
+            for candidate in type_result.candidate_geometry.candidates:
                 fingerprint.add_text(candidate.candidate_id)
                 fingerprint.add_bytes(candidate.anchor.wkb)
                 if candidate.site_geometry is not None:
                     fingerprint.add_bytes(candidate.site_geometry.wkb)
                 fingerprint.add_text(candidate.host_building_id or "")
-            for row in item.snaps.snapped:
-                fingerprint.add_text(repr(row))
-            for row in item.snaps.unsnapped:
-                fingerprint.add_text(repr(row))
-            for access in (item.existing_accessibility, item.candidate_accessibility):
-                for row in (*access.reachable, *access.unavailable):
-                    fingerprint.add_text(repr(row))
-            for row in item.placement.accepted_facilities:
-                fingerprint.add_text(repr(row))
-            for row in item.placement.remaining_demand:
-                fingerprint.add_text(repr(row))
+            for snapped in type_result.snaps.snapped:
+                fingerprint.add_text(repr(snapped))
+            for unsnapped in type_result.snaps.unsnapped:
+                fingerprint.add_text(repr(unsnapped))
+            for access in (type_result.existing_accessibility, type_result.candidate_accessibility):
+                for reachable in access.reachable:
+                    fingerprint.add_text(repr(reachable))
+                for unavailable in access.unavailable:
+                    fingerprint.add_text(repr(unavailable))
+            for accepted in type_result.placement.accepted_facilities:
+                fingerprint.add_text(repr(accepted))
+            for remaining in type_result.placement.remaining_demand:
+                fingerprint.add_text(repr(remaining))
         for metric in output.metrics.raw_metrics:
             fingerprint.add_text(repr(metric))
         return StageResult(

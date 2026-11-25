@@ -748,6 +748,9 @@ def _run_canonical_stage(*, occupied: bool = False):
         facilities=(SnapshotLayerRef(
             kind=SnapshotLayerKind.FACILITIES, source_ref="dataset:facilities:v1",
         ),),
+        buildings=(SnapshotLayerRef(
+            kind=SnapshotLayerKind.BUILDINGS, source_ref="dataset:buildings:v1",
+        ),) if occupied else (),
     )
     context = RunContext(
         run_id=run_id, mode=RunMode.EXPANSION, seed=42, working_srid=WORKING_SRID,
@@ -757,7 +760,9 @@ def _run_canonical_stage(*, occupied: bool = False):
     blocks = []
     parcels = []
     for block_id, x, site_x in (("block-a", 100, 200), ("block-b", 400, 400)):
-        geometry = box(x - 15, -15, x + 15, 15)
+        geometry = box(x - 115, -15, x + 115, 15) if block_id == "block-a" else box(
+            x - 15, -15, x + 15, 15,
+        )
         member = SplitBlockCandidate(
             block_id="split:" + block_id, input_block_id="input:" + block_id,
             source_block_id="source:" + block_id, source_fragment_index=0,
@@ -808,7 +813,9 @@ def _run_canonical_stage(*, occupied: bool = False):
                 max_candidates=10, max_demands=10, demand_batch_size=10,
                 max_routing_calls=10, max_results=10,
             ),
-            placement_policy=InfrastructureGreedyPlacementPolicy(max_facilities=4, max_iterations=4),
+            placement_policy=InfrastructureGreedyPlacementPolicy(
+                max_facilities=4, max_iterations=4,
+            ),
         ),
     )
 
