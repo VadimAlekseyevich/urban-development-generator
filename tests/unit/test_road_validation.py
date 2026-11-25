@@ -146,3 +146,33 @@ def test_validation_enforces_explicit_work_bounds_and_input_shape() -> None:
 
     with pytest.raises(RoadValidationError, match="max_dead_end_ratio"):
         RoadValidationPolicy(max_dead_end_ratio=1.1)
+
+
+def test_expansion_accepts_inherited_components_but_not_new_islands() -> None:
+    source = (
+        _road("a", ((0, 0), (10, 0)), generated=False),
+        _road("b", ((100, 0), (110, 0)), generated=False),
+    )
+    attached = _road("c", ((10, 0), (20, 0)), generated=True)
+    isolated = _road("d", ((50, 0), (60, 0)), generated=True)
+    builder = RoadGraphBuilder(working_srid=WORKING_SRID)
+    validator = RoadNetworkValidator(policy=RoadValidationPolicy(
+        max_dead_end_ratio=1, preserve_source_components=True,
+    ))
+    graph = builder.build(source + (attached,))
+    result = validator.validate(graph=graph, baseline_component_count=2)
+    assert result.passed
+    assert result.diagnostics.component_count == 2
+    assert result.diagnostics.baseline_component_count == 2
+    assert result.diagnostics.unattached_generated_component_count == 0
+    # Even when the original component budget is not exceeded, an isolated
+    # generated component cannot be disguised as an inherited source island.
+    bridged = _road("bridge", ((10, 0), (100, 0)), generated=True)
+    graph = builder.build(source + (bridged, isolated))
+    result = validator.validate(graph=graph, baseline_component_count=2)
+    assert not result.passed
+    assert result.diagnostics.component_count == 2
+    assert result.diagnostics.unattached_generated_component_count == 1
+    assert [issue.code for issue in result.issues] == [
+        RoadValidationIssueCode.UNATTACHED_GENERATED_COMPONENTS,
+    ]

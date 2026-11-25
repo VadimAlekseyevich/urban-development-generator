@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 import pytest
+from shapely.geometry import Polygon, box
 
 from core.urban_generator.roads import (
     CandidateRoadAnchor,
@@ -361,3 +362,50 @@ def test_policy_validates_bounds_penalty_and_boolean_options() -> None:
         LeastCostConnectorPolicy(allow_diagonal=1)  # type: ignore[arg-type]
     with pytest.raises(LeastCostConnectorError, match="prevent_corner_cutting"):
         LeastCostConnectorPolicy(prevent_corner_cutting=0)  # type: ignore[arg-type]
+
+
+def test_exact_vector_obstacle_between_free_cell_centers() -> None:
+    suitability, hard_mask = make_surface(((1., 1., 1.), (1., 1., 1.), (1., 1., 1.)))
+    obstacle = box(9, 14, 11, 16)
+    start = make_anchor(suitability, row=1, col=0)
+    target = make_anchor(suitability, row=1, col=2)
+    direct = LeastCostConnector().connect(
+        start=start, target=target, suitability=suitability, hard_mask=hard_mask,
+    )
+    assert direct.geometry is not None and direct.geometry.intersects(obstacle)
+    routed = LeastCostConnector(forbidden_geometries=(obstacle,)).connect(
+        start=start, target=target, suitability=suitability, hard_mask=hard_mask,
+    )
+    assert routed.connected
+    assert routed.geometry is not None and not routed.geometry.intersects(obstacle)
+    assert routed.length_m is not None and direct.length_m is not None
+    assert routed.length_m > direct.length_m
+
+
+def test_exact_vector_barrier_returns_no_path() -> None:
+    suitability, hard_mask = make_surface(((1., 1., 1.),))
+    result = LeastCostConnector(forbidden_geometries=(box(9, 0, 11, 10),)).connect(
+        start=make_anchor(suitability, row=0, col=0),
+        target=make_anchor(suitability, row=0, col=2),
+        suitability=suitability, hard_mask=hard_mask,
+    )
+    assert result.status is LeastCostConnectionStatus.NO_PATH
+    assert result.geometry is None
+
+
+def test_ryazan_building_between_cell_centers() -> None:
+    # Source osm:way:87646349 from the uploaded Ryazan case (OSM, ODbL).
+    # Translated UTM coordinates, rounded to micrometres, then scaled /4
+    # to match this helper's 10 m cells (original grid 40 m).
+    obstacle = Polygon(tuple((5 + x / 4, 5 + y / 4) for x, y in (
+        (27.486971, -23.053985), (15.988858, -19.557657),
+        (39.769103, 58.291109), (52.379077, 58.435388),
+        (27.486971, -23.053985),
+    )))
+    suitability, hard_mask = make_surface(((1., 1.),))
+    result = LeastCostConnector(forbidden_geometries=(obstacle,)).connect(
+        start=make_anchor(suitability, row=0, col=0),
+        target=make_anchor(suitability, row=0, col=1),
+        suitability=suitability, hard_mask=hard_mask,
+    )
+    assert result.status is LeastCostConnectionStatus.NO_PATH

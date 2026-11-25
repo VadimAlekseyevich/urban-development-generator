@@ -129,3 +129,51 @@ persists all already-calculated canonical scalar metrics during final validation
 and displays them separately from the score. Old successful runs are immutable
 and explicitly lack the new envelope; no fabricated or retroactive metric data.
 Population attainment, road geometry and land-use quality remain open work.
+
+
+### Real Ryazan acceptance (manual, 2026-11-26)
+
+Cached PBF, 800 m square, EPSG:32637, EXPANSION; 196 roads, 117 buildings,
+23 landuse polygons, 3 water polygons and 4 water lines imported through
+actual API/worker. Run 733814f4: first five stages succeeded, block
+polygonization failed because GEOS returned an invalid candidate. Map showed
+partial output, not a successful plan. Fix repairs invalid polygonal faces
+without noding or mutating the routing graph; refuses overlapping repairs,
+reports repair counts, tests a real GEOS touching-hole case. Profile candidate
+limits growth attempts to 40 and uses strict Gabriel neighbours for extra
+anchor pairs (MST remains); avoids square-grid diagonal shortcuts at the
+candidate-selection level, not a guarantee of orthogonal streets. Exact
+Ryazan topology requires replay of the extracted local fixture; no real-data
+success claim before that replay. No DEM in cached OSM extract.
+
+The actual uploaded repro archive was inspected: all 343 vector features
+(196 roads, 117 buildings, 23 landuse, 7 water) are individually valid.
+The run reports 634 nodes, 817 edges, eight components and 153 road
+validation issues. A separate geometric probe using the exact source
+geometries, projected 21×21 40 m grid and a center-based obstacle mask
+found 296/1048 candidate adjacent-cell segments intersect buildings or water.
+This probe is not the production road graph or the exact pipeline mask.
+Road routing now checks each candidate segment against the exact vector
+exclusions via a shared STRtree; fixed-road attachment extensions also
+must be clear. Final forbidden-crossing validation remains unchanged.
+Source network disconnections and post-snap intersections still need real
+replay analysis. No arbitrary relaxation of hard constraints.
+
+
+Follow-up: CI 45707315461 found zero parcels on the sparse profile and
+did not exercise the dense infrastructure overflow gate. Sparse road
+growth is now opt-in (`sparse_road_growth=true`), not the ordinary
+profile default. The original nonempty and overflow acceptance assertions
+are unchanged. Analysis of the extracted Ryazan source: 196 features /
+200 line parts, 99 service, 81 path, 16 other streets. A distance-based
+1 m connectivity probe found 8 components (190 parts in the largest).
+A separate planar union/polygonize probe found 83 faces using all roads
+(34 below 1000 m²), 30 without paths (7 below 1000 m²), and only two
+using neither paths nor service roads. This is not the actual semantic
+road graph, and does not prove viable blocks. Added opt-in pedestrian
+boundary filtering (keeps paths for routing/access), and an opt-in
+EXPANSION validation policy that records inherited fixed components but
+rejects newly disconnected generated components, even within the original
+component budget. The original strict policy remains default.
+The calibrated replay enables all three experiments; exact archived
+replay remains unchanged. Full real replay still pending.

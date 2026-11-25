@@ -50,6 +50,7 @@ class BlocksAndParcelsStageInput:
     developable_area: BlockDevelopableArea
     generated_zone_refs: tuple[GeneratedZoneRef, ...]
     hard_constraints: tuple[BlockHardConstraintLayer, ...] = ()
+    pedestrian_road_ids: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if not isinstance(self.road_graph, RoadGraph):
@@ -82,8 +83,11 @@ class BlocksAndParcelsStageConfig:
     split_policy: OversizedBlockSplitPolicy
     sliver_policy: SliverCleanupPolicy
     parcel_policy: ParcelSubdivisionPolicy
+    exclude_pedestrian_boundaries: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.exclude_pedestrian_boundaries, bool):
+            raise TypeError("exclude_pedestrian_boundaries must be bool")
         expected = (
             ("frontage_policy", BlockFrontagePolicy),
             ("split_policy", OversizedBlockSplitPolicy),
@@ -142,7 +146,11 @@ class BlocksAndParcelsStage:
 
         polygonization = RoadNetworkBlockPolygonizer(
             working_srid=working_srid
-        ).polygonize(value.road_graph)
+        ).polygonize(
+            value.road_graph,
+            excluded_road_ids=(value.pedestrian_road_ids if config.exclude_pedestrian_boundaries
+                               else frozenset()),
+        )
         clipping = DevelopableBlockClipper(
             working_srid=working_srid
         ).clip(
@@ -210,7 +218,7 @@ class BlocksAndParcelsStage:
         )
         level = (
             StageDiagnosticLevel.WARNING
-            if unassociated
+            if unassociated or polygonization.diagnostics.repaired_candidate_count
             else StageDiagnosticLevel.INFO
         )
         return StageResult(
@@ -228,7 +236,9 @@ class BlocksAndParcelsStage:
                         f"blocks/parcels completed: "
                         f"{association.diagnostics.block_count} blocks, "
                         f"{subdivision.diagnostics.parcel_count} parcels, "
-                        f"{unassociated} unassociated blocks"
+                        f"{unassociated} unassociated blocks; "
+                        f"{polygonization.diagnostics.repaired_candidate_count} invalid faces "
+                        f"repaired into {polygonization.diagnostics.repaired_part_count} parts"
                     ),
                     level=level,
                 ),

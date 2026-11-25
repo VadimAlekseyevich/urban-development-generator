@@ -20,6 +20,7 @@ class RoadValidationError(ValueError):
 
 class RoadValidationIssueCode(StrEnum):
     DISCONNECTED_COMPONENTS = "DISCONNECTED_COMPONENTS"
+    UNATTACHED_GENERATED_COMPONENTS = "UNATTACHED_GENERATED_COMPONENTS"
     DEAD_END_RATIO = "DEAD_END_RATIO"
     FORBIDDEN_CROSSING = "FORBIDDEN_CROSSING"
     INVALID_GEOMETRY = "INVALID_GEOMETRY"
@@ -32,8 +33,11 @@ class RoadValidationPolicy:
     max_forbidden_crossings: int = 0
     max_edges: int = DEFAULT_MAX_VALIDATION_EDGES
     max_forbidden_geometries: int = DEFAULT_MAX_FORBIDDEN_GEOMETRIES
+    preserve_source_components: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.preserve_source_components, bool):
+            raise RoadValidationError("preserve_source_components must be boolean")
         if self.max_component_count <= 0 or self.max_edges <= 0:
             raise RoadValidationError("component and edge limits must be positive")
         if not 0.0 <= self.max_dead_end_ratio <= 1.0:
@@ -59,6 +63,8 @@ class RoadValidationDiagnostics:
     invalid_geometry_count: int
     forbidden_crossing_count: int
     generated_edge_count: int
+    baseline_component_count: int = 0
+    unattached_generated_component_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +87,10 @@ class RoadNetworkValidator:
         *,
         graph: RoadGraph,
         forbidden_geometries: tuple[BaseGeometry, ...] = (),
+        baseline_component_count: int = 0,
     ) -> RoadValidationResult:
+        if type(baseline_component_count) is not int or baseline_component_count < 0:
+            raise RoadValidationError("baseline_component_count must be a non-negative integer")
         if not isinstance(graph, RoadGraph):
             raise RoadValidationError("graph must be a RoadGraph")
         if len(graph.edges) > self.policy.max_edges:
@@ -125,6 +134,10 @@ class RoadNetworkValidator:
                 if edge.edge_id not in invalid_ids and edge.geometry.intersects(forbidden_union)
             )
 
+        unattached = sum(
+            component.edge_count > 0 and component.fixed_edge_count == 0
+            for component in graph.diagnostics.components
+        ) if baseline_component_count else 0
         diagnostics = RoadValidationDiagnostics(
             node_count=len(graph.nodes),
             edge_count=len(graph.edges),
@@ -134,9 +147,19 @@ class RoadNetworkValidator:
             invalid_geometry_count=len(invalid_ids),
             forbidden_crossing_count=len(forbidden_ids),
             generated_edge_count=len(generated_edges),
+            baseline_component_count=baseline_component_count,
+            unattached_generated_component_count=unattached,
         )
         issues: list[RoadValidationIssue] = []
-        if diagnostics.component_count > self.policy.max_component_count:
+        allowed_components = self.policy.max_component_count
+        if self.policy.preserve_source_components and baseline_component_count:
+            allowed_components = max(allowed_components, baseline_component_count)
+            if unattached:
+                issues.append(RoadValidationIssue(
+                    RoadValidationIssueCode.UNATTACHED_GENERATED_COMPONENTS,
+                    f"{unattached} road components do not attach to the fixed network",
+                ))
+        if diagnostics.component_count > allowed_components:
             issues.append(RoadValidationIssue(
                 RoadValidationIssueCode.DISCONNECTED_COMPONENTS,
                 "road graph exceeds configured connected-component limit",

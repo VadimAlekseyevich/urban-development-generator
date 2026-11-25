@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from math import floor, hypot, isfinite
 
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 from core.urban_generator.domain import NetworkPoint
 from core.urban_generator.roads.candidate_anchors import CandidateRoadAnchor
@@ -169,10 +169,13 @@ class FixedNetworkAttachmentConnector:
             raise FixedNetworkAttachmentError(
                 "generated component count exceeds max_attachments"
             )
-        fixed_targets = _fixed_targets(
-            graph=fixed_graph,
-            suitability=suitability,
-            hard_mask=hard_mask,
+        fixed_targets = tuple(
+            target for target in _fixed_targets(
+                graph=fixed_graph, suitability=suitability, hard_mask=hard_mask,
+            )
+            if self._pair_connector.geometry_allowed(
+                _attachment_extension(target.cell_center, target.point)
+            )
         )
         index = SpatialSnapIndex(
             targets=tuple(
@@ -461,6 +464,12 @@ def _same_cell_attachment(
         length_m=float(geometry.length),
         visited_cell_count=0,
     )
+
+
+def _attachment_extension(center: NetworkPoint, fixed: NetworkPoint) -> LineString | Point:
+    if center == fixed:
+        return Point(center.x_m, center.y_m)
+    return LineString(((center.x_m, center.y_m), (fixed.x_m, fixed.y_m)))
 
 
 def _extend_to_fixed_node(

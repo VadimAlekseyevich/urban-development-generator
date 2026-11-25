@@ -436,3 +436,15 @@ def test_baseline_anchor_set_and_hard_mask_must_match() -> None:
             suitability=suitability,
             hard_mask=mismatched,
         )
+
+
+def test_sparse_neighbourhood_closes_square_without_diagonal_crossings() -> None:
+    suitability, hard_mask, anchors, baseline = make_mixed_square()
+    result = RuleBasedRoadGrower(
+        policy=RuleBasedRoadGrowthPolicy(sparse_neighbourhood=True),
+    ).grow(
+        anchors=anchors, baseline=baseline,
+        suitability=suitability, hard_mask=hard_mask,
+    )
+    assert attempt_ids(result) == (("c", "d"),)
+    assert result.diagnostics.added_edge_count == 1

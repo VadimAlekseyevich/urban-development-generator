@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import isfinite
 
-from shapely import normalize
+from shapely import make_valid, normalize
 from shapely.geometry import LineString, Polygon
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import polygonize_full
+from shapely.strtree import STRtree
 
 from core.urban_generator.domain.crs import WorkingCRS, require_working_crs
 from core.urban_generator.roads.road_graph import RoadGraph
@@ -57,6 +59,9 @@ class BlockPolygonizationDiagnostics:
     cut_edge_count: int
     dangle_edge_count: int
     invalid_ring_count: int
+    repaired_candidate_count: int = 0
+    repaired_part_count: int = 0
+    excluded_road_edge_count: int = 0
 
     @property
     def non_polygonized_line_count(self) -> int:
@@ -99,7 +104,9 @@ class RoadNetworkBlockPolygonizer:
         self.max_edges = max_edges
         self.max_candidate_blocks = max_candidate_blocks
 
-    def polygonize(self, graph: RoadGraph) -> BlockPolygonizationResult:
+    def polygonize(
+        self, graph: RoadGraph, *, excluded_road_ids: frozenset[str] = frozenset(),
+    ) -> BlockPolygonizationResult:
         if not isinstance(graph, RoadGraph):
             raise BlockPolygonizationError("graph must be a RoadGraph")
         if graph.working_crs != self.working_crs:
@@ -112,9 +119,15 @@ class RoadNetworkBlockPolygonizer:
                 f"polygonize edge limit exceeded: {len(graph.edges)} > {self.max_edges}"
             )
 
+        if not isinstance(excluded_road_ids, frozenset):
+            raise BlockPolygonizationError("excluded road ids must be a frozenset")
+        excluded_edge_count = 0
         unique_lines: dict[tuple[tuple[float, float], ...], LineString] = {}
         duplicate_line_count = 0
         for edge in sorted(graph.edges, key=lambda item: item.edge_id):
+            if edge.road_id in excluded_road_ids:
+                excluded_edge_count += 1
+                continue
             key = _canonical_line_key(edge.geometry)
             if key in unique_lines:
                 duplicate_line_count += 1
@@ -125,27 +138,44 @@ class RoadNetworkBlockPolygonizer:
         polygons, cuts, dangles, invalid_rings = polygonize_full(ordered_lines)
 
         normalized_polygons: list[Polygon] = []
+        repaired_indexes: list[int] = []
+        repaired_count = 0
         for geometry in polygons.geoms:
             if not isinstance(geometry, Polygon):
                 raise BlockPolygonizationError(
                     "polygonize_full returned a non-Polygon candidate"
                 )
-            normalized_geometry = normalize(geometry)
-            if not isinstance(normalized_geometry, Polygon):
+            # GEOS can return a disconnected polygon interior when a hole
+            # touches its shell at two points. Repair only the surface; never
+            # node the routing graph or change source road coordinates.
+            repaired = not geometry.is_valid
+            parts = _polygon_parts(make_valid(geometry) if repaired else geometry)
+            if not parts:
                 raise BlockPolygonizationError(
-                    "normalized candidate block must remain a Polygon"
+                    "candidate block repair yielded no polygonal area"
                 )
-            if (
-                normalized_geometry.is_empty
-                or not normalized_geometry.is_valid
-                or normalized_geometry.has_z
-                or not isfinite(float(normalized_geometry.area))
-                or normalized_geometry.area <= 0.0
-            ):
-                raise BlockPolygonizationError(
-                    "polygonize_full returned an invalid candidate block"
-                )
-            normalized_polygons.append(normalized_geometry)
+            if repaired:
+                repaired_count += 1
+            for part in parts:
+                normalized_geometry = normalize(part)
+                if (
+                    not isinstance(normalized_geometry, Polygon)
+                    or normalized_geometry.is_empty
+                    or not normalized_geometry.is_valid
+                    or normalized_geometry.has_z
+                    or not isfinite(float(normalized_geometry.area))
+                    or normalized_geometry.area <= 0.0
+                ):
+                    raise BlockPolygonizationError("invalid block after surface repair")
+                if repaired:
+                    repaired_indexes.append(len(normalized_polygons))
+                normalized_polygons.append(normalized_geometry)
+                if len(normalized_polygons) > self.max_candidate_blocks:
+                    raise BlockPolygonizationError(
+                        "candidate block limit exceeded: "
+                        f"{len(normalized_polygons)} > {self.max_candidate_blocks}"
+                    )
+        _check_repaired_overlaps(normalized_polygons, repaired_indexes)
 
         if len(normalized_polygons) > self.max_candidate_blocks:
             raise BlockPolygonizationError(
@@ -166,12 +196,43 @@ class RoadNetworkBlockPolygonizer:
             cut_edge_count=len(cuts.geoms),
             dangle_edge_count=len(dangles.geoms),
             invalid_ring_count=len(invalid_rings.geoms),
+            repaired_candidate_count=repaired_count,
+            repaired_part_count=len(repaired_indexes),
+            excluded_road_edge_count=excluded_edge_count,
         )
         return BlockPolygonizationResult(
             working_crs=self.working_crs,
             blocks=blocks,
             diagnostics=diagnostics,
         )
+
+
+def _polygon_parts(geometry: BaseGeometry) -> tuple[Polygon, ...]:
+    if isinstance(geometry, Polygon):
+        return (geometry,) if not geometry.is_empty else ()
+    if geometry.geom_type in {"MultiPolygon", "GeometryCollection"}:
+        return tuple(part for child in geometry.geoms for part in _polygon_parts(child))
+    return ()
+
+
+def _check_repaired_overlaps(polygons: list[Polygon], indexes: list[int]) -> None:
+    """Refuse ambiguous repairs instead of publishing overlapping blocks."""
+    if not indexes:
+        return
+    tree = STRtree(polygons)
+    comparisons = 0
+    for index in indexes:
+        polygon = polygons[index]
+        for other in tree.query(polygon, predicate="intersects"):
+            if index == int(other):
+                continue
+            comparisons += 1
+            if comparisons > 1_000_000:
+                raise BlockPolygonizationError("block repair overlap check budget exceeded")
+            if polygon.intersection(polygons[int(other)]).area > 1e-8:
+                raise BlockPolygonizationError(
+                    "candidate block repair overlaps another face; road topology is ambiguous"
+                )
 
 
 def _canonical_line_key(geometry: LineString) -> tuple[tuple[float, float], ...]:

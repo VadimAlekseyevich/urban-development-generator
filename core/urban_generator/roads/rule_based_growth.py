@@ -59,12 +59,15 @@ class RuleBasedRoadGrowthPolicy:
     max_iterations: int = DEFAULT_MAX_GROWTH_ITERATIONS
     max_added_length_m: float = DEFAULT_MAX_GROWTH_LENGTH_M
     max_candidate_pairs: int = DEFAULT_MAX_GROWTH_CANDIDATE_PAIRS
+    sparse_neighbourhood: bool = False
 
     def __post_init__(self) -> None:
         _require_positive_int("max_iterations", self.max_iterations)
         length_m = _require_positive_finite("max_added_length_m", self.max_added_length_m)
         object.__setattr__(self, "max_added_length_m", length_m)
         _require_positive_int("max_candidate_pairs", self.max_candidate_pairs)
+        if not isinstance(self.sparse_neighbourhood, bool):
+            raise RuleBasedRoadGrowthError("sparse_neighbourhood must be a bool")
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,6 +378,7 @@ class RuleBasedRoadGrower:
         local_candidates, collector_candidates, evaluation_count = _build_candidates(
             anchors=ordered_anchors,
             baseline_pairs=baseline_pairs,
+            sparse_neighbourhood=self._policy.sparse_neighbourhood,
         )
         attempts, added_length_m, visited_cell_count, stop_reason = self._run_candidates(
             local_candidates=local_candidates,
@@ -560,6 +564,8 @@ def _validate_inputs(
             "suitability hard-excluded cells must match hard_mask exactly"
         )
 
+    if policy.sparse_neighbourhood and len(anchors) > 128:
+        raise RuleBasedRoadGrowthError("sparse neighbourhood is limited to 128 anchors")
     ordered = tuple(sorted(anchors, key=lambda anchor: anchor.anchor_id))
     anchor_ids = tuple(anchor.anchor_id for anchor in ordered)
     if baseline.anchor_ids != anchor_ids:
@@ -579,6 +585,7 @@ def _build_candidates(
     *,
     anchors: tuple[CandidateRoadAnchor, ...],
     baseline_pairs: set[tuple[str, str]],
+    sparse_neighbourhood: bool = False,
 ) -> tuple[tuple[_GrowthCandidate, ...], tuple[_GrowthCandidate, ...], int]:
     local: list[_GrowthCandidate] = []
     collector: list[_GrowthCandidate] = []
@@ -588,6 +595,8 @@ def _build_candidates(
             evaluation_count += 1
             pair = (start.anchor_id, target.anchor_id)
             if pair in baseline_pairs:
+                continue
+            if sparse_neighbourhood and not _empty_diameter_disk(start, target, anchors):
                 continue
             intent = (
                 RoadGrowthIntent.LOCAL
@@ -612,6 +621,22 @@ def _build_candidates(
     local.sort(key=_candidate_sort_key)
     collector.sort(key=_candidate_sort_key)
     return tuple(local), tuple(collector), evaluation_count
+
+
+def _empty_diameter_disk(
+    start: CandidateRoadAnchor, target: CandidateRoadAnchor,
+    anchors: tuple[CandidateRoadAnchor, ...],
+) -> bool:
+    """Strict Gabriel neighbourhood: skip diagonals even on square-grid ties."""
+    ax, ay = start.point.x_m, start.point.y_m
+    bx, by = target.point.x_m, target.point.y_m
+    tolerance = 1e-12 * ((ax - bx) ** 2 + (ay - by) ** 2)
+    return not any(
+        (other.point.x_m - ax) * (other.point.x_m - bx)
+        + (other.point.y_m - ay) * (other.point.y_m - by) <= tolerance
+        for other in anchors
+        if other.anchor_id not in {start.anchor_id, target.anchor_id}
+    )
 
 
 def _candidate_sort_key(candidate: _GrowthCandidate) -> tuple[float, str, str]:

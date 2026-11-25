@@ -22,6 +22,7 @@ from core.urban_generator.roads import (
     CandidateRoadAnchorPolicy,
     CandidateRoadAnchorResult,
     CandidateRoadAnchorSampler,
+    LeastCostConnector,
     LeastCostConnectorPolicy,
     MSTBaselineConnector,
     MSTBaselineConnectorPolicy,
@@ -192,13 +193,20 @@ class RoadStage:
             suitability=value.suitability,
             policy=config.anchor_policy,
         )
-        baseline = MSTBaselineConnector(policy=config.mst_policy).connect(
+        if len(value.forbidden_geometries) > config.validation_policy.max_forbidden_geometries:
+            raise ValueError("road forbidden geometry limit exceeded")
+        connector = LeastCostConnector(forbidden_geometries=value.forbidden_geometries)
+        baseline = MSTBaselineConnector(
+            policy=config.mst_policy, pair_connector=connector,
+        ).connect(
             anchors=anchors.anchors,
             suitability=value.suitability,
             hard_mask=value.hard_mask,
             pair_policy=config.least_cost_policy,
         )
-        growth = RuleBasedRoadGrower(policy=config.growth_policy).grow(
+        growth = RuleBasedRoadGrower(
+            policy=config.growth_policy, pair_connector=connector,
+        ).grow(
             anchors=anchors.anchors,
             baseline=baseline,
             suitability=value.suitability,
@@ -217,7 +225,7 @@ class RoadStage:
         ):
             assert config.fixed_attachment_policy is not None
             fixed_attachment = FixedNetworkAttachmentConnector(
-                policy=config.fixed_attachment_policy
+                policy=config.fixed_attachment_policy, pair_connector=connector,
             ).attach(
                 anchors=anchors.anchors,
                 connected_pairs=_connected_anchor_pairs(
@@ -270,6 +278,9 @@ class RoadStage:
         ).validate(
             graph=graph,
             forbidden_geometries=value.forbidden_geometries,
+            baseline_component_count=(
+                fixed_graph.diagnostics.component_count if fixed_graph is not None else 0
+            ),
         )
         metrics = RoadMetricsCalculator(policy=config.metrics_policy).calculate(
             graph=graph,
@@ -289,7 +300,13 @@ class RoadStage:
         warnings: list[str] = []
         if not validation.passed:
             warnings.append(
-                f"road validation produced {len(validation.issues)} issue(s)"
+                f"road validation produced {len(validation.issues)} issue(s), "
+                f"{validation.diagnostics.forbidden_crossing_count} forbidden crossings"
+            )
+        if validation.diagnostics.baseline_component_count > 1:
+            warnings.append(
+                f"source network has {validation.diagnostics.baseline_component_count} components; "
+                f"{validation.diagnostics.unattached_generated_component_count} unattached generated"
             )
         if fixed_attachment is not None and not fixed_attachment.complete:
             warnings.append(
