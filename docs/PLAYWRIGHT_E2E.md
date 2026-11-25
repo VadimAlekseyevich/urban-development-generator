@@ -71,3 +71,25 @@ frontend production dependencies and lockfile are unchanged. Browser tests
 are not included in the fast `npm test`; they are a separate mandatory CI
 gate. Run only against an **isolated** stack because the fixture inserts
 synthetic test datasets and successful runs into the project's database.
+
+
+## Unseeded worker acceptance (P0)
+
+`frontend/e2e/generation-acceptance.spec.mjs` adds a separate HTTP-driven
+Playwright test to the existing Compose browser job. It creates a project,
+sets a WGS84 boundary, uploads original vector bytes and a metric GeoTIFF,
+submits actual ingest jobs and waits for ready versions. A normal run
+submission uses the four returned version IDs, actual checkout SHA and
+the small deterministic v5 smoke config with an additional positive slope
+factor. The real dispatcher and generation worker must finish all twelve
+stages; the test checks nonempty GIS endpoints, metrics and the downloadable
+provenance manifest including the normalized DEM reference. A terminal
+failure or timeout is a test failure, not a skipped or seeded success.
+
+The source-only helper `scripts/generation_acceptance_inputs.py` generates
+a tiny artificial 10 m square and DEM; it does not connect to a database
+or fabricate any run/output. This is an engineering acceptance gate for
+EXPANSION, not a real-city quality benchmark or proof of the neighbourhood
+planning preset. FROM_SCRATCH, browser interaction with actual successful
+outputs, revision enforcement and representative real territories remain
+separate acceptance work. The test is not claimed to pass until CI confirms it.
