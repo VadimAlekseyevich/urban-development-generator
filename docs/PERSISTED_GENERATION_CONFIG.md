@@ -130,3 +130,13 @@ It requires explicit facility types and network snap policy. Existing
 facility mappings, candidate accessibility and greedy placement limits are
 configurable; the earlier v1/v2 contracts are unchanged. This is not yet a
 complete twelve-stage runtime. Offline CLI supports v3.
+
+## Schema v4: final evaluation
+
+`canonical-stage-configs-v4` adds final_validation and metrics, giving eleven
+concrete configured stages. Final validation requires the canonical four
+aggregate hard bounds, optional soft preferences and a bounded report.
+Metrics requires a versioned normalization profile and matching score weights.
+Only real scalar metric outputs are consumed; missing values follow the
+existing explicit normalization policy. This does not yet install a worker
+or complete persist_manifest. Earlier schema versions remain unchanged.

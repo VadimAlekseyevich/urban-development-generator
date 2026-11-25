@@ -39,11 +39,18 @@ from core.urban_generator.stages import (
     ZoningStage,
     ZoningStageConfig,
 )
+from core.urban_generator.stages.final_evaluation import (
+    FinalValidationStage,
+    FinalValidationStageConfig,
+    MetricsStage,
+    MetricsStageConfig,
+)
 from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
 
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
 PREPARED_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v2"
 INFRASTRUCTURE_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v3"
+EVALUATION_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v4"
 MAX_CONFIG_BYTES = 1_048_576
 MAX_COLLECTION_ITEMS = 2048
 MAX_NESTED_DEPTH = 24
@@ -77,10 +84,16 @@ _INFRASTRUCTURE_CONFIG_TYPES = {
     **_PREPARED_CONFIG_TYPES,
     InfrastructureStage.name: (InfrastructureStage.version, InfrastructureStageConfig),
 }
+_EVALUATION_CONFIG_TYPES = {
+    **_INFRASTRUCTURE_CONFIG_TYPES,
+    FinalValidationStage.name: (FinalValidationStage.version, FinalValidationStageConfig),
+    MetricsStage.name: (MetricsStage.version, MetricsStageConfig),
+}
 _CONFIG_SCHEMAS = {
     CONFIG_SCHEMA_VERSION: _CONFIG_TYPES,
     PREPARED_CONFIG_SCHEMA_VERSION: _PREPARED_CONFIG_TYPES,
     INFRASTRUCTURE_CONFIG_SCHEMA_VERSION: _INFRASTRUCTURE_CONFIG_TYPES,
+    EVALUATION_CONFIG_SCHEMA_VERSION: _EVALUATION_CONFIG_TYPES,
 }
 
 
