@@ -28,6 +28,8 @@ from core.urban_generator.stages import (
     ConstraintMaskStageConfig,
     DemographyStage,
     DemographyStageConfig,
+    InfrastructureStage,
+    InfrastructureStageConfig,
     PrepareSnapshotStage,
     PrepareSnapshotStageConfig,
     RoadStage,
@@ -41,6 +43,7 @@ from core.urban_generator.stages.suitability import PreparedSuitabilityStageConf
 
 CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v1"
 PREPARED_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v2"
+INFRASTRUCTURE_CONFIG_SCHEMA_VERSION = "canonical-stage-configs-v3"
 MAX_CONFIG_BYTES = 1_048_576
 MAX_COLLECTION_ITEMS = 2048
 MAX_NESTED_DEPTH = 24
@@ -67,6 +70,17 @@ _PREPARED_CONFIG_TYPES = {
     **_CONFIG_TYPES,
     SuitabilityStage.name: (SuitabilityStage.version, PreparedSuitabilityStageConfig),
     PrepareSnapshotStage.name: (PrepareSnapshotStage.version, PrepareSnapshotStageConfig),
+}
+
+
+_INFRASTRUCTURE_CONFIG_TYPES = {
+    **_PREPARED_CONFIG_TYPES,
+    InfrastructureStage.name: (InfrastructureStage.version, InfrastructureStageConfig),
+}
+_CONFIG_SCHEMAS = {
+    CONFIG_SCHEMA_VERSION: _CONFIG_TYPES,
+    PREPARED_CONFIG_SCHEMA_VERSION: _PREPARED_CONFIG_TYPES,
+    INFRASTRUCTURE_CONFIG_SCHEMA_VERSION: _INFRASTRUCTURE_CONFIG_TYPES,
 }
 
 
@@ -320,12 +334,10 @@ class CanonicalStageConfigResolver:
         self, *, stage_names: tuple[str, ...] | None = None,
         schema_version: str = CONFIG_SCHEMA_VERSION,
     ) -> None:
-        if schema_version not in (CONFIG_SCHEMA_VERSION, PREPARED_CONFIG_SCHEMA_VERSION):
+        if schema_version not in _CONFIG_SCHEMAS:
             raise PersistedStageConfigError("unsupported persisted config_schema_version")
         self._schema_version = schema_version
-        self._types = (
-            _CONFIG_TYPES if schema_version == CONFIG_SCHEMA_VERSION else _PREPARED_CONFIG_TYPES
-        )
+        self._types = _CONFIG_SCHEMAS[schema_version]
         names = tuple(self._types) if stage_names is None else stage_names
         if (
             not isinstance(names, tuple)

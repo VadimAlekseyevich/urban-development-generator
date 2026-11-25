@@ -828,13 +828,23 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
     from backend.app.models.job import Job
     from backend.app.models.project import Project
     from backend.app.models.run_stage_result import RunStageResult
-    from backend.app.models.source_layer import SourceLanduse, SourceRoad
+    from backend.app.models.source_layer import SourceFacility, SourceLanduse, SourceRoad
     from core.urban_generator.domain import (
         PipelineContext,
         PipelinePorts,
         ResolvedConfigBinding,
     )
-    from core.urban_generator.stages import PrepareSnapshotStageConfig
+    from core.urban_generator.demography import DemographicDemandCategory
+    from core.urban_generator.infrastructure import (
+        ExistingFacilityMappingRule,
+        InfrastructureCandidatePolicy,
+        InfrastructureCandidateSource,
+        InfrastructureCategory,
+        InfrastructureDemandModel,
+        InfrastructureNetworkSnapPolicy,
+        InfrastructureType,
+    )
+    from core.urban_generator.stages import InfrastructureStageConfig, PrepareSnapshotStageConfig
     from core.urban_generator.stages.suitability import PreparedSuitabilityStageConfig
     from core.urban_generator.suitability import LanduseClassWeight, LanduseClassWeights
 
@@ -855,7 +865,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             session.add(project)
             session.flush()
             versions = []
-            for kind in ("roads", "landuse"):
+            for kind in ("roads", "landuse", "facilities"):
                 dataset = Dataset(project_id=project.id, kind=kind)
                 session.add(dataset)
                 session.flush()
@@ -866,7 +876,7 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 session.add(version)
                 session.flush()
                 versions.append(version)
-            road_version, land_version = versions
+            road_version, land_version, facility_version = versions
             session.add(SourceRoad(
                 dataset_version_id=road_version.id, source_feature_id="square",
                 road_class="local", attributes_json={},
@@ -879,6 +889,11 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                 dataset_version_id=land_version.id, source_feature_id="residential",
                 landuse_class="residential", attributes_json={},
                 geometry=WKTElement(boundary, srid=WORKING_SRID),
+            ))
+            session.add(SourceFacility(
+                dataset_version_id=facility_version.id, source_feature_id="clinic-fixed",
+                facility_class="clinic", capacity=1, attributes_json={},
+                geometry=WKTElement("POINT(0 0)", srid=WORKING_SRID),
             ))
             session.flush()
             for version in versions:
@@ -912,6 +927,10 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
                     kind=SnapshotLayerKind.LANDUSE,
                     source_ref=f"dataset-version:{land_version.id}:v1",
                 ),),
+                facilities=(SnapshotLayerRef(
+                    kind=SnapshotLayerKind.FACILITIES,
+                    source_ref=f"dataset-version:{facility_version.id}:v1",
+                ),),
             )
             run_id = run.id
         source = ConfigRef(name="generation", ref="actual-spatial-test")
@@ -940,6 +959,22 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             ("blocks_and_parcels", _blocks_config()),
             ("buildings", _building_config()),
             ("demography", _demography_config()),
+            ("infrastructure", InfrastructureStageConfig(
+                infrastructure_types=(InfrastructureType(
+                    version="v1", code="clinic.primary", category=InfrastructureCategory.HEALTHCARE,
+                    demand_model=InfrastructureDemandModel(
+                        signal=DemographicDemandCategory.POPULATION, demand_rate=1,
+                    ),
+                    capacity=8, max_network_distance_m=100,
+                    allowed_zones=(ZoneClass.RESIDENTIAL,),
+                    minimum_site_area_m2=1, target_site_area_m2=2,
+                    candidate_policy=InfrastructureCandidatePolicy(
+                        sources=(InfrastructureCandidateSource.BUILDING,),
+                    ),
+                ),),
+                snap_policy=InfrastructureNetworkSnapPolicy(max_snap_distance_m=100),
+                mapping_rules=(ExistingFacilityMappingRule("clinic", "clinic.primary"),),
+            )),
         )
         context = PipelineContext(
             run=run_context, snapshot=snapshot,
@@ -983,9 +1018,13 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
         assert distance.values[4, 4] == pytest.approx(4.5)
         assert outputs["buildings"].area_subjects
         assert outputs["demography"].population.diagnostics.allocated_generated_population == 8
+        infrastructure = outputs["infrastructure"]
+        assert len(infrastructure.existing.facilities) == 1
+        assert infrastructure.existing.facilities[0].capacity == 1
+        assert infrastructure.types[0].placement.accepted_facilities
         with session_factory() as session:
             for table in ("generated_zones", "generated_roads", "generated_blocks",
-                          "generated_parcels", "generated_buildings"):
+                          "generated_parcels", "generated_buildings", "generated_infrastructure"):
                 count = session.execute(
                     text(f"SELECT count(*) FROM {table} WHERE run_id=:run_id"),
                     {"run_id": run_id},
@@ -996,7 +1035,8 @@ def test_actual_postgis_inputs_execute_and_publish_spatial_chain(tmp_path) -> No
             assert "demography" in run.metrics_json
             assert session.query(SourceRoad).count() == 1
             stages = session.query(RunStageResult).filter_by(run_id=run_id).all()
-            assert len(stages) == 8
+            assert session.query(SourceFacility).count() == 1
+            assert len(stages) == 9
             assert all(stage.status == "succeeded" for stage in stages)
             raster_stage = next(stage for stage in stages if stage.stage_name == "suitability")
             assert len(raster_stage.artifacts) == 1

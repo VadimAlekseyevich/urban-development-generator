@@ -12,6 +12,7 @@ from backend.app.db.generated_block_parcel_writer import SqlAlchemyGeneratedBloc
 from backend.app.db.generated_building_writer import SqlAlchemyGeneratedBuildingWriter
 from backend.app.db.generated_demography_writer import SqlAlchemyGeneratedDemographyWriter
 from backend.app.db.generated_road_writer import SqlAlchemyGeneratedRoadWriter
+from backend.app.db.generated_infrastructure_writer import SqlAlchemyGeneratedInfrastructureWriter
 from backend.app.db.generated_zone_writer import SqlAlchemyGeneratedZoneWriter
 from backend.app.db.session import SessionLocal
 from backend.app.db.stage_artifact_publication import SqlAlchemyStageArtifactPublisher
@@ -25,6 +26,8 @@ from core.urban_generator.stages import (
     ConstraintMaskStageInput,
     DemographyStage,
     DemographyStageOutput,
+    InfrastructureStage,
+    InfrastructureStageOutput,
     PrepareSnapshotStage,
     RoadStage,
     RoadStageOutput,
@@ -56,6 +59,9 @@ class SpatialOutputPublisher:
         self._blocks = SqlAlchemyGeneratedBlockParcelWriter(session_factory=session_factory)
         self._buildings = SqlAlchemyGeneratedBuildingWriter(session_factory=session_factory)
         self._demography = SqlAlchemyGeneratedDemographyWriter(session_factory=session_factory)
+        self._infrastructure = SqlAlchemyGeneratedInfrastructureWriter(
+            session_factory=session_factory,
+        )
 
     def publish(self, *, run_id: uuid.UUID, stage_name: str, output: object) -> None:
         if stage_name == ZoningStage.name and isinstance(output, ZoningStageOutput):
@@ -80,9 +86,14 @@ class SpatialOutputPublisher:
             )
         elif stage_name == DemographyStage.name and isinstance(output, DemographyStageOutput):
             self._demography.replace(run_id=run_id, aggregation=output.aggregation)
+        elif stage_name == InfrastructureStage.name and isinstance(output, InfrastructureStageOutput):
+            for item in output.types:
+                self._infrastructure.replace(
+                    run_id=run_id, state=item.placement, candidate_geometry=item.candidate_geometry,
+                    candidate_snaps=item.snaps, infrastructure_type=item.infrastructure_type,
+                )
         else:
             raise GenerationExecutionError(f"unsupported spatial output: {stage_name}")
-
 
 
 class TransactionalSpatialMaterializer:

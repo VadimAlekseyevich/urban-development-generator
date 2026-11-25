@@ -43,6 +43,13 @@ from core.urban_generator.stages.demography import (
     DemographyStageInput,
     DemographyStageOutput,
 )
+from core.urban_generator.stages.infrastructure import (
+    InfrastructureStage,
+    InfrastructureStageConfig,
+    InfrastructureStageInput,
+    InfrastructureStageOutput,
+    InfrastructureTypeStageOutput,
+)
 from core.urban_generator.stages.prepare_snapshot import (
     PrepareSnapshotStage,
     PrepareSnapshotStageConfig,
@@ -100,6 +107,11 @@ __all__ = [
     "EVALUATE_CONSTRAINTS_STAGE",
     "FINAL_VALIDATION_STAGE",
     "INFRASTRUCTURE_STAGE",
+    "InfrastructureStage",
+    "InfrastructureStageConfig",
+    "InfrastructureStageInput",
+    "InfrastructureStageOutput",
+    "InfrastructureTypeStageOutput",
     "METRICS_STAGE",
     "FixedRoadStageInput",
     "RoadStage",

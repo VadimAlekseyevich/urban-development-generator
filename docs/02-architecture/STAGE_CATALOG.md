@@ -232,3 +232,16 @@ consumes the existing infrastructure-neutral sampling result.
 
 FROM_SCRATCH rejects fixed demographic state and non-zero baseline population. EXPANSION requires
 an explicit baseline population when the snapshot carries fixed demographic refs.
+
+
+### infrastructure
+
+The canonical Stage consumes a demographic demand profile, generated blocks,
+parcels and buildings, explicit existing facility source records and fixed
+building footprints, plus a NetworkBackend for the final road graph.
+Versioned facility types and mapping, snap, routing and placement limits are
+explicit. Existing service is nearest reachable with capacity shared in stable
+demand-key order. The stage composes S10 candidate geometry, accessibility,
+feasibility, greedy placement and metrics; it rejects occupied sites and
+repeated/overlapping accepted locations conservatively. No persistence or
+production runtime startup is performed by the core Stage.

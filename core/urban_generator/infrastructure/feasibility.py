@@ -23,6 +23,7 @@ class InfrastructureFeasibilityRejectionReason(StrEnum):
     """Hard reasons why a proposed infrastructure candidate cannot be accepted."""
 
     CAPACITY_EXCEEDS_TYPE_CAPACITY = "capacity_exceeds_type_capacity"
+    OCCUPIED_LOCATION = "occupied_location"
     SITE_AREA_BELOW_MINIMUM = "site_area_below_minimum"
     HOST_BUILDING_GEOMETRY_UNAVAILABLE = "host_building_geometry_unavailable"
     HOST_BUILDING_AREA_BELOW_MINIMUM = "host_building_area_below_minimum"
