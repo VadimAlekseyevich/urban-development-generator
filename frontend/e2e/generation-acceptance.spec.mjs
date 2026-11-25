@@ -23,17 +23,18 @@ async function checked(response, status) {
   return JSON.parse(body)
 }
 
-for (const mode of ['EXPANSION', 'FROM_SCRATCH']) {
-test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and provenance', async ({ request }) => {
+for (const scenario of ['EXPANSION', 'FROM_SCRATCH', 'PLANNING_PROFILE']) {
+const mode = scenario === 'EXPANSION' ? 'EXPANSION' : 'FROM_SCRATCH'
+test('real uploads → ingest worker → ' + scenario + ' → all stages → GIS and provenance', async ({ request, page }) => {
   test.setTimeout(300_000)
   // Generate bytes, not DB records. All state changes go through public HTTP routes.
-  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', mode === 'EXPANSION' ? '10' : '100'))
-  const config = JSON.parse(python('scripts.generation_smoke_config'))
+  const input = JSON.parse(python('scripts.generation_acceptance_inputs', '--size-m', scenario === 'PLANNING_PROFILE' ? '400' : mode === 'EXPANSION' ? '10' : '100'))
+  let config = JSON.parse(python('scripts.generation_smoke_config'))
   // Explicitly exercise the normalized DEM in addition to vector suitability.
   config.stages.suitability.config.suitability.factors.push({
     code: 'slope', weight: 1, normalization: 'INVERTED_MIN_MAX', raw_min: 0, raw_max: 30,
   })
-  if (mode === 'FROM_SCRATCH') {
+  if (scenario === 'FROM_SCRATCH') {
     // A 20 m road-routing grid avoids over-dense 10 m triangular blocks.
     // Keep the strict nonempty layer checks; tolerances below reflect discrete
     // footprint placement rather than the exact 10 m square smoke fixture.
@@ -49,7 +50,7 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
   }
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
   const project = await checked(await request.post(api + '/projects', {
-    data: { name: 'E2E unseeded ' + mode + ' ' + Date.now(), working_srid: input.working_srid },
+    data: { name: 'E2E unseeded ' + scenario + ' ' + Date.now(), working_srid: input.working_srid },
   }), 201)
   const root = api + '/projects/' + project.id
   await checked(await request.put(root + '/boundary', {
@@ -84,6 +85,29 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
     expect(observed.job_status).toBe('succeeded')
   }
 
+  if (scenario === 'PLANNING_PROFILE') {
+    // Use actual form/preview, not the test-only JSON or a seeded result.
+    await page.route('https://demotiles.maplibre.org/style.json', route => route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ version: 8, sources: {}, layers: [
+        { id: 'background', type: 'background', paint: { 'background-color': '#e8eef4' } },
+      ] }),
+    }))
+    await page.goto('/?project_id=' + project.id)
+    await expect(page.getByText('API: online')).toBeVisible()
+    await page.getByRole('button', { name: 'Генерация' }).click()
+    const planning = page.locator('.planning-config')
+    await planning.getByLabel('Размер ячейки, м').fill('40')
+    await planning.getByLabel('Целевое население, чел.').fill('300')
+    const preview = page.waitForResponse(response =>
+      response.url().endsWith('/generation/planning-config') && response.request().method() === 'POST')
+    await planning.getByRole('button', { name: 'Сформировать конфигурацию' }).click()
+    config = await (await preview).json()
+    expect(config.schema_version).toBe('canonical-stage-configs-v5')
+    expect(config.stages.roads.config.anchor_policy.spatially_balanced).toBe(true)
+    await expect(page.locator('.run-form textarea')).toHaveValue(JSON.stringify(config, null, 2))
+  }
+
   const runtime = await checked(await request.get(api + '/generation/revision'), 200)
   expect(runtime.commit_sha).toBe(revision)
   const mismatch = await request.post(root + '/runs', {
@@ -96,12 +120,30 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
   expect(mismatch.status()).toBe(409)
   const before = await checked(await request.get(root + '/runs'), 200)
   expect(before.runs).toHaveLength(0)
-  const run = await checked(await request.post(root + '/runs', {
-    data: {
-      mode, seed: 20260919, dataset_version_ids: ids,
-      config_schema_version: config.schema_version, config_json: config, commit_sha: revision,
-    },
-  }), 201)
+  const payload = {
+    mode, seed: 20260919, dataset_version_ids: ids,
+    config_schema_version: config.schema_version, config_json: config, commit_sha: revision,
+  }
+  let run
+  if (scenario === 'PLANNING_PROFILE') {
+    const form = page.locator('.run-form')
+    await form.getByLabel('Режим').selectOption(mode)
+    await form.getByLabel('Seed', { exact: true }).fill(String(payload.seed))
+    await expect(form.locator('input[pattern="[0-9a-f]{40}"]')).toHaveValue(revision)
+    await form.getByRole('checkbox', { name: /dem.*ready/ }).check()
+    await form.getByRole('checkbox', { name: /landuse.*ready/ }).check()
+    const created = page.waitForResponse(response =>
+      response.url().endsWith('/projects/' + project.id + '/runs') && response.request().method() === 'POST')
+    await form.getByRole('button', { name: 'Создать запуск' }).click()
+    const response = await created
+    expect(response.status(), await response.text()).toBe(201)
+    const sent = response.request().postDataJSON()
+    expect(sent.config_json).toEqual(config)
+    expect(sent.dataset_version_ids.sort()).toEqual([...ids].sort())
+    run = await response.json()
+  } else {
+    run = await checked(await request.post(root + '/runs', { data: payload }), 201)
+  }
   let result
   await expect.poll(async () => {
     result = await checked(await request.get(root + '/runs/' + run.id), 200)
@@ -117,15 +159,19 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
   const xs = bounds.map((point) => point[0]), ys = bounds.map((point) => point[1])
   const bbox = [Math.min(...xs) - 0.001, Math.min(...ys) - 0.001,
     Math.max(...xs) + 0.001, Math.max(...ys) + 0.001].join(',')
-  for (const [path, layer] of [
+  const layers = [
     ['zoning-runs', 'zones'], ['road-runs', 'roads'], ['block-runs', 'blocks'],
     ['block-runs', 'parcels'], ['building-runs', 'buildings'],
     ['infrastructure-runs', 'facilities'],
-  ]) {
+  ]
+  const geometries = new Map()
+  for (const [path, layer] of layers) {
     const collection = await checked(await request.get(
       root + '/' + path + '/' + run.id + '/' + layer + '/geojson?bbox=' + bbox,
     ), 200)
-    console.log(mode + ' ' + layer + ': ' + collection.features.length + ' features')
+    console.log(scenario + ' ' + layer + ': ' + collection.features.length + ' features')
+    expect(collection.truncated, 'complete ' + layer + ' viewport').toBe(false)
+    geometries.set(layer, collection.features.map(feature => JSON.stringify(feature.geometry)).sort())
     expect(collection.features.length, 'nonempty generated ' + layer).toBeGreaterThan(0)
   }
   const metrics = await checked(await request.get(root + '/metric-runs/' + run.id + '/metrics'), 200)
@@ -140,5 +186,48 @@ test('real uploads → ingest worker → ' + mode + ' → all stages → GIS and
   expect(manifest.datasets.find((item) => item.kind === 'dem').derived_artifacts).toHaveLength(1)
   expect(manifest.stages.map((item) => item.name).sort()).toEqual([...stages].sort())
   expect(provenance.headers()['x-provenance-checksum']).toMatch(/^sha256:[0-9a-f]{64}$/)
+
+  if (scenario === 'FROM_SCRATCH') {
+    // Re-run the same immutable version IDs, config, revision and seed in a
+    // new GenerationRun. Run IDs and provenance timestamps must differ;
+    // geometry multisets must not.
+    const replay = await checked(await request.post(root + '/runs', { data: payload }), 201)
+    expect(replay.id).not.toBe(run.id)
+    let replayState
+    await expect.poll(async () => {
+      replayState = await checked(await request.get(root + '/runs/' + replay.id), 200)
+      return ['succeeded', 'failed', 'cancelled'].includes(replayState.status)
+    }, { timeout: 90_000, intervals: [500, 1000, 2000] }).toBe(true)
+    expect(replayState.status, JSON.stringify(replayState)).toBe('succeeded')
+    for (const [path, layer] of layers) {
+      const collection = await checked(await request.get(
+        root + '/' + path + '/' + replay.id + '/' + layer + '/geojson?bbox=' + bbox,
+      ), 200)
+      expect(collection.truncated).toBe(false)
+      expect(collection.features.map(feature => JSON.stringify(feature.geometry)).sort(),
+        'same-seed geometry: ' + layer).toEqual(geometries.get(layer))
+    }
+    const replayMetrics = await checked(await request.get(root + '/metric-runs/' + replay.id + '/metrics'), 200)
+    expect(replayMetrics.metrics).toEqual(metrics.metrics)
+    expect(replayMetrics.composite_score).toBe(metrics.composite_score)
+    console.log('FROM_SCRATCH: same seed geometry and score replay passed')
+  }
+  if (scenario === 'PLANNING_PROFILE') {
+    // No reload after execution. The layer catalog must discover the new run.
+    const detail = page.locator('.run-detail')
+    await expect(detail.locator('.run-status')).toHaveText('Завершён', { timeout: 30_000 })
+    await expect(detail).toContainText(run.id.slice(0, 8))
+    const buildingResponse = page.waitForResponse(response =>
+      response.url().includes('/building-runs/' + run.id + '/buildings/geojson') && response.status() === 200)
+    await detail.getByRole('button', { name: 'Показать на карте' }).click()
+    const panel = page.locator('.buildings-panel')
+    // Ensure the generated layer is visible even if it defaults to off.
+    const toggle = panel.locator('.buildings-layer-row input')
+    if (!(await toggle.isChecked())) await toggle.check()
+    const mapBuildings = await (await buildingResponse).json()
+    expect(mapBuildings.features.length).toBeGreaterThan(0)
+    await expect(panel.locator('select')).toHaveValue(run.id)
+    await expect(page.locator('.workspace-context-summary')).toContainText(run.id.slice(0, 8))
+  }
 })
 }
