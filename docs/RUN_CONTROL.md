@@ -11,8 +11,10 @@ The run-control API does not execute GIS code or enqueue jobs directly.
   one matching generation_run Job (3 max worker attempts), and one pending
   generation JobOutbox atomically. The input contains canonical mode, signed
   BIGINT-safe nonnegative seed, 1–32 distinct project-owned READY dataset
-  version UUIDs, a finite full JSON config object, nonblank config schema
-  version (max 64), and a 40-hex lowercase executable code commit SHA.
+  version UUIDs, a full typed JSON config for all twelve stages with
+  schema version `canonical-stage-configs-v5`, and a 40-hex lowercase executable
+  code commit SHA. The worker's canonical resolver validates the config before
+  run/job/outbox creation; old or partial configs are rejected.
   The project must have a boundary in its metric working SRID. API checks
   the SHA syntax; deployers must supply the real worker-executable commit.
   No successful processing is implied by HTTP 201.
@@ -30,13 +32,16 @@ The run-control API does not execute GIS code or enqueue jobs directly.
   source, with an explicit rerun_source_id and fresh Job/Outbox. It preserves
   source mode/seed/config/version/code/dataset references, checks current
   boundary/SRID/READY project-owned datasets, and never resets the original
-  run, alters error diagnostics or reuses output artifacts. A row lock on
+  run, alters error diagnostics or reuses output artifacts. A new retry validates
+  the source config against v5; an existing idempotent child is returned unchanged.
+  A row lock on
   the terminal source plus existing child lookup makes duplicate retry
   submissions idempotent for the same source. This is manual input replay,
   not the S12-T11 successful-run exact rerun with artifact/code availability
   proofs; no claim of those proofs is made here.
 
-422 means invalid request shape/bounds; 404 means missing project or run in
+422 means invalid request shape/bounds or incompatible typed stage config;
+404 means missing project or run in
 that project; 409 means unavailable inputs or illegal lifecycle state.
 The existing JobOutbox dispatcher and worker remain the only queue handoff
 and execution path. No migration or second state model is introduced.
@@ -74,10 +79,9 @@ It never marks a Stage complete or fabricates a successful scenario. A
 duplicate delivery for an existing `succeeded`, `in_progress`, or
 `cancelled` run preserves its persisted state.
 
-This **does not implement production stage/config/input composition**.
-Issue #202 remains a release blocker: an actual StageRegistry and typed
-input/config adapters must be wired into `GenerationWorkerSettings` and
-proven via real persisted, non-synthetic data. The safety guard ensures
+The guard is retained even though #216 now installs the complete production
+runtime. Issue #202 remains open until the real upload-to-generation workflow
+is proven without database seeding. The safety guard ensures
 failed jobs release their active-project admission slots (S14-T02) and
 the UI can display a machine-readable cause instead of polling forever.
 

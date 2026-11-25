@@ -14,6 +14,11 @@ from collections.abc import Callable, Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.adapters.stage_config_resolver import (
+    COMPLETE_CONFIG_SCHEMA_VERSION,
+    CanonicalStageConfigResolver,
+    PersistedStageConfigError,
+)
 from backend.app.application.generation import GenerationExecutionError
 from backend.app.application.scenario_matrix import ScenarioConfigVariant, ScenarioMatrixError
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
@@ -26,6 +31,7 @@ from backend.app.models.job_outbox import JobOutbox
 from backend.app.models.project import Project
 from backend.app.models.run_stage_result import RunStageResult
 from backend.app.schemas.run_control import RunJobRead, RunListRead, RunStageRead, RunStateRead
+from core.urban_generator.domain import ConfigRef
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _MAX_SEED = (1 << 63) - 1
@@ -39,6 +45,21 @@ class RunControlNotFound(ValueError):
 
 class RunControlConflict(ValueError):
     """Persisted inputs or lifecycle do not allow the requested transition."""
+
+
+class RunConfigInvalid(RunControlConflict):
+    """A new job would be incompatible with the deployed canonical runtime."""
+
+
+def _validate_config(config_json: Mapping[str, object], schema_version: str) -> None:
+    try:
+        CanonicalStageConfigResolver(schema_version=COMPLETE_CONFIG_SCHEMA_VERSION).resolve(
+            config_json=config_json,
+            schema_version=schema_version,
+            source=ConfigRef(name="generation", ref="run-admission"),
+        )
+    except (PersistedStageConfigError, RecursionError) as exc:
+        raise RunConfigInvalid(f"invalid generation config: {exc}") from exc
 
 
 class SqlAlchemyRunControlService:
@@ -146,6 +167,7 @@ class SqlAlchemyRunControlService:
             raise RunControlConflict("invalid config schema version")
         if _COMMIT_RE.fullmatch(commit_sha) is None:
             raise RunControlConflict("commit_sha must be a real lowercase 40-hex revision")
+        _validate_config(config_json, config_schema_version)
         try:
             config = ScenarioConfigVariant.from_config(
                 name="manual_run", config_json=config_json
@@ -218,6 +240,7 @@ class SqlAlchemyRunControlService:
                         raise RunControlConflict("source working SRID has changed")
                     if source.commit_sha is None or _COMMIT_RE.fullmatch(source.commit_sha) is None:
                         raise RunControlConflict("source code revision is missing")
+                    _validate_config(source.config_json, source.config_schema_version)
                     try:
                         config = ScenarioConfigVariant.from_config(
                             name="manual_retry", config_json=source.config_json

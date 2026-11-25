@@ -28,6 +28,7 @@ from core.urban_generator.metrics.score import (
     CompositeScoreMetricResult,
     CompositeScoreResult,
 )
+from scripts.generation_smoke_config import smoke_generation_config
 
 WORKING_SRID = 32637
 COMMIT = "a" * 40
@@ -82,8 +83,8 @@ def _payload(version_id: uuid.UUID) -> dict[str, object]:
         "mode": "EXPANSION",
         "seed": 42,
         "dataset_version_ids": [str(version_id)],
-        "config_json": {"scenario": {"density": "medium"}},
-        "config_schema_version": "1",
+        "config_json": smoke_generation_config(),
+        "config_schema_version": "canonical-stage-configs-v5",
         "commit_sha": COMMIT,
     }
 
@@ -116,7 +117,7 @@ def test_create_cancel_queued_and_idempotent_retry_are_atomic() -> None:
     with Session(engine) as session:
         stored = session.get(GenerationRun, run_id)
         assert stored is not None
-        assert stored.config_json == {"scenario": {"density": "medium"}}
+        assert stored.config_json == smoke_generation_config()
         assert [v.id for v in stored.dataset_versions] == [version_id]
         job = session.scalar(select(Job).where(Job.run_id == run_id))
         assert job is not None
@@ -241,6 +242,44 @@ def test_invalid_create_and_project_scoping_do_not_create_partial_jobs() -> None
     assert client.get(f"/api/v1/projects/{uuid.uuid4()}/runs").status_code == 404
     assert client.get(f"/api/v1/projects/{project_id}/runs?limit=101").status_code == 422
     assert _counts() == (before[0] + 1, before[1] + 1, before[2] + 1)
+
+
+@pytest.mark.parametrize("change", ["legacy", "missing_stage", "unknown_option", "wrong_version"])
+def test_invalid_typed_config_never_creates_run_job_or_outbox(change: str) -> None:
+    project_id, version_id = _fixture()
+    payload = _payload(version_id)
+    config = payload["config_json"]
+    assert isinstance(config, dict)
+    stages = config["stages"]
+    if change == "legacy":
+        payload["config_schema_version"] = "1"
+    elif change == "missing_stage":
+        del stages["persist_manifest"]
+    elif change == "unknown_option":
+        stages["prepare_snapshot"]["config"]["unknown"] = True
+    else:
+        stages["roads"]["stage_version"] = "99"
+    response = client.post(f"/api/v1/projects/{project_id}/runs", json=payload)
+    assert response.status_code == 422, response.text
+    assert "invalid generation config" in response.json()["detail"]
+    assert _counts() == (0, 0, 0)
+
+
+def test_retry_of_legacy_config_never_creates_new_job() -> None:
+    project_id, version_id = _fixture()
+    run_id = uuid.UUID(_create(project_id, version_id).json()["id"])
+    with Session(engine) as session:
+        with session.begin():
+            run = session.get(GenerationRun, run_id)
+            job = session.scalar(select(Job).where(Job.run_id == run_id))
+            assert run is not None and job is not None
+            run.status = job.status = "failed"
+            run.config_schema_version = "1"
+            run.config_json = {}
+    before = _counts()
+    response = client.post(f"/api/v1/projects/{project_id}/runs/{run_id}/retry")
+    assert response.status_code == 422, response.text
+    assert _counts() == before
 
 
 def test_failed_source_retry_revalidates_current_refs_without_reopening_ready() -> None:

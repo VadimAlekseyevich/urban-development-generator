@@ -84,6 +84,11 @@ test('create → upload → ready fixture → run → inspect → compare → CS
   await page.getByRole('button', { name: 'Генерация' }).click()
   const runForm = page.locator('.run-form')
   await runForm.locator('input[pattern="[0-9a-f]{40}"]').fill('a'.repeat(40))
+  const configText = execFileSync('docker', [
+    'compose', 'exec', '-T', 'api', 'uv', 'run', '--no-dev',
+    'python', '-m', 'scripts.generation_smoke_config',
+  ], { cwd: repoRoot, encoding: 'utf8', timeout: 60_000 })
+  await runForm.locator('textarea').fill(configText.trim())
   const createRunResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' &&
     response.url().endsWith('/projects/' + projectId + '/runs'),
