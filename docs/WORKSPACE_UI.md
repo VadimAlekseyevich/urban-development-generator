@@ -24,8 +24,12 @@ a second layer registry, Stage model, metrics vocabulary or job lifecycle.
    project/version/run/artifact owner binding and the specialist vector/raster
    panels. When the project changes, owner-qualified panel instances are
    remounted and stale source features are cleared.
-4. In **Генерация**, edit mode, seed, config schema/version, full JSON and
-   executable commit SHA. Create/cancel/retry and progress go through the
+4. In **Генерация**, choose 1–32 ready dataset versions from the project catalog
+   (20 per page). Selections persist across pages and are independent of the
+   map's inspected version; a project change clears them. Choose mode and seed,
+   import a complete v5 JSON file (up to 1 MiB) or paste/edit its content, and
+   specify the executable commit SHA. A structured planning preset/editor is
+   still required; file import is not that preset. Create/cancel/retry and progress go through the
    existing DB/outbox-authoritative S12 run endpoints; successful runs can
    be explicitly pinned to the map without first comparing them.
 5. In **Анализ**, use the persisted metrics dashboard and 2–10 run comparison.
