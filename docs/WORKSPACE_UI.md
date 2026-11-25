@@ -28,8 +28,11 @@ a second layer registry, Stage model, metrics vocabulary or job lifecycle.
    (20 per page). Selections persist across pages and are independent of the
    map's inspected version; a project change clears them. Choose mode and seed,
    import a complete v5 JSON file (up to 1 MiB) or paste/edit its content, and
-   specify the executable commit SHA. A structured planning preset/editor is
-   still required; file import is not that preset. Create/cancel/retry and progress go through the
+   specify the executable commit SHA. The initial neighbourhood profile can
+   instead build the same v5 JSON from bounded numeric fields and a suitability
+   source. Explicitly click «Сформировать конфигурацию» to replace the JSON;
+   preview does not queue work. It is a pilot profile, not a planning standard
+   or a validated city-wide default. Create/cancel/retry and progress go through the
    existing DB/outbox-authoritative S12 run endpoints; successful runs can
    be explicitly pinned to the map without first comparing them.
 5. In **Анализ**, use the persisted metrics dashboard and 2–10 run comparison.
