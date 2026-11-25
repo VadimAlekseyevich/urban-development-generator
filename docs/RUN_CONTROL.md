@@ -17,7 +17,7 @@ The run-control API does not execute GIS code or enqueue jobs directly.
   code commit SHA. The worker's canonical resolver validates the config before
   run/job/outbox creation; old or partial configs are rejected.
   The project must have a boundary in its metric working SRID. API checks
-  the SHA syntax; deployers must supply the real worker-executable commit.
+  SHA syntax and, when labelled, the executable backend build revision.
   No successful processing is implied by HTTP 201.
 - GET /api/v1/projects/{project_id}/runs?limit=50 returns 1–100 newest
   project-owned rows, with truncation signal; GET /.../runs/{run_id} returns
@@ -89,3 +89,29 @@ the UI can display a machine-readable cause instead of polling forever.
 Integration regression: `tests/integration/test_generation_worker_e2e.py`
 verifies missing-factory terminal DB failure and unchanged successful
 run state on duplicate delivery.
+
+
+## Executable backend revision
+
+Build API and workers from the same clean checkout with:
+
+```sh
+export GENERATION_BUILD_REVISION=$(git rev-parse HEAD)
+docker compose up -d --build
+# Production: use --env-file .env.production -f compose.production.yml
+```
+
+The build argument is written to /app/.generation-revision in each backend
+image. GET /api/v1/generation/revision exposes the API image's revision;
+the browser populates a read-only commit field when present. New manual
+runs/retries reject mismatching revisions before enqueue; the actual
+generation runtime independently checks persisted SHA against its own
+marker before executing stages, including runs queued by other callers.
+
+Production generation fails closed if unlabelled. Local unlabelled
+development allows explicit manual SHA but marks it unverified.
+The marker is deployment metadata, not cryptographic attestation; build
+from a clean checkout and use the same immutable image for API and worker.
+Browser CI builds with its actual checkout SHA and verifies mismatch
+rejection and successful execution. For local E2E, export the build
+revision before building the stack.
