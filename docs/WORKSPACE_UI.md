@@ -85,3 +85,15 @@ the panel. Drawing/editing on the map is not included in this slice.
 The real browser ingest test now also exercises boundary persistence and the
 subsequent canonical GET before importing the source roads. This does not
 resolve the production generation worker blocker (#202).
+
+
+### Newly completed runs
+
+Pinning a run refreshes generated layer catalogs and the metric catalog,
+so results created after the workspace was opened can be discovered without
+reloading the application. The planning preset opts into deterministic
+spatially balanced eligible road anchors (bounded to 128 picks and 250,000
+sampled cells) and parcel-or-block placement; mixed/public blocks without
+residential parcels can receive their eligible archetype. Existing JSON
+omitting the anchor flag retains score-ranked sampling. These are model
+choices, not standards; the pilot browser profile acceptance is still pending.
