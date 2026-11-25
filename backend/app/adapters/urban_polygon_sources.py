@@ -195,13 +195,17 @@ class SqlAlchemyUrbanPolygonSourceReader:
                 try:
                     version_id, version_number = _source_version(ref)
                 except FixedRoadSourceReadError as exc:
-                    raise UrbanPolygonSourceError("invalid polygon dataset version reference") from exc
+                    raise UrbanPolygonSourceError(
+                        "invalid polygon dataset version reference"
+                    ) from exc
                 if version_id in seen:
                     raise UrbanPolygonSourceError("duplicate polygon dataset version")
                 seen.add(version_id)
                 selected.add((version_id, version_number))
             if selected != expected:
-                raise UrbanPolygonSourceError("polygon versions differ from ready run-linked inputs")
+                raise UrbanPolygonSourceError(
+                    "polygon versions differ from ready run-linked inputs"
+                )
             for version_id, _ in sorted(selected):
                 wrong = session.scalar(
                     select(table.c.id).where(
