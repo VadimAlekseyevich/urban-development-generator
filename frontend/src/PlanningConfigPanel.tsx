@@ -84,6 +84,7 @@ export function PlanningConfigPanel({ apiBase, projectId, disabled, onLoading, o
       <p className="helper-text">
         Модельные допущения, не градостроительные нормы. Один тип прямоугольного здания,
         рекреация без зданий, один тип клиники. Результат зависит от входов и валидации.
+        Изменения полей применяются к JSON только кнопкой формирования профиля.
       </p>
       <label>Источник пригодности территории
         <select value={source} onChange={(event) => { setSource(event.target.value); setApplied(false) }}>
