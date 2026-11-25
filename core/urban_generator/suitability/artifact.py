@@ -92,7 +92,7 @@ class SuitabilityArtifactStatistics:
 
 @dataclass(frozen=True, slots=True)
 class SuitabilityArtifact:
-    """Ready canonical GeoTIFF plus statistics and provenance."""
+    """Canonical temporary or ready GeoTIFF plus statistics and provenance."""
 
     stat: ArtifactStat
     statistics: SuitabilityArtifactStatistics
@@ -128,10 +128,13 @@ class SuitabilityArtifactWriter:
         result: WeightedSuitabilityResult,
         config: SuitabilityConfig,
         hard_mask: HardExclusionMask,
+        promote: bool = True,
     ) -> SuitabilityArtifact:
         if not isinstance(store, ArtifactStore):
             raise SuitabilityArtifactError("store must implement ArtifactStore")
         require_temporary_artifact_ref(output_ref)
+        if type(promote) is not bool:
+            raise SuitabilityArtifactError("promote must be boolean")
         _validate_inputs(result=result, config=config, hard_mask=hard_mask)
         if result.grid.cell_count > self._max_cells:
             raise SuitabilityArtifactError(
@@ -159,15 +162,15 @@ class SuitabilityArtifactWriter:
                     provenance=provenance,
                 )
                 with output_path.open("rb") as source:
-                    store.put(output_ref, source, content_type=_CONTENT_TYPE)
-                ready_stat = store.promote(output_ref)
+                    temporary_stat = store.put(output_ref, source, content_type=_CONTENT_TYPE)
+                final_stat = store.promote(output_ref) if promote else temporary_stat
         except Exception:
             _best_effort_delete(store, output_ref)
             _best_effort_delete(store, ready_ref)
             raise
 
         return SuitabilityArtifact(
-            stat=ready_stat,
+            stat=final_stat,
             statistics=statistics,
             provenance=provenance,
             windows_written=windows_written,

@@ -93,7 +93,11 @@ class EarlyGenerationInputResolver:
                 raise GenerationExecutionError("missing hard exclusion mask")
             return StageInvocation(
                 stage_input=SuitabilityStageInput(grid=mask.grid, hard_mask=mask),
-                input_parts=tuple(ref.source_ref for ref in context.snapshot.dem),
+                input_parts=tuple(
+                    ref.source_ref for ref in (
+                        *context.snapshot.dem, *context.snapshot.landuse, *context.snapshot.roads,
+                    )
+                ),
                 config_parts=(json.dumps(asdict(config), sort_keys=True, allow_nan=False),),
             )
         raise GenerationExecutionError(f"unsupported early stage or config: {stage.name}")

@@ -18,6 +18,7 @@ from backend.app.adapters import (
 from backend.app.application.generation import (
     GenerationClaimDisposition,
     GenerationExecutionError,
+    StageCompletionInput,
     StageInvocation,
 )
 from backend.app.db.generation_state import SqlAlchemyGenerationStateStore
@@ -394,3 +395,55 @@ def test_cancel_request_after_completed_stage_blocks_final_success() -> None:
     assert run.status == job.status == "cancelled"
     assert run.error_json is not None
     assert run.error_json["details"]["stage_name"] == "assembly"
+
+
+def test_materializer_failure_rolls_back_db_side_effect_and_stage_status() -> None:
+    class FailingMaterializer:
+        def materialize(self, *, session, run_id, stage_name, result, completion):
+            assert stage_name == "root"
+            assert completion.stage_input == 1
+            run = session.get(GenerationRun, run_id)
+            run.metrics_json = {"partial": 123}
+            session.flush()
+            raise RuntimeError("injected publication failure")
+
+    run_id, job_id = _setup()
+    store = SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory, materializer=FailingMaterializer(),
+    )
+    assert store.claim(run_id=run_id) is GenerationClaimDisposition.STARTED
+    store.start_stage(run_id=run_id, identity=_identity(store, run_id))
+    with pytest.raises(RuntimeError, match="injected publication"):
+        store.complete_stage(
+            run_id=run_id, stage_name="root",
+            result=StageResult(output=2, fingerprint=build_stage_fingerprint("result")),
+            completion=StageCompletionInput(stage_input=1, config="fixture"),
+        )
+    run, _, stage = _rows(run_id, job_id)
+    assert "partial" not in (run.metrics_json or {})
+    assert stage.status == "running"
+    assert stage.output_fingerprint is None
+    store.fail_stage(run_id=run_id, stage_name="root")
+    store.fail_run(run_id=run_id, stage_name="root", error=PermanentError("publication failed"))
+    assert _rows(run_id, job_id)[0].status == "failed"
+
+
+def test_materializer_not_called_after_cancel_request() -> None:
+    class ForbiddenMaterializer:
+        def materialize(self, **kwargs):
+            raise AssertionError("cancelled stage must not publish")
+
+    run_id, job_id = _setup()
+    store = SqlAlchemyGenerationStateStore(
+        session_factory=SessionFactory, materializer=ForbiddenMaterializer(),
+    )
+    assert store.claim(run_id=run_id) is GenerationClaimDisposition.STARTED
+    store.start_stage(run_id=run_id, identity=_identity(store, run_id))
+    assert store.request_cancel(run_id=run_id)
+    with pytest.raises(CancelledError):
+        store.complete_stage(
+            run_id=run_id, stage_name="root",
+            result=StageResult(output=2, fingerprint=build_stage_fingerprint("result")),
+            completion=StageCompletionInput(stage_input=1, config="fixture"),
+        )
+    assert _rows(run_id, job_id)[2].status == "running"
