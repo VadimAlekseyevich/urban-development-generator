@@ -44,8 +44,8 @@ from core.urban_generator.domain import (
     require_stage_input,
 )
 from core.urban_generator.stages.buildings import BuildingStageBlockRef, BuildingStageOutput
-from core.urban_generator.zoning import ZoneClass
 from core.urban_generator.stages.catalog import BUILDINGS_STAGE, DEMOGRAPHY_STAGE
+from core.urban_generator.zoning import ZoneClass
 
 
 @dataclass(frozen=True, slots=True)
