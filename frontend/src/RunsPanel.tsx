@@ -8,6 +8,7 @@ import {
   type RunState,
 } from './runApi'
 import { useRunPolling } from './runPolling'
+import { PlanningConfigPanel } from './PlanningConfigPanel'
 import { fetchDatasetVersions, type DatasetVersionInfo, type DatasetVersionPage } from './uploadApi'
 import './runs.css'
 
@@ -195,6 +196,9 @@ export function RunsPanel({
         <p className="section-kicker">S12 · Generation</p>
         <h2>Запуски и прогресс</h2>
       </div>
+      <PlanningConfigPanel apiBase={apiBase} projectId={projectId}
+        disabled={busy || configLoading} onLoading={setConfigLoading}
+        onApply={(value) => { setConfigText(value); setConfigFileError(null); setActionError(null) }} />
       <form className="run-form" onSubmit={(event) => { void submitCreate(event) }}>
         <label>
           Режим

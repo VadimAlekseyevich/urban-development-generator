@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, NoReturn
+from typing import Annotated, Any, NoReturn
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from backend.app.api.dependencies import RunControlServiceDep
+from backend.app.application.planning_config import PlanningParameters, build_planning_config
 from backend.app.db.run_control import RunConfigInvalid, RunControlConflict, RunControlNotFound
 from backend.app.schemas.run_control import RunCreate, RunListRead, RunStateRead
 
 router = APIRouter(prefix="/projects/{project_id}/runs", tags=["runs"])
+config_router = APIRouter(prefix="/generation", tags=["generation-config"])
 
 
 def _raise_run_error(exc: RunControlNotFound | RunControlConflict) -> NoReturn:
@@ -52,6 +54,15 @@ def create_run(
         )
     except (RunControlNotFound, RunControlConflict) as exc:
         _raise_run_error(exc)
+
+
+@config_router.post("/planning-config")
+def planning_config(payload: PlanningParameters) -> dict[str, Any]:
+    """Preview a complete canonical profile; this endpoint never queues work."""
+    try:
+        return build_planning_config(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/{run_id}", response_model=RunStateRead)

@@ -141,3 +141,31 @@ as the worker before job admission. Invalid configs return HTTP 422 without
 creating run/job/outbox records. Historical runs remain readable and existing
 retry children retain their idempotent identity. Configuration admission alone
 does not prove input completeness or GIS success.
+
+
+## Initial neighbourhood profile (preview)
+
+`POST /api/v1/generation/planning-config` accepts the bounded
+`PlanningParameters` object (all fields optional with explicit defaults;
+unknown keys, nonfinite values, noninteger counts and zone shares not summing
+to 100 are rejected). It returns the full canonical v5 JSON without database
+writes, job creation or execution. The same strict resolver used by admission
+and the worker validates the returned config. The browser exposes these
+parameters, then submits the resulting editable JSON through normal run creation.
+
+Defaults are **model assumptions, not validated planning standards**:
+10 m cell, 60/20/10/10 percent residential/mixed/public/recreation, 16 zoning
+seeds, up to 24 road anchors, 20,000 m² max block area, 4 floors, 0.25 coverage
+and FAR 1.0, 1,000 target residents, 30 m²/person, 800 m clinic network distance,
+1,000 clinic capacity. Floors and coverage consistently set the fixed floor
+range, planning GFA multiplier and target FAR. Targets are not guaranteed outputs.
+
+The default suitability source is slope (requires one usable ready DEM,
+inverted linear normalization 0–30 degrees); alternatively landuse requires
+ready categorical data and recognizes residential, grass, meadow and farmland,
+invalidating unknown classes. The profile uses rectangular point buildings in
+residential/mixed/public zones, no recreation buildings, and one clinic type.
+Existing facility mappings cover clinic only. Advanced users can edit the full
+JSON or import a saved config. Code identity verification, multi-factor/user
+mapping controls, more archetypes and facilities, source compatibility and
+unseeded successful execution of this profile remain acceptance work.
