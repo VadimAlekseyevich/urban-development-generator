@@ -164,7 +164,7 @@ def test_dem_rejects_unlinked_version_and_size_budget(dem) -> None:
             pytest.fail("oversized source")
 
 
-def test_dem_rejects_changed_artifact_bytes(dem) -> None:
+def test_dem_rejects_missing_artifact(dem) -> None:
     store, snapshot, grid, ref = dem
     store.delete(ref)
     with pytest.raises(DEMSourceReadError, match="unable to read"):
@@ -172,3 +172,17 @@ def test_dem_rejects_changed_artifact_bytes(dem) -> None:
             artifact_store=store, session_factory=_session,
         ).open(snapshot=snapshot, grid=grid):
             pytest.fail("missing artifact")
+
+
+def test_dem_rejects_same_size_corrupted_payload(dem, tmp_path: Path) -> None:
+    store, snapshot, grid, ref = dem
+    payload = tmp_path / "store" / "ready" / ref.key
+    with payload.open("r+b") as stream:
+        original = stream.read(1)
+        assert original
+        stream.seek(0)
+        stream.write(bytes([original[0] ^ 0xFF]))
+    reader = SqlAlchemyDEMSourceReader(artifact_store=store, session_factory=_session)
+    with pytest.raises(DEMSourceReadError, match="checksum"):
+        with reader.open(snapshot=snapshot, grid=grid):
+            pytest.fail("corrupted artifact")
